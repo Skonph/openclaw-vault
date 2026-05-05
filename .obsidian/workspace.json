@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OpenClaw/03_Watchlist.md",
+                "file": "templates/Git_update.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "03_Watchlist"
+              "title": "Git_update"
             }
           }
         ]
@@ -185,8 +185,11 @@
   },
   "active": "a26e2a9ea8bd212f",
   "lastOpenFiles": [
-    "OpenClaw/02_Ruleset_v3.md",
+    "OpenClaw/07_Macro_Context.md",
+    "templates/Git_update.md",
+    "Untitled.md",
     "OpenClaw/03_Watchlist.md",
+    "OpenClaw/02_Ruleset_v3.md",
     "OpenClaw/06_Lessons_Learned.md",
     "OpenClaw/00_START_HERE.md",
     "templates/Trade_Card_Template.md",
@@ -197,7 +200,6 @@
     "trades/Trade_AAL_20260427.md",
     "templates/Daily_Checklist.md",
     "trade/Untitled.md",
-    "OpenClaw/07_Macro_Context.md",
     "OpenClaw/05_System_Architecture.md",
     "OpenClaw/04_Trade_Journal.md",
     "00_START_HERE.md.md",

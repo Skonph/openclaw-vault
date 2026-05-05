@@ -1,61 +1,16 @@
 # Macro Context — OpenClaw
-**Updated:** May 2, 2026
+## CCL Update — May 5, 2026
+- Price: $26.06 (+1.50% today)
+- $28C OI: 922 (was 295 on May 1) ✅
+- $30C OI: 437 (was 375 on May 1) ✅
+- IV: 51% — unchanged from May 1
+- Status: 6/7 rules passing — only IV blocking
+- Institutional signal: $27C OI = 2,076 — large position
+- Next trigger: Crude oil <$98 → watch for IV drop
 
-## Current Market Environment
-
-| Indicator | Level | Signal | Trend |
-|-----------|-------|--------|-------|
-| S&P 500 | ~7,137 | Flat/mixed | Recovering |
-| VIX | 16.89 | Above target | ↓ Compressing fast |
-| WTI Crude | $101.94 | Above target | ↓ Falling |
-| Gold | $4,633 | High | Stable |
-| Bitcoin | ~$76,200 | Stable | Neutral |
-
-## Key Macro Events
-
-### Iran Conflict (Feb 2026 — present)
-- US-Iran conflict began late February 2026
-- Strait of Hormuz closure disrupted ~20% global oil
-- Crude spiked ~60% from pre-conflict levels
-- Diplomacy phase now underway
-- Impact: Elevated IV across travel/energy sectors
-- Watch: Peace deal = oil drops = IV compression
-
-### VIX Compression
-- 30-day range: 16.44 – 31.65
-- Current: 16.89 (down 38.5% in 30 days)
-- Target for trades: <15
-- ETA: 3-7 days at current rate
-
-### Crude Oil
-- Current: $101.94/bbl
-- Pre-conflict level: ~$63/bbl
-- Target for CCL trades: <$95
-- ETA: Unknown — diplomacy dependent
-
-## Sector Impacts
-
-### Consumer Discretionary (CCL, NCLH)
-- Cruise routes disrupted by Iran conflict
-- High fuel costs = margin compression
-- IV elevated due to uncertainty
-- Catalyst: Oil price decline + summer bookings
-- Outlook: Positive once Iran resolved
-
-### Industrials (AAL)
-- Airline routes disrupted
-- Fuel costs +$4B for AAL in 2026
-- IV elevated
-- Q1 beat but 2026 guidance cut
-- Outlook: Cautious
-
-### Materials (VALE)
-- Iron ore demand from China stable
-- Options OI thin — structural issue
-- Outlook: Neutral
-
-## Triggers to Monitor Daily
-1. Iran diplomatic progress (Google News)
-2. WTI crude price (oilprice.com)
-3. VIX level (Yahoo Finance)
-4. NCLH earnings May 4 result
+## NCLH Update — May 5, 2026  
+- Price: $17.00 (-1.13%)
+- Post-earnings IV: 61% — no crush occurred
+- OI building: $19C=329, $20C=269
+- Status: HOLD — IV and OI both blocking
+- Same macro trigger as CCL needed
