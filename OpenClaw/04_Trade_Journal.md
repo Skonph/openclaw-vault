@@ -54,3 +54,11 @@
 | May 1  | CLF $10/$12  | IV 54%, earnings May 22 | IV filter critical       |
 | May 1  | VALE $16/$18 | OI=5, bids dead         | OI filter needed         |
 | May 1  | CCL $30/$32  | IV 51%                  | Rules enforced correctly |
+
+## Session Log
+| Date | Action | Result |
+|------|--------|--------|
+| May 5 | Nova scan violation — corrected | ✅ |
+| May 5 | CCL verified 6/7 rules | HOLD |
+| May 5 | NCLH post-earnings verified | HOLD |
+| May 5 | System in silent watch mode | Active |
