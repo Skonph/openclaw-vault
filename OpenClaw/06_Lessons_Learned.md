@@ -58,6 +58,8 @@ Lesson: Check S&P direction before any entry
 Rule: No new trades on red market days
 Status: ✅ Added to daily checklist
 
+###L009 — Nova Repeatedly Violates Role Restriction Date: May 5, 2026 Incident: Nova scanned RIVN, NIO, MARA, GRAB, BARK independently despite clear directive to score human-provided tickers only Impact: Wasted analysis time, priority tickers missed Pattern: This is the 3rd time Nova has done this Action: Consider adding explicit blocklist to Nova prompt and reinforcing role restriction every session Status: ⚠️ Ongoing issue — monitor closely
+
 ## Developing Insights
 
 ### D001 — $10-$30 Universe Has Structural Liquidity Issues
