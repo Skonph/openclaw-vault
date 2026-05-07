@@ -1,16 +1,21 @@
-## May 6 Update — IV Compression Beginning
+## May 7 Update — Broker Accounts Opened
 
-CCL IV compression confirmed: 51% → 49%
-VIX compression confirmed: 16.89 → 16.50
-WTI minor uptick: $101.94 → $102.50
+New accounts: IBKR ($2,200) + Tradier ($0)
+Decision: Option A — continue paper only ✅
+Reason: Graduation threshold not yet reached
+         Win rate 0/2, need 60% over 20 trades
 
-CCL trigger estimate: 3-4 trading days
-if current IV compression rate holds (-2%/day)
+Live capital locked until:
+- 20 trades completed
+- 60% win rate achieved
+- 100% rule compliance confirmed
 
-Watch dates:
-- May 7: Check if CCL IV reaches 47%
-- May 8: Check if CCL IV reaches 45%
-- May 9: Potential trigger zone if trend holds
+CCL May 7 update:
+- Price: $27.94 (+1.54%) ✅ bullish
+- IV: 51% — stalled, needs oil catalyst
+- OI: 922/437 ✅ strong liquidity
+- Verdict: HOLD — IV only blocker
 
-Action: Continue daily monitoring.
-Next review: May 7, 9:30 PM Bangkok.
+WTI crude: check tonight
+VIX: 17.24 (Tradier dashboard)
+Next review: May 8, 9:30 PM Bangkok

@@ -32,11 +32,6 @@ Bull Call Spreads (Debit Spreads) on US equities
 - Prepares execution code
 - Maintains this knowledge base
 
-### Cowork Automation
-- Task 1: VALE daily snapshot (9:30 PM Bangkok)
-- Task 2: VALE trade analyzer (9:35 PM Bangkok)
-- Saves to: /Users/SkonP/AI_Prompt/trade/price_snapshots/
-
 ## Capital
 - Starting: $3,000 paper capital
 - Current: ~$2,946
@@ -45,6 +40,32 @@ Bull Call Spreads (Debit Spreads) on US equities
 
 ## Timeline
 - Started: ~Apr 27, 2026
-- Current date: May 2, 2026
+- Current date: May 7, 2026
 - Graduation target: $3,500 with 60% win rate
   over 20 trades → deploy $500 real capital
+  
+## Broker Accounts (Opened May 7, 2026)
+
+| Broker | Account | Balance | Status |
+|--------|---------|---------|--------|
+| IBKR | U25439978 | $2,200 | Funded — LIVE STANDBY |
+| Tradier | 6YB80974 | $0 | Unfunded — STANDBY |
+| Alpaca | Paper | $2,946 | ACTIVE — paper trading |
+
+## Live Trading Policy
+Status: LOCKED until graduation threshold met
+
+Graduation requires ALL of:
+- Paper account reaches $3,500
+- Win rate ≥60% over 20 trades
+- 100% rule compliance
+- Zero rule exceptions taken
+
+Current progress:
+- Trades completed: 2 of 20 minimum
+- Win rate: 0/2 (0%)
+- Capital: $2,946 of $3,500 target
+- Rule compliance: Improving
+
+DO NOT deploy real capital until ALL criteria met.
+IBKR and Tradier accounts sit idle until graduation.

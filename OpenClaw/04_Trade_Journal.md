@@ -62,3 +62,14 @@
 | May 5 | CCL verified 6/7 rules | HOLD |
 | May 5 | NCLH post-earnings verified | HOLD |
 | May 5 | System in silent watch mode | Active |
+
+## Graduation Tracker
+| Metric | Current | Target | Progress |
+|--------|---------|--------|---------|
+| Trades | 2 | 20 | 10% |
+| Win rate | 0% | ≥60% | 0% |
+| Capital | $2,946 | $3,500 | 26% of gain needed |
+| Rule compliance | Improving | 100% | In progress |
+| Live accounts | Ready | Locked | Waiting |
+
+Next milestone: First winning trade
