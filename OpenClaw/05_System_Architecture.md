@@ -94,20 +94,6 @@ r = requests.get(
 )
 \`\`\`
 
-## Cowork Tasks
-### Task 1: VALE Daily Snapshot
-- Schedule: 9:30 PM Bangkok daily
-- Output: VALE_GoogleFinance_YYYYMMDD.png
-          VALE_YahooOptions_YYYYMMDD.png
-- Save path: /Users/SkonP/AI_Prompt/trade/price_snapshots/
-
-### Task 2: VALE Trade Analyzer
-- Schedule: 9:35 PM Bangkok daily
-- Input: Today's snapshot files
-- Output: VALE_Analysis_YYYYMMDD.txt
-          VALE_NovaPrompt_YYYYMMDD.txt (if TRADE)
-          VALE_AlpacaOrder_YYYYMMDD.sh (if TRADE)
-
 ## Symbol Format for Alpaca
 [TICKER][YYMMDD]C[8-DIGIT-STRIKE]
 Examples:
@@ -115,3 +101,31 @@ Examples:
 - CCL260529C00028000 = CCL $28C May29 2026
 - AAL260529C00012000 = AAL $12C May29 2026
 Strike format: price × 1000, padded to 8 digits
+
+## IBKR Account (U25439978)
+Status: Funded $2,200 — PAPER USE ONLY until graduation
+URL: interactivebrokers.com
+
+### Tools in Use
+| Tool | Purpose | Frequency |
+|------|---------|-----------|
+| Watchlist | Monitor CCL/NCLH/AAL/VALE/ETFs | Daily |
+| Market Screener 2.0 | Find IV<40% candidates | Daily |
+| Market Overview | Macro context check | Daily |
+| Events Calendar | Earnings date verification | Per trade |
+| Why Is It Moving? | Catalyst confirmation | As needed |
+
+### Saved Screens
+- "OpenClaw Bull Call Setup" — IV<40%, $10-$30, OI>500
+- "OpenClaw Bear Put Setup" — same + downtrend filter
+
+### Watchlist Tickers
+CCL, NCLH, AAL, VALE (primary)
+XLY, XLI, XLE, XLB (sector ETFs)
+VIX (volatility monitor)
+
+## Tradier Account (6YB80974)
+Status: Unfunded — API use only
+Purpose: Automated IV scanning via API
+API endpoint: api.tradier.com/v1
+Setup: Pending API key configuration

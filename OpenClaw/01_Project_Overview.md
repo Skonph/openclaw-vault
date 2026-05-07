@@ -12,6 +12,12 @@ Bull Call Spreads (Debit Spreads) on US equities
 - Net debit = maximum risk
 - Spread width - net debit = maximum reward
 
+Bull Call Spread:  Buy lower call + Sell higher call
+                   Profit when stock RISES
+
+Bear Put Spread:   Buy higher put + Sell lower put  
+                   Profit when stock FALLS
+
 ## System Components
 
 ### Nova (OpenClaw Bot)

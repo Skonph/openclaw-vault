@@ -40,3 +40,33 @@ NCLH: $_____ | IV ____% | Action: ________
 AAL: $_____ | IV ____% | Action: ________
 VIX: _____ | Crude: $_____ | Market: Green/Red
 Notes: _________________________________
+
+### 9:00 PM Bangkok (30 min before scan):
+
+STEP 1 — IBKR Market Overview (5 min)
+→ Check S&P 500 5-day direction
+→ Check VIX level
+→ Check crude oil price
+→ Note sector winners/losers
+
+STEP 2 — IBKR Market Screener 2.0 (5 min)
+→ Run "OpenClaw Bull Call Setup" screen
+→ Note any tickers showing IV < 40%
+→ Run "OpenClaw Bear Put Setup" if market down
+→ Add any new qualifying tickers to list
+
+STEP 3 — IBKR Events Calendar (2 min)
+→ Check earnings dates for all candidates
+→ Eliminate any within 14 days
+
+STEP 4 — Yahoo Finance Options Chain (5 min)
+→ Pull chain for top 1-2 candidates only
+→ Screenshot for human verification
+→ Confirm OI > 500 on target strikes
+
+STEP 5 — Send to Nova (2 min)
+→ Share screened candidates + screenshots
+→ Request conviction score
+→ Await scoring before any order
+
+Total time: ~20 minutes vs current 45+ minutes

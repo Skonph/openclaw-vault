@@ -1,21 +1,20 @@
-## May 7 Update — Broker Accounts Opened
+## May 7 Evening — AM Trade Conditionally Approved 
 
-New accounts: IBKR ($2,200) + Tradier ($0)
-Decision: Option A — continue paper only ✅
-Reason: Graduation threshold not yet reached
-         Win rate 0/2, need 60% over 20 trades
+AM $22/$23 Jun18 — CONDITIONAL APPROVAL 
+All rules pass except DTE (42 vs 40 limit) 
 
-Live capital locked until:
-- 20 trades completed
-- 60% win rate achieved
-- 100% rule compliance confirmed
+ACTION MAY 9: 
+1. Pull AM options chain at market open (9:30 PM Bangkok) 
+2. Verify: 
+- Price still ~$21 (note div ex-date ~May 12) 
+- Spread mid still ~$0.30 
+- OI unchanged on $22C/$23C 
+- IV still <40% 
+3. If all confirmed → EXECUTE immediately 
+4. Run bash code on server 
 
-CCL May 7 update:
-- Price: $27.94 (+1.54%) ✅ bullish
-- IV: 51% — stalled, needs oil catalyst
-- OI: 922/437 ✅ strong liquidity
-- Verdict: HOLD — IV only blocker
+5. Also check May 9: 
+- CCL IV (crude oil repricing overnight) 
+- PR daily move (if <3% → evaluate) 
 
-WTI crude: check tonight
-VIX: 17.24 (Tradier dashboard)
-Next review: May 8, 9:30 PM Bangkok
+- May 9 could be first trade since rule upgrade.
