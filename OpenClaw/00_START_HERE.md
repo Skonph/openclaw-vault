@@ -1,5 +1,5 @@
 # OpenClaw Trading Project — Start Here
-**Last Updated:** May 6, 2026
+**Last Updated:** May 7, 2026
 **Status:** Active | Paper Trading Phase
 ### Knowledge Base Location on Server 
 ~/trading-bot/knowledge/ 
@@ -31,7 +31,7 @@ See templates/Nova_Session_Prompt.md
 
 ## Load Order for New Instance 
 1. 00_START_HERE.md (this file) 
-2. 02_Ruleset_v3.md 
+2. 02_Ruleset_v4.md 
 3. 03_Watchlist.md 
 4. 04_Trade_Journal.md 
 5. 08_Next_Actions.md 
