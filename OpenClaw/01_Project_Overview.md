@@ -75,3 +75,11 @@ Current progress:
 
 DO NOT deploy real capital until ALL criteria met.
 IBKR and Tradier accounts sit idle until graduation.
+
+## Version History 
+| Version | Date   | Key Changes                                                                                                                                                     |
+| ------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0    | Apr 27 | Initial — conviction ≥68, IV ≤45%                                                                                                                               |
+| v2.0    | Apr 29 | Fill tolerance, auto-cancel, screenshot verify                                                                                                                  |
+| v3.0    | May 1  | Conviction ≥70, IV ≤40%, OI ≥500 added                                                                                                                          |
+| v4.0    | May 8  | IBKR Events Calendar rule, conviction scoring framework, bear put spreads added, market direction filter, candidate discovery workflow, options existence check |

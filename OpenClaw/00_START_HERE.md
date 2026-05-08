@@ -7,7 +7,7 @@
 ## Read in this order:
 1. This file (00_START_HERE.md)
 2. 01_Project_Overview.md
-3. 02_Ruleset_v3.md
+3. 02_Ruleset_v4.md
 4. 03_Watchlist.md
 5. 08_Next_Actions.md
 
