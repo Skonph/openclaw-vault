@@ -1,17 +1,77 @@
-# OpenClaw Watchlist v4.0
-**Updated:** May 7, 2026
-**Ruleset:** v4.0 active
+# 03_Watchlist.md
+**Updated:** May 8, 2026
+**Ruleset:** v4.0
 
 ---
 
-## Macro Triggers — Monitor Daily
+## 🚨 ELEVATED ALERT — Active Candidates
 
-| Signal | Target | Current | Status | Trend |
-|--------|--------|---------|--------|-------|
-| WTI Crude | <$95 | **$94.57** | ✅ **TRIGGERED** | ↓ |
-| VIX | <15 | 17.32 | ❌ Hold | ↓ Compressing |
-| CCL IV | ≤43% | 51% | ❌ Hold | → Stalled |
-| NCLH IV | ≤45% | 58% | ❌ Hold | ↓ Slow |
+### PR (Permian Resources) — CONDITIONAL APPROVAL
+| Field | Value |
+|-------|-------|
+| Price | $19.91 (May 8, 2026) |
+| Sector | Energy ✅ |
+| Earnings | Q1 done May 7 ✅ Next Q2 far |
+| IV $21C | 39.94% ✅ PASSES |
+| IV $22C | 40.72% ❌ 0.72% over limit |
+| OI $21C | 3,783 ✅ |
+| OI $22C | 12,515 ✅ exceptional |
+| OI $25C | 14,291 ✅ institutional |
+| Target Spread | $21/$22 Jun18 |
+| Spread Mid | $0.35 ✅ |
+| DTE | 41 days ❌ (1 over — wait May 9) |
+| Conviction | 73/100 ✅ |
+| Events | Shareholders May 19 (-5), Dividend Jun 16 (-5) |
+| Options vol spike | Today May 8 ✅ positive signal |
+| Status | RECHECK MAY 9 — may fully qualify |
+
+**MAY 9 ACTION:**
+Pull PR Jun18 chain at 9:30 PM Bangkok
+If IV $22C ≤40% AND DTE=40 → EXECUTE
+
+**Execution code ready:**
+```bash
+ssh ubuntu@43.160.222.7 << 'ENDSSH'
+cd ~/trading-bot
+python3 - << 'EOF'
+import os, requests
+from dotenv import load_dotenv
+load_dotenv('/home/ubuntu/trading-bot/.env')
+headers = {
+    'APCA-API-KEY-ID': os.environ.get('ALPACA_API_KEY'),
+    'APCA-API-SECRET-KEY': os.environ.get('ALPACA_SECRET_KEY'),
+    'Content-Type': 'application/json'
+}
+order = {
+    "type": "limit",
+    "time_in_force": "day",
+    "order_class": "mleg",
+    "qty": "1",
+    "limit_price": "0.35",
+    "legs": [
+        {
+            "symbol": "PR260618C00021000",
+            "side": "buy",
+            "ratio_qty": "1",
+            "position_intent": "buy_to_open"
+        },
+        {
+            "symbol": "PR260618C00022000",
+            "side": "sell",
+            "ratio_qty": "1",
+            "position_intent": "sell_to_open"
+        }
+    ]
+}
+r = requests.post(
+    f"{os.environ.get('ALPACA_BASE_URL')}/orders",
+    headers=headers, json=order
+)
+print(f"Status: {r.status_code}")
+print(f"Response: {r.json()}")
+EOF
+ENDSSH
+```
 
 ---
 
@@ -20,24 +80,17 @@
 ### CCL (Carnival Corporation)
 | Field | Value |
 |-------|-------|
-| Price | $27.57 (May 7, 2026) |
+| Price | $26.84 (May 8, 2026) |
 | Sector | Consumer Discretionary ✅ |
-| Earnings | Next ~June ✅ safe |
-| Current IV | 51% — crude oil drop not yet repriced |
-| OI $28C | 934 ✅ above 500 |
-| OI $30C | 564 ✅ above 500 |
-| Target Spread | $28/$30 May29 |
-| Spread Mid | ~$0.45 |
-| IV Trigger | ≤43% → immediate chain pull |
-| IV Gap | 11 points remaining |
-| Catalyst | WTI crude $94.57 ✅ TRIGGERED |
-| Macro status | Oil trigger hit — IV repricing expected May 8 |
-| IBKR Events | Check before entry |
-| Est. trigger | May 8-9 — highest probability window |
-
-**Note:** WTI crude broke $95 today. IV compression
-expected within 24-48 hours. Pull CCL chain at
-market open May 8 — 9:30 PM Bangkok.
+| Earnings | Next ~June ✅ |
+| Current IV | 55-59% — NOT compressing despite crude drop |
+| OI Jun12 | Very low (31-218) — illiquid expiry |
+| OI Jul17 | 2,392-6,058 — too far DTE |
+| Issue | Liquidity gap between May29 and Jul17 |
+| Macro trigger | WTI $94.57 ✅ fired — but IV not responding |
+| Revised thesis | Needs Iran resolution, not just crude drop |
+| Next check | After May 29 expiry — Jun20 OI will build |
+| Est. trigger | Late May / early June |
 
 ---
 
@@ -48,15 +101,11 @@ market open May 8 — 9:30 PM Bangkok.
 |-------|-------|
 | Price | $17.36 (May 7, 2026) |
 | Sector | Consumer Discretionary ✅ |
-| Earnings | May 4 reported ✅ cautious guidance |
-| Current IV | 58% ↓ slow improvement |
-| OI $19C | 335 ❌ below 500 |
-| OI $21C | 175 ❌ below 500 |
-| Target Spread | $19/$21 May29 |
-| IV Trigger | ≤45% AND OI ≥500 both legs |
-| IV Gap | 13 points remaining |
-| Catalyst | Same as CCL — Iran/oil resolution |
-| Est. trigger | Mid-May at earliest |
+| Earnings | May 4 done ✅ — cautious guidance |
+| Current IV | 58% — not compressing |
+| OI | Below 500 at near strikes |
+| Status | HOLD — same Iran/oil thesis as CCL |
+| Est. trigger | Late May |
 
 ---
 
@@ -67,11 +116,10 @@ market open May 8 — 9:30 PM Bangkok.
 |-------|-------|
 | Price | $13.14 (May 7, 2026) |
 | Sector | Industrials ✅ |
-| Earnings | April 23 done ✅ Next ~July |
-| Conviction requirement | ≥72 (prior loss rule) |
-| Current concern | Fuel costs, Iran routes |
-| Status | Monitor — not actively scanning |
-| IBKR signal | +1.55% today — relative strength |
+| Earnings | Q1 done April 23 ✅ |
+| Conviction requirement | ≥72 (prior loss) |
+| IBKR signal | +1.55% relative strength |
+| Status | Monitor |
 
 ---
 
@@ -82,80 +130,111 @@ market open May 8 — 9:30 PM Bangkok.
 |-------|-------|
 | Price | $16.25 (May 7, 2026) |
 | Sector | Materials ✅ |
-| Earnings | May 30 ✅ safe |
-| OI issue | $16C OI was 5 on May 1 |
-| Recheck date | May 15, 2026 |
-| IBKR signal | -1.46% today — weak |
+| Earnings | May 30 ✅ |
+| OI issue | $16C OI = 5 on May 1 |
+| Recheck | May 15, 2026 |
 
 ---
 
-## New Candidates — From IBKR Screener May 7
+## IBKR Screener Candidates
 
 ### AM (Antero Midstream) — REJECTED
-| Field | Value |
-|-------|-------|
-| Price | $21.08 |
-| IV | 23.3% ✅ |
-| OI | 2,023/1,672 ✅ |
-| Conviction | **62/100 ❌** revised down |
-| Reason rejected | 3 bearish signals + Jun 3 meeting |
-| IBKR Events | Williams %R, Momentum, MA cross all bearish |
+| Reason | Detail |
+|--------|--------|
+| Conviction | 62/100 — below 70 |
+| Bearish signals | Williams %R, Momentum, MA cross |
+| Event risk | Shareholders meeting Jun 3 |
 | Recheck | When technicals improve |
 
-### PR (Permian Resources) — WATCH
-| Field | Value |
-|-------|-------|
-| Price | $20.19 |
-| IV | 37.4% ✅ below 40% |
-| Daily move | -4.81% ❌ too volatile May 7 |
-| Status | Recheck May 8 if move <±3% |
-| Potential spread | $20/$22 or $21/$23 May29/Jun18 |
+### PR (Permian Resources) — SEE ELEVATED ALERT ABOVE
+
+---
+
+## IBKR MultiSort Screener — Bull Call Setup
+*Run daily to find new candidates*
+
+Factors to set (prefer LOW values):
+
+1. IV Rank — LOW (want cheap options)
+2. Price/EMA(20) — HIGH (uptrend)
+3. 52W IV Percentile — LOW
+
+Filters:
+
+- Price $10-$30
+- Market Cap >$5B
+- NYSE + NASDAQ only
+- Avg Volume >1M
+
+Save as: "OpenClaw Bull Call"
+
+```
+## IBKR MultiSort Screener — Bear Put Setup
+*Run when market trending down*
+```
+
+Factors to set:
+
+1. IV Rank — LOW
+2. Price/EMA(20) — LOW (downtrend)
+3. Price/EMA(50) — LOW
+
+Same price/volume filters Save as: "OpenClaw Bear Put"
+
+```
+
+## Barchart IV Rank Screener (Free)
+*Use alongside IBKR for IV rank verification*
+```
+
+URL: barchart.com/options/iv-rank-percentile Filter: IV Rank < 40 Filter: Price $10-$30 Use: Cross-reference IBKR screener results
+
+```
+
+---
+
+## IBKR Watchlist Live Monitor
+*Check daily 9:30 PM Bangkok*
+
+| Ticker | Type | Today May 7 | Signal |
+|--------|------|------------|--------|
+| VIX | Index | 17.32 | ↓ Compressing |
+| XLB | ETF | -1.03% | ↓ Materials weak |
+| XLE | ETF | -2.00% | ↓ Energy selling |
+| XLI | ETF | -1.11% | ↓ Industrials weak |
+| XLY | ETF | -0.13% | → Flat |
+| VALE | Stock | -1.46% | ↓ Weak |
+| AAL | Stock | +1.55% | ✅ Strong |
+| NCLH | Stock | -2.20% | ↓ Weak |
+| CCL | Stock | +0.25% | ✅ Relative strength |
+
+---
+
+## Macro Triggers
+
+| Signal | Target | Current | Status |
+|--------|--------|---------|--------|
+| WTI Crude | <$95 | **$94.57** | ✅ TRIGGERED |
+| VIX | <15 | 17.32 | ❌ Compressing |
+| CCL IV | ≤43% | 55-59% | ❌ Not responding |
+| PR $22C IV | ≤40% | 40.72% | ⚠️ 0.72% away |
 
 ---
 
 ## Disqualified Tickers
 
-| Ticker | Reason | Review Date |
-|--------|--------|-------------|
+| Ticker | Reason | Review |
+|--------|--------|--------|
 | CLF | IV 54%+, earnings May 22 | Jun 2026 |
-| PSKY | New ticker, unproven liquidity | Jul 2026 |
-| LUV | Price $37.92 above $30 | Monitor |
-| GOLD | Price $45.19 above $30 | Monitor |
-| RIVN | Proven data unreliability | Never |
+| PSKY | New, unproven liquidity | Jul 2026 |
+| LUV | Price $37.92 > $30 | Monitor |
+| GOLD | Price $45.19 > $30 | Monitor |
+| RIVN | Data unreliability | Never |
 | PARA | Delisted | N/A |
 | SOFI | Earnings miss, IV spike | Sep 2026 |
 | HOOD | Earnings miss, IV spike | Sep 2026 |
-| MARA | IV 87-102% extreme | Monitor |
-| NIO | Below $10 minimum | Monitor |
-| GRAB | Below $10 minimum | Monitor |
-| PHG | Low volume 829K, ADR liquidity | Monitor |
-| AM | Bearish signals, low conviction 62 | Monitor |
-
----
-
-## IBKR Watchlist (Live Monitor)
-*Check daily at 9:30 PM Bangkok*
-
-| Ticker | Type | Purpose | Today |
-|--------|------|---------|-------|
-| CCL | Stock | Primary trade | +0.25% |
-| NCLH | Stock | Secondary trade | -2.20% |
-| AAL | Stock | Tertiary trade | +1.55% |
-| VALE | Stock | Low priority | -1.46% |
-| XLY | ETF | Consumer Disc direction | -0.13% |
-| XLI | ETF | Industrials direction | -1.11% |
-| XLE | ETF | Energy direction | -2.00% |
-| XLB | ETF | Materials direction | -1.03% |
-| VIX | Index | Volatility monitor | 17.32 |
-
----
-
-## Candidate Discovery Sources
-
-| Source                | Use                           | Frequency     |
-| --------------------- | ----------------------------- | ------------- |
-| IBKR Watchlist        | Monitor existing candidates   | Daily         |
-| IBKR Market Screener  | Find new $10-$30 candidates   | Daily         |
-| IBKR Events Calendar  | Verify no event risks         | Per trade     |
-| Yahoo Finance Options | Verify IV and OI              | Per candidate |
-| Google Finance        | Price verification screenshot | Per trade     |
+| MARA | IV 87-102% | Monitor |
+| NIO | Below $10 | Monitor |
+| GRAB | Below $10 | Monitor |
+| AM | Conviction 62, bearish signals | Monitor |
+```
