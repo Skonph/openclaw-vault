@@ -4,25 +4,30 @@
 
 ---
 
-## 🚨 IMMEDIATE — May 9 (9:30 PM Bangkok)
+## May 10 Weekend Update MACRO: 
+WTI Crude: $95.42 (+$0.85 from $94.57) ⚠️ VIX: 19.22 (+1.90 from 17.32) 🔴 concern Iran: Negotiations active, no deal signed
 
-### Action 1 — PR Options Chain FIRST
+REVISED MAY 11 PLAN: 
+- High VIX = PR IV likely above 40% at open 
+- Do not force PR trade if VIX >19 
+- Watch for intraday VIX compression 
+- Iran deal announcement = immediate CCL check 
 
-URL: finance.yahoo.com/quote/PR/options Select: Jun 18, 2026 expiry Calls only Screenshot: $20C through $23C rows Check:
+BEST CASE MAY 11: 
+Iran deal signed → CCL/NCLH rally 
+→ New bull call spreads qualify at higher strikes 
 
-- IV $22C ≤40%? (was 40.72% May 8)
-- DTE = 40 ✅
-- OI unchanged (was 12,515)
-- Price still ~$19-21
-- Daily move <±3%
+REALISTIC CASE MAY 11: 
+VIX elevated → wait for mid-session calm 
+→ Check PR chain 11 AM-1 PM EDT 
+→ Execute if IV $22C ≤40% 
 
-**If ALL pass → Execute immediately:**
-```bash
-ssh ubuntu@43.160.222.7
-~/trading-bot/load_context.sh
-# Run PR execution code from 03_Watchlist.md
-```
-
+CHECK ORDER MAY 11: 
+1. VIX level at open (9:30 AM EDT) 
+2. If VIX <18 → pull PR chain 
+3. If VIX 18-20 → wait until 11 AM EDT 
+4. If VIX >20 → stand down, no trade today
+5. Any Iran news → immediate CCL chain
 ### Action 2 — IBKR MultiSort Screener
 
 Run "OpenClaw Bull Call" MultiSort screen Note any new tickers in $10-$30 with low IV rank Add promising ones to manual verification list
