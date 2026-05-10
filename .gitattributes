@@ -1,0 +1,5 @@
+# Server auto-updates these — server version wins
+OpenClaw/07_Macro_Context.md merge=ours
+OpenClaw/08_Next_Actions.md merge=ours
+OpenClaw/09_Daily_Briefing.md merge=ours
+templates/Nova_Session_Prompt.md merge=ours
