@@ -1,4 +1,19 @@
 # Macro Context — OpenClaw
+
+## 2026-05-10 12:57 — Auto Update
+
+| Indicator | Price | Change |
+|-----------|-------|--------|
+| XLE | $55.7 | ↓ -0.45% |
+| XLY | $120.2 | ↑ 0.27% |
+| XLI | $173.2 | ↓ -0.46% |
+| XLB | $51.59 | ↑ 0.37% |
+| VIX | $17.19 | ↓ 0.0% |
+
+Market: ✅ OK | Alerts: 1
+
+---
+
 ## CCL Update — May 5, 2026
 - Price: $26.06 (+1.50% today)
 - $28C OI: 922 (was 295 on May 1) ✅
