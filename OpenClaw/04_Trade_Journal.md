@@ -73,3 +73,41 @@
 | Live accounts | Ready | Locked | Waiting |
 
 Next milestone: First winning trade
+---
+
+## Trade 3 — IAG $22/$24 Jun18 (ACTIVE)
+| Field | Detail |
+|-------|--------|
+| Entry Date | May 11, 2026 |
+| Ticker | IAG (IAMGOLD Corp) |
+| Spread | Buy $22C / Sell $24C Jun18 |
+| Entry Price | $0.60 net debit |
+| Max Risk | $60 |
+| Max Reward | $140 |
+| R:R | 2.33:1 |
+| Breakeven | $22.60 (+19.5% from $18.92) |
+| Stop | $0.30 (-50%) |
+| DTE at entry | 38 days |
+| Conviction | 77/100 ✅ |
+| IV Rank | 34 ✅ |
+| Status | ACTIVE — Hold |
+
+### Rules at Entry — All Pass ✅
+- Price $18.92 ✅
+- IV Rank 34 ✅
+- OI 10,741/15,959 ✅
+- Spread mid $0.60 ✅
+- DTE 38 ✅
+- Earnings done May 5 ✅
+- Events: None ✅
+- Conviction 77/100 ✅
+
+### Catalyst
+- Gold $4,700+ recovering
+- Q1 earnings massive beat ($1B revenue)
+- Analyst Strong Buy consensus
+- Scotiabank raised PT $23→$25
+
+### Key Dates
+- Stop check: Daily
+- Expiry: June 18, 2026
