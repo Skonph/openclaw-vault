@@ -50,6 +50,13 @@ LOCKED until graduation:
 - Options Analytics: Greeks verification
 - Why Is It Moving: Catalyst confirmation
 
+## Cowork Integration
+Task: "OpenClaw Strategy Review" (manual, on demand)
+Purpose: Claude reads vault files, suggests improvements,
+         makes approved changes, pushes to GitHub
+How to run: Open Cowork → OpenClaw Strategy Review → Run
+When to run: When you want system review or file updates
+
 ## Load Order for New Instance
 1. This file
 2. 02_Ruleset_v4.md
