@@ -1,6 +1,6 @@
 # Lessons Learned — OpenClaw
 
-## Critical Lessons
+### Critical Lessons
 
 ### L001 — Nova Cannot Generate Reliable Price Data
 Date: Apr 29, 2026
@@ -68,10 +68,15 @@ Status: ⚠️ Ongoing issue — monitor closely
 
 ### L010 — First Clean Entry: IAG Confirms System Works
 Date: May 11, 2026
-Incident: IAG $22/$24 Jun18 entered with all 11 rules passing. Conviction 77/100 — highest scored trade to date
-Impact: First trade with zero rule exceptions
-Lesson: When system is followed completely, entry feels controlled and conviction is genuine. IAG proves the improved v4.0 checklist works. Prior losses were from rule breaches — this is different.
-Status: ✅ Active — outcome pending Jun 18
+Incident: IAG $22/$24 Jun18 entered with all 11 rules passing. Conviction 77/100 — highest scored trade to date.
+Impact: First trade with zero rule exceptions.
+Outcome (May 14): Closed at loss ~$55 paper
+          Real loss est. ~$50 (IBKR pricing)
+          IAG dropped -7.77% on May 14 after gold pullback. Stop triggered correctly.
+Lesson: System worked as designed. Entry was clean.
+        Loss was due to market conditions not rule breach. This is acceptable. Process > outcome.
+        Paper pricing distorted actual loss — see L013.
+Status: ✅ CLOSED — loss accepted, rules followed
 
 ### L011 — Multi-Leg Close Orders Are Unreliable in Alpaca Paper Trading
 Date: May 14, 2026
@@ -102,6 +107,41 @@ Root Cause: Execution code should never be auto-generated before human Events Ca
 Fix: Remove execution code block from vault_updater.py briefing template entirely. Execution code is generated manually by human after full approval chain.
 Also: Scanner returned Price $N/A for PR — this should have been a FAIL, not pass.
 Status: ✅ vault_updater.py fix applied — see below
+
+### L015 — Scanner Must Treat Price N/A as Auto-Fail
+Date: May 15, 2026
+Incident: openclaw_scanner.py returned Price $N/A for PR but still flagged PR as qualifying alert.
+N/A price should have been immediate rejection.
+Impact: Invalid alert generated. Combined with L014 execution code issue, led to unauthorized
+PR order being submitted.
+Root cause: Missing null/None check in price validation logic in analyze_spread() function.
+Fix Applied:
+    Added to scanner:
+    if not price or price == 0:
+		holds.append(f"{symbol}: price unavailable")
+	    continue
+Rule Added: Price N/A = auto-fail same as price
+        outside $10-$30 range.
+Status: ✅ Fix applied to openclaw_scanner.py
+
+### L016 — IAG Position Monitoring Gap
+
+L016 — Active Position Needs Daily Stop Check
+Date: May 14, 2026
+Incident: IAG spread dropped below $0.30 stop without automated detection. Stop was triggered by manual observation not by scanner alert.
+Impact: Position held past stop level briefly. Fortunately closed same day discovered.
+Root cause: Scanner monitors for NEW trade alerts but does not automatically check
+active position stop levels.
+Fix Needed: Add monitor_active_position() to daily scanner cron job. Alert if spread value ≤ stop trigger.
+Rule Added: Scanner must check active position stop level daily and alert if breached.
+Status: ⏳ monitor_active_position() code exists but needs adding to cron scan flow
+
+### L017 — F Position Accidental Win
+Date: May 14, 2026 
+Incident: F $12.50/$14 May29 position assumed closed May 1. Actually remained open 13 days. Discovered May 14 when Alpaca showed it. Closed at profit +$76 (paper). 
+Impact: Win was pure luck — market recovered while we thought position was flat. Could just as easily have been larger loss. 
+Lesson: Unmonitored open positions are dangerous regardless of outcome. A lucky win from a process failure is still a process failure. Never mistake luck for skill. 
+Rule reinforced: Always verify close fills. Check positions tab after every close order. See L012. Status: ✅ Documented — L012 protocol covers this
 
 ## Developing Insights
 

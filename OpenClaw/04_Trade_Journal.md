@@ -46,6 +46,38 @@
 
 ---
 
+## Trade 3 — IAG $22/$24 Jun18 CLOSED
+
+| Field | Detail |
+|-------|--------|
+| Entry Date | May 11, 2026 |
+| Exit Date | May 14, 2026 |
+| Entry Price | $0.60 net debit |
+| Exit Price | ~$0.20 net (paper distorted) |
+| Paper P&L | -$115 (Alpaca) |
+| Real est. P&L | ~-$50 (IBKR pricing) |
+| Rule Compliance | ✅ All rules followed at entry |
+| Stop Triggered | ✅ Yes — correctly |
+| Close Method | Leg by leg (L011 protocol) |
+| Notes | Paper pricing severely distorted (L013) |
+|        | Gold pullback caused IAG -7.77% May 14 |
+
+---
+
+## Summary Statistics (Updated May 14)
+
+| Metric | Value |
+|--------|-------|
+| Total trades | 3 |
+| Winners | 1 (F accidental — see L017) |
+| Losers | 2 (AAL, IAG rule-compliant) |
+| Cancelled/unfilled | Multiple |
+| Real est. P&L | ~-$105 |
+| Paper capital | ~$2,890 |
+| Rule compliance rate | Improving — IAG was 100% |
+
+---
+
 ## Cancelled Orders Log
 | Date   | Ticker       | Reason                  | Lesson                   |
 | ------ | ------------ | ----------------------- | ------------------------ |
@@ -75,33 +107,6 @@
 Next milestone: First winning trade
 ---
 
-## Trade 3 — IAG $22/$24 Jun18 (ACTIVE)
-| Field | Detail |
-|-------|--------|
-| Entry Date | May 11, 2026 |
-| Ticker | IAG (IAMGOLD Corp) |
-| Spread | Buy $22C / Sell $24C Jun18 |
-| Entry Price | $0.60 net debit |
-| Max Risk | $60 |
-| Max Reward | $140 |
-| R:R | 2.33:1 |
-| Breakeven | $22.60 (+19.5% from $18.92) |
-| Stop | $0.30 (-50%) |
-| DTE at entry | 38 days |
-| Conviction | 77/100 ✅ |
-| IV Rank | 34 ✅ |
-| Status | ACTIVE — Hold |
-
-### Rules at Entry — All Pass ✅
-- Price $18.92 ✅
-- IV Rank 34 ✅
-- OI 10,741/15,959 ✅
-- Spread mid $0.60 ✅
-- DTE 38 ✅
-- Earnings done May 5 ✅
-- Events: None ✅
-- Conviction 77/100 ✅
-
 ### Catalyst
 - Gold $4,700+ recovering
 - Q1 earnings massive beat ($1B revenue)
@@ -111,3 +116,40 @@ Next milestone: First winning trade
 ### Key Dates
 - Stop check: Daily
 - Expiry: June 18, 2026
+
+---
+
+## Trade 4 — HMC $27.5/$30 Jun18 (ACTIVE)
+| Field | Detail |
+|-------|--------|
+| Entry Date | May 15, 2026 |
+| Ticker | HMC (Honda Motor ADR) |
+| Spread | Buy $27.5C / Sell $30C Jun18 |
+| Entry Price | $0.40 net debit |
+| Avg Fill | $0.45 long / $0.05 short |
+| Max Risk | $40 |
+| Max Reward | $210 |
+| R:R | 5.25:1 |
+| Breakeven | $27.90 (+1.9%) |
+| Stop | $0.20 (-50%) real IBKR price |
+| DTE at entry | 34 days |
+| Conviction | 73/100 ✅ |
+| IV Rank | 6 ✅ |
+| Status | ACTIVE — HOLD |
+
+### Catalyst
+- Q4 revenue +9% YoY
+- FY2027 profit rebound guided
+- 15 hybrid models by 2030
+- Analyst fair value $32 (+21% upside)
+- Stock +12% post earnings
+
+### Key Levels
+- Current HMC: $26.38 (+2.77%)
+- Breakout above April consolidation ✅
+- Real stop trigger: HMC below $25.50
+
+### Notes
+- Paper pricing at $0.20 on entry day
+- Confirmed L013 distortion — use IBKR for real P&L
+- Hold confirmed — stock at day high
