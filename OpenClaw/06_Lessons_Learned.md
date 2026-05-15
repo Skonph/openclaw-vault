@@ -58,7 +58,50 @@ Lesson: Check S&P direction before any entry
 Rule: No new trades on red market days
 Status: ✅ Added to daily checklist
 
-###L009 — Nova Repeatedly Violates Role Restriction Date: May 5, 2026 Incident: Nova scanned RIVN, NIO, MARA, GRAB, BARK independently despite clear directive to score human-provided tickers only Impact: Wasted analysis time, priority tickers missed Pattern: This is the 3rd time Nova has done this Action: Consider adding explicit blocklist to Nova prompt and reinforcing role restriction every session Status: ⚠️ Ongoing issue — monitor closely
+### L009 — Nova Repeatedly Violates Role Restriction
+Date: May 5, 2026
+Incident: Nova scanned RIVN, NIO, MARA, GRAB, BARK independently despite clear directive to score human-provided tickers only
+Impact: Wasted analysis time, priority tickers missed
+Pattern: 3rd time Nova has done this
+Action: Add explicit blocklist to Nova prompt and reinforce role restriction every session
+Status: ⚠️ Ongoing issue — monitor closely
+
+### L010 — First Clean Entry: IAG Confirms System Works
+Date: May 11, 2026
+Incident: IAG $22/$24 Jun18 entered with all 11 rules passing. Conviction 77/100 — highest scored trade to date
+Impact: First trade with zero rule exceptions
+Lesson: When system is followed completely, entry feels controlled and conviction is genuine. IAG proves the improved v4.0 checklist works. Prior losses were from rule breaches — this is different.
+Status: ✅ Active — outcome pending Jun 18
+
+### L011 — Multi-Leg Close Orders Are Unreliable in Alpaca Paper Trading
+Date: May 14, 2026
+Incident: IAG $22/$24 multi-leg close orders submitted at $0.20, then $0.10 limit — both expired unfilled. F close attempt May 1 was rejected outright.
+Impact: IAG required leg-by-leg close; F stayed open 13 extra days unnoticed
+Rule Added: Always close leg-by-leg in Alpaca paper trading. Short leg first (buy_to_close), then long leg (sell_to_close). Never use multi-leg close orders.
+Status: ✅ Protocol established
+
+### L012 — Always Verify Close Fills Before Ending Session
+Date: May 14, 2026
+Incident: F close order on May 1 was rejected by Alpaca. Assumed closed. Position remained open 13 days undiscovered. Inadvertent hold → +$76 win (not repeatable).
+Impact: Journal showed wrong P&L for 13 days. Capital tracking wrong. Win came from luck, not skill.
+Rule Added: After any close order, confirm fill status before logging trade as closed. Check orders page + positions page. A submitted order ≠ a filled order.
+Status: ✅ Protocol established
+
+### L013 — Alpaca Paper Options Pricing Can Be Severely Distorted
+Date: May 14, 2026
+Incident: IAG $24C (deep OTM, real value ~$0.10) priced at $0.75 in Alpaca paper account. Had to submit limit at $0.80 to force fill. Paper P&L −$115 vs real est. −$50.
+Impact: Paper account P&L meaningless for this trade. Capital tracking distorted.
+Rule Added: For real P&L tracking, use IBKR options chain pricing, not Alpaca paper fills. Note distorted paper pricing in trade card when it occurs.
+Status: ✅ Noted — check IBKR for real P&L reference on each exit
+
+### L014 — Execution Code in Briefing Triggered Premature Order
+Date: May 15, 2026
+Incident: vault_updater.py auto-embedded Alpaca execution code in 09_Daily_Briefing.md alongside PR alert. Code was run before Events Calendar check was completed. PR $20/$21 Jun18 order submitted — but PR was already rejected (conviction 45/100, events in window: shareholders meeting May 19, dividend Jun 16).
+Impact: Unauthorised order placed on a previously rejected ticker. Order unfilled (multi-leg) but protocol violated.
+Root Cause: Execution code should never be auto-generated before human Events Calendar check + Nova conviction ≥70 + explicit approval.
+Fix: Remove execution code block from vault_updater.py briefing template entirely. Execution code is generated manually by human after full approval chain.
+Also: Scanner returned Price $N/A for PR — this should have been a FAIL, not pass.
+Status: ✅ vault_updater.py fix applied — see below
 
 ## Developing Insights
 
