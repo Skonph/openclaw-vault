@@ -10,3 +10,14 @@ git pull
 
 # Run anytime to load context: 
 ssh ubuntu@43.160.222.7 '~/trading-bot/load_context.sh'
+
+##  Server owns these files - server version wins on conflict 
+OpenClaw/07_Macro_Context.md merge=ours 
+OpenClaw/08_Next_Actions.md merge=ours 
+OpenClaw/09_Daily_Briefing.md merge=ours 
+templates/Nova_Session_Prompt.md merge=ours 
+## Human owns these files - do not auto-overwrite 
+OpenClaw/02_Ruleset_v4.md merge=theirs 
+OpenClaw/03_Watchlist.md merge=theirs 
+OpenClaw/04_Trade_Journal.md merge=theirs 
+OpenClaw/06_Lessons_Learned.md merge=theirs
