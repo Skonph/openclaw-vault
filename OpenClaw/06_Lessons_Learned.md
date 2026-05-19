@@ -143,6 +143,18 @@ Impact: Win was pure luck — market recovered while we thought position was fla
 Lesson: Unmonitored open positions are dangerous regardless of outcome. A lucky win from a process failure is still a process failure. Never mistake luck for skill. 
 Rule reinforced: Always verify close fills. Check positions tab after every close order. See L012. Status: ✅ Documented — L012 protocol covers this
 
+### L018 — Multi-Leg Close Orders Can Fill (Addendum to L011)
+Date: May 19, 2026
+Incident: HMC $27.5/$30 Jun18 closed via mleg order (limit $0.15 net) — both legs filled simultaneously.
+Contrast: IAG mleg close orders at $0.20 and $0.10 never filled (L011).
+Difference: HMC $27.5C had OI 1,143 on ask side; IAG was deeper OTM with near-zero liquidity.
+L013 still applies: $30C paper filled at $0.20 vs IBKR ask $0.05 — always use IBKR for real P&L.
+Updated Close Protocol:
+  1. Try mleg close first (limit = net spread bid from IBKR)
+  2. If unfilled after 3–5 minutes → cancel and go leg-by-leg (L011 fallback)
+  3. Always verify fills on Orders + Positions page (L012)
+Status: ✅ Protocol updated
+
 ## Developing Insights
 
 ### D001 — $10-$30 Universe Has Structural Liquidity Issues

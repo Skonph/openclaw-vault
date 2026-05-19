@@ -1,6 +1,6 @@
 # 00_START_HERE.md
-**Last Updated:** May 8, 2026
-**Status:** Active | Paper Trading Phase | Elevated Alert
+**Last Updated:** May 19, 2026
+**Status:** Active | Paper Trading Phase | Monitoring
 
 ---
 
@@ -14,12 +14,12 @@
 7. templates/Nova_Session_Prompt.md → paste into Nova
 
 ## Quick Status
-- Capital: $2,946 (~98.2% of $3,000 preserved)
+- Capital: ~$2,845 paper (~94.8% of $3,000 preserved)
 - Active positions: 0
-- Last trade: F $12.50/$14 closed May 1 (-$32)
-- Current phase: 🚨 ELEVATED ALERT — PR trade nearly qualifying
-- Primary watch: PR $21/$22 Jun18 — recheck May 9
-- Secondary watch: CCL — IV 55%+ not yet compressed
+- Last trade: HMC $27.5/$30 closed May 19 (-$30 real / stop executed correctly)
+- Current phase: Monitoring — market broadly below 20-day EMAs, no new entries
+- Primary watch: PR — KNOWN_HOLD until Jun 17 (shareholders May 19 passed, dividend Jun 16)
+- Secondary watch: CCL/NCLH — IV not yet compressed, est. late May/early June
 
 ## Key Systems
 - Trading bot server: ubuntu@43.160.222.7
@@ -32,13 +32,13 @@
 ## Broker Accounts
 | Broker | Account | Balance | Status |
 |--------|---------|---------|--------|
-| Alpaca | Paper | $2,946 | ACTIVE — paper execution |
+| Alpaca | Paper | ~$2,845 | ACTIVE — paper execution |
 | IBKR | U25439978 | $2,200 | Research tools + live standby |
 | Tradier | 6YB80974 | $0 | API standby |
 
 ## Live Capital Policy
 LOCKED until graduation:
-- 20 trades completed (currently 2/20)
+- 20 trades completed (currently 4/20)
 - Win rate ≥60%
 - 100% rule compliance
 

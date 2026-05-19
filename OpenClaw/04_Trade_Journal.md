@@ -119,37 +119,48 @@ Next milestone: First winning trade
 
 ---
 
-## Trade 4 — HMC $27.5/$30 Jun18 (ACTIVE)
+## Trade 4 — HMC $27.5/$30 Jun18 CLOSED
+
 | Field | Detail |
 |-------|--------|
 | Entry Date | May 15, 2026 |
+| Exit Date | May 19, 2026 |
 | Ticker | HMC (Honda Motor ADR) |
 | Spread | Buy $27.5C / Sell $30C Jun18 |
 | Entry Price | $0.40 net debit |
 | Avg Fill | $0.45 long / $0.05 short |
+| Exit Price | $0.10 net (IBKR real) |
+| Paper Exit | $0.15 long / $0.20 short (L013 distortion) |
+| Real P&L | -$30 (-75%) |
+| Paper P&L | -$45 (distorted — $30C filled $0.20 vs real $0.05) |
 | Max Risk | $40 |
-| Max Reward | $210 |
-| R:R | 5.25:1 |
-| Breakeven | $27.90 (+1.9%) |
-| Stop | $0.20 (-50%) real IBKR price |
+| Breakeven | $27.90 |
+| Stop | $0.20 (-50%) — triggered correctly |
 | DTE at entry | 34 days |
 | Conviction | 73/100 ✅ |
 | IV Rank | 6 ✅ |
-| Status | ACTIVE — HOLD |
+| Rule Compliance | ✅ All rules followed |
+| Stop Triggered | ✅ Yes — spread $0.10 < stop $0.20 AND stock $25.22 < $25.50 |
+| Close Method | Multi-leg (mleg) order — filled successfully |
+| Status | CLOSED — stop executed correctly |
 
-### Catalyst
-- Q4 revenue +9% YoY
-- FY2027 profit rebound guided
-- 15 hybrid models by 2030
-- Analyst fair value $32 (+21% upside)
-- Stock +12% post earnings
+### Exit Notes
+- Two stop conditions triggered simultaneously: spread value AND stock price
+- Multi-leg close order filled (contrast with IAG L011 — see L018)
+- $30C paper fill at $0.20 vs IBKR ask $0.05 — L013 distortion confirmed
+- HMC dropped -3.67% on May 19, stock at $25.22
+- Loss was rule-compliant: stop discipline executed correctly. Process ✅
 
-### Key Levels
-- Current HMC: $26.38 (+2.77%)
-- Breakout above April consolidation ✅
-- Real stop trigger: HMC below $25.50
+---
 
-### Notes
-- Paper pricing at $0.20 on entry day
-- Confirmed L013 distortion — use IBKR for real P&L
-- Hold confirmed — stock at day high
+## Summary Statistics (Updated May 19)
+
+| Metric | Value |
+|--------|-------|
+| Total trades | 4 |
+| Winners | 1 (F accidental — L017) |
+| Losers | 3 (AAL, IAG, HMC — all rule-compliant stops) |
+| Active positions | 0 |
+| Real est. P&L | ~-$135 |
+| Paper capital | ~$2,845 |
+| Rule compliance rate | 100% last 3 trades ✅ |
