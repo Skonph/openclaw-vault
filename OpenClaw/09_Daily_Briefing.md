@@ -1,5 +1,5 @@
 # OpenClaw Daily Briefing
-**Generated:** 2026-05-18 21:05 Bangkok (server cron)
+**Generated:** 2026-05-19 21:05 Bangkok (server cron)
 
 ---
 
@@ -18,7 +18,7 @@
 
 | Rule | Value | Status |
 |------|-------|--------|
-| Price | $N/A | ✅ |
+| Price | $N/A | ❌ |
 | Mid | $0.4 | ✅ |
 | IV | 38.5%/39.0% | ✅ |
 | OI | 2981/3783 | ✅ |
