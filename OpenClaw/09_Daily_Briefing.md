@@ -1,5 +1,5 @@
 # OpenClaw Daily Briefing
-**Generated:** 2026-05-19 21:05 Bangkok (server cron)
+**Generated:** 2026-05-20 21:05 Bangkok (server cron)
 
 ---
 
