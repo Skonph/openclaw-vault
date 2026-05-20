@@ -14,7 +14,7 @@
 7. templates/Nova_Session_Prompt.md → paste into Nova
 
 ## Quick Status
-- Capital: ~$2,845 paper (~94.8% of $3,000 preserved)
+- Capital: $2,898 paper (~96.6% of $3,000 preserved)
 - Active positions: 0
 - Last trade: HMC $27.5/$30 closed May 19 (-$30 real / stop executed correctly)
 - Current phase: Monitoring — market broadly below 20-day EMAs, no new entries
@@ -32,7 +32,7 @@
 ## Broker Accounts
 | Broker | Account | Balance | Status |
 |--------|---------|---------|--------|
-| Alpaca | Paper | ~$2,845 | ACTIVE — paper execution |
+| Alpaca | Paper | $2,898 | ACTIVE — paper execution |
 | IBKR | U25439978 | $2,200 | Research tools + live standby |
 | Tradier | 6YB80974 | $0 | API standby |
 

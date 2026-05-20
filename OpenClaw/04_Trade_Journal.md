@@ -95,16 +95,16 @@
 | May 5 | NCLH post-earnings verified | HOLD |
 | May 5 | System in silent watch mode | Active |
 
-## Graduation Tracker
+## Graduation Tracker (Updated May 20)
 | Metric | Current | Target | Progress |
 |--------|---------|--------|---------|
-| Trades | 2 | 20 | 10% |
-| Win rate | 0% | ≥60% | 0% |
-| Capital | $2,946 | $3,500 | 26% of gain needed |
-| Rule compliance | Improving | 100% | In progress |
+| Trades | 4 | 20 | 20% |
+| Win rate | 25% (1/4) | ≥60% | Building |
+| Capital | $2,898 | $3,500 | 33% of gain needed |
+| Rule compliance | 100% last 3 trades ✅ | 100% | On track |
 | Live accounts | Ready | Locked | Waiting |
 
-Next milestone: First winning trade
+Next milestone: First intentional winning trade (F win was accidental)
 ---
 
 ### Catalyst
