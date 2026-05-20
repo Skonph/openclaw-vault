@@ -1,4 +1,30 @@
 
+## 2026-05-20 22:38 — Scanner Results
+
+Market: ✅ OK
+
+### 🚨 ALERTS (1)
+
+**PR $20.0/$21.0**
+- Expiry:  (38 DTE)
+- Mid: $0.4 | R:R: 1.5:1
+- IV: 38.5%/39.0%
+- OI: 2981/3783
+- Status: ⏳ Needs Events Calendar + Conviction
+
+### Holds (4)
+- CCL: no qualifying spread
+- NCLH: no qualifying spread
+- AAL: no qualifying spread
+- VALE: no qualifying spread
+
+### Manual Actions Required
+1. 📸 IBKR Events Calendar: PR
+2. 📸 IBKR MultiSort screenshot
+3. Nova conviction score: PR
+
+---
+
 ## 2026-05-20 21:05 — Scanner Results
 
 Market: ✅ OK

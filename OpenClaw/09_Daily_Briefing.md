@@ -1,10 +1,10 @@
 # OpenClaw Daily Briefing
-**Generated:** 2026-05-20 21:05 Bangkok (server cron)
+**Generated:** 2026-05-20 22:38 Bangkok (server cron)
 
 ---
 
 ## Portfolio
-- Capital: $2,946 | Active positions: 0
+- Capital: $2,898 | Active positions: 0
 - Scanner: ✅ Running on server
 
 ## Market
