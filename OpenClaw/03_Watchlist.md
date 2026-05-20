@@ -1,77 +1,35 @@
 # 03_Watchlist.md
-**Updated:** May 8, 2026
+**Updated:** May 20, 2026
 **Ruleset:** v4.0
 
 ---
 
-## 🚨 ELEVATED ALERT — Active Candidates
+## ⏳ ON HOLD — Pending Recheck
 
-### PR (Permian Resources) — CONDITIONAL APPROVAL
+### PR (Permian Resources) — KNOWN_HOLD UNTIL JUN 17
 | Field | Value |
 |-------|-------|
-| Price | $19.91 (May 8, 2026) |
+| Last Price | ~$19.91 (May 8 data — stale, recheck Jun 17) |
 | Sector | Energy ✅ |
 | Earnings | Q1 done May 7 ✅ Next Q2 far |
-| IV $21C | 39.94% ✅ PASSES |
-| IV $22C | 40.72% ❌ 0.72% over limit |
+| IV last seen | 38.5–39.0% ✅ (May 20 scan — within limit) |
 | OI $21C | 3,783 ✅ |
 | OI $22C | 12,515 ✅ exceptional |
-| OI $25C | 14,291 ✅ institutional |
-| Target Spread | $21/$22 Jun18 |
-| Spread Mid | $0.35 ✅ |
-| DTE | 41 days ❌ (1 over — wait May 9) |
-| Conviction | 73/100 ✅ |
-| Events | Shareholders May 19 (-5), Dividend Jun 16 (-5) |
-| Options vol spike | Today May 8 ✅ positive signal |
-| Status | RECHECK MAY 9 — may fully qualify |
+| Target Spread | $20/$21 or $21/$22 Jul18 (recheck at Jun 17) |
+| Conviction | 73/100 ✅ (last scored) |
+| Hold Reason 1 | Shareholders meeting May 19 ✅ PASSED |
+| Hold Reason 2 | Dividend Jun 16 ❌ NOT YET PASSED — 27 days away |
+| KNOWN_HOLD | Scanner auto-suppresses until 2026-06-17 |
+| Status | ⏳ DO NOT ENTER — wait until Jun 17 recheck |
 
-**MAY 9 ACTION:**
-Pull PR Jun18 chain at 9:30 PM Bangkok
-If IV $22C ≤40% AND DTE=40 → EXECUTE
+**JUN 17 ACTION:**
+Pull PR Jul18 chain at 9:30 PM Bangkok
+Confirm dividend Jun 16 cleared ✅
+Check IV ≤40%, OI ≥500, DTE 25–40 → proceed to Events Calendar + Nova
 
-**Execution code ready:**
-```bash
-ssh ubuntu@43.160.222.7 << 'ENDSSH'
-cd ~/trading-bot
-python3 - << 'EOF'
-import os, requests
-from dotenv import load_dotenv
-load_dotenv('/home/ubuntu/trading-bot/.env')
-headers = {
-    'APCA-API-KEY-ID': os.environ.get('ALPACA_API_KEY'),
-    'APCA-API-SECRET-KEY': os.environ.get('ALPACA_SECRET_KEY'),
-    'Content-Type': 'application/json'
-}
-order = {
-    "type": "limit",
-    "time_in_force": "day",
-    "order_class": "mleg",
-    "qty": "1",
-    "limit_price": "0.35",
-    "legs": [
-        {
-            "symbol": "PR260618C00021000",
-            "side": "buy",
-            "ratio_qty": "1",
-            "position_intent": "buy_to_open"
-        },
-        {
-            "symbol": "PR260618C00022000",
-            "side": "sell",
-            "ratio_qty": "1",
-            "position_intent": "sell_to_open"
-        }
-    ]
-}
-r = requests.post(
-    f"{os.environ.get('ALPACA_BASE_URL')}/orders",
-    headers=headers, json=order
-)
-print(f"Status: {r.status_code}")
-print(f"Response: {r.json()}")
-EOF
-ENDSSH
-```
+⚠️ NOTE: Any briefing showing "Jun 16 passed" before Jun 17 is INCORRECT — scanner KNOWN_HOLD is active.
+
+*Execution code will be generated manually in Cowork on Jun 17 after full approval chain.*
 
 ---
 
