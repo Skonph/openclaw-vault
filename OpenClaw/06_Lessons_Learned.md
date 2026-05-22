@@ -155,6 +155,17 @@ Updated Close Protocol:
   3. Always verify fills on Orders + Positions page (L012)
 Status: ✅ Protocol updated
 
+### L019 — IV Rank Alone Is Insufficient: Add Absolute IV Cap
+Date: May 22, 2026
+Incident: OSCR (IV Rank 14, IV Last 65.7%) and CZR (IV Rank 21, IV Last 42.5%) both passed the screener's IV Rank ≤40% filter but failed in practice. OSCR's absolute IV at 65.7% was comparable to previously rejected CLF (54%) and CCL (55–59%). CZR's absolute IV at 42.5% exceeded the implied 40% threshold.
+Root Cause: IV Rank measures relative cheapness within a stock's own 52-week history. A historically volatile stock like OSCR can have IV Rank 14 while still having absolute IV of 65.7% — meaning options are expensive in dollar terms even though they're "cheap for OSCR."
+Fix Applied: Added "IV Last ≤45%" as a second hard filter to Ruleset v4.0 Entry Criteria and Auto-Reject Conditions.
+Rule Added: IV Last >45% = auto-reject, regardless of IV Rank.
+Lesson: Two-layer IV check required — IV Rank ≤40% (relative cheapness) AND IV Last ≤45% (absolute premium cost).
+Status: ✅ Ruleset v4.0 updated
+
+---
+
 ## Developing Insights
 
 ### D001 — $10-$30 Universe Has Structural Liquidity Issues

@@ -9,7 +9,8 @@
 | Rule | Requirement |
 |------|-------------|
 | Conviction Score | ≥70/100 |
-| IV Rank | ≤40% |
+| IV Rank (52W Percentile) | ≤40% |
+| IV Last (Absolute) | ≤45% |
 | Premium | $0.30–$0.60 net debit |
 | Spread Width | ≤$3 |
 | Underlying Price | $10–$30 |
@@ -107,7 +108,8 @@
 
 | Condition | Reason |
 |-----------|--------|
-| IV Rank >40% | Options too expensive |
+| IV Rank >40% | Options too expensive (relative) |
+| IV Last >45% | Options too expensive (absolute) — even if IV Rank passes |
 | Earnings within ±14 days | IV spike risk |
 | Price outside $10–$30 | Filter breach |
 | Conviction <70/100 | Insufficient edge |
