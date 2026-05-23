@@ -1,4 +1,27 @@
 
+## 2026-05-23 21:37 — Scanner Results
+
+Market: ✅ OK
+
+### No alerts today — standing by
+
+### Holds (13)
+- MAT: price unavailable
+- FNB: price unavailable
+- PUMP: price unavailable
+- HIW: price unavailable
+- APLE: price unavailable
+- ECVT: price unavailable
+- DOC: price unavailable
+- TU: price unavailable
+- SBSW: price unavailable
+- CCL: price unavailable
+- NCLH: price unavailable
+- AAL: price unavailable
+- VALE: price unavailable
+
+---
+
 ## 2026-05-22 21:05 — Scanner Results
 
 Market: ✅ OK
