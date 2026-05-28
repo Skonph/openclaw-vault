@@ -1,5 +1,5 @@
 # OpenClaw Daily Briefing
-**Generated:** 2026-05-27 21:20 Bangkok (server cron)
+**Generated:** 2026-05-28 21:20 Bangkok (server cron)
 
 ---
 
@@ -9,9 +9,9 @@
 
 ## Market
 - Condition: ✅ OK
-- VIX: 16.86 (target <15)
-- SPY: 0.09% (broad market)
-- XLE: -1.86% (energy direction)
+- VIX: 16.19 (target <15)
+- SPY: -0.01% (broad market)
+- XLE: 0.56% (energy direction)
 
 ## Pipeline Summary
 - Spreads found:      0

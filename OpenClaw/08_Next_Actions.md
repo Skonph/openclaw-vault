@@ -1,4 +1,27 @@
 
+## 2026-05-28 21:20 — Scanner Results
+
+Market: ✅ OK
+
+### No qualifying spreads today — standing by
+
+### Holds / Rejects (13)
+- MAT: no qualifying expiry
+- FNB: no qualifying expiry
+- PUMP: daily move too large
+- HIW: no qualifying expiry
+- APLE: no qualifying expiry
+- ECVT: no qualifying expiry
+- DOC: no qualifying expiry
+- TU: no qualifying expiry
+- SBSW: no qualifying expiry
+- CCL: no qualifying spread
+- NCLH: no qualifying spread
+- AAL: no qualifying spread
+- VALE: no qualifying spread
+
+---
+
 ## 2026-05-27 21:20 — Scanner Results
 
 Market: ✅ OK

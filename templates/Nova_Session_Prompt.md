@@ -1,5 +1,5 @@
 # Nova Session Prompt
-**Generated:** 2026-05-27 21:20
+**Generated:** 2026-05-28 21:20
 
 ---
 
@@ -7,7 +7,7 @@ NOVA — new session starting. Load complete context.
 
 PROJECT: OpenClaw Bull Call + Bear Put System
 ACCOUNT: Alpaca Paper Trading
-CAPITAL: ~$2,898 | DATE: 2026-05-27 21:20
+CAPITAL: ~$2,898 | DATE: 2026-05-28 21:20
 
 RULESET v4.0:
 - Conviction ≥75/100 | IV Rank ≤40% | IV Last ≤45% | Premium $0.30-$0.60
@@ -39,14 +39,14 @@ WATCHLIST:
 5. VALE ~$16.25 | OI thin | recheck after May 30 earnings
 
 MACRO (auto-updated):
-- VIX: $16.86 (-0.88%)
-- SPY: $751.2405 (0.09%)
-- XLE: $56.775 (-1.86%)
-- XLY: $121.65 (1.84%)
-- XLI: $174.36 (0.03%)
-- XLB: $51.08 (0.18%)
-- XLC: $116.45 (0.78%)
-- XLF: $51.605 (-0.47%)
+- VIX: $16.19 (-0.61%)
+- SPY: $750.38 (-0.01%)
+- XLE: $57.31 (0.56%)
+- XLY: $120.71 (-0.69%)
+- XLI: $172.18 (-1.22%)
+- XLB: $50.65 (-1.04%)
+- XLC: $116.46 (0.17%)
+- XLF: $51.305 (-0.22%)
 
 RECENT TRADES:
 - AAL $12/$13: -$23 (IV breach at entry)
