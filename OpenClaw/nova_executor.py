@@ -40,20 +40,23 @@ if not LOG_FILE.parent.exists() and SERVER_VAULT_LOG.parent.exists():
     LOG_FILE = SERVER_VAULT_LOG
 
 
-# ── Load credentials from .env.local ──────────────────────────────────────────
+# ── Load credentials from .env or .env.local ──────────────────────────────────
 def _load_env() -> dict:
     env = {}
-    if ENV_FILE.exists():
-        for line in ENV_FILE.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                env[k.strip()] = v.strip().strip('"').strip("'")
+    # Try .env first, then override with .env.local if present
+    for fname in ('.env', '.env.local'):
+        p = SCRIPT_DIR / fname
+        if p.exists():
+            for line in p.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    env[k.strip()] = v.strip().strip('"').strip("'")
     return env
 
 _ENV          = _load_env()
-ALPACA_KEY    = _ENV.get('ALPACA_KEY')    or os.environ.get('ALPACA_KEY', '')
-ALPACA_SECRET = _ENV.get('ALPACA_SECRET') or os.environ.get('ALPACA_SECRET', '')
+ALPACA_KEY    = _ENV.get('ALPACA_KEY')    or _ENV.get('ALPACA_API_KEY')    or os.environ.get('ALPACA_KEY', '') or os.environ.get('ALPACA_API_KEY', '')
+ALPACA_SECRET = _ENV.get('ALPACA_SECRET') or _ENV.get('ALPACA_SECRET_KEY') or os.environ.get('ALPACA_SECRET', '') or os.environ.get('ALPACA_SECRET_KEY', '')
 ALPACA_BASE   = (_ENV.get('ALPACA_BASE') or os.environ.get('ALPACA_BASE', 'https://paper-api.alpaca.markets')).rstrip('/').removesuffix('/v2')
 
 
