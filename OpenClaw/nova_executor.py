@@ -106,7 +106,7 @@ def build_occ(symbol: str, expiry: str, opt_type: str, strike: float) -> str:
 
 
 # ── Build Alpaca mleg payload ──────────────────────────────────────────────────
-def _build_payload(order: dict) -> dict:
+def _build_payload(order: dict, qty: int = 1) -> dict:
     spread_type = order.get('spread_type', 'bull_call')
 
     if spread_type == 'iron_condor':
@@ -129,6 +129,7 @@ def _build_payload(order: dict) -> dict:
 
         return {
             'order_class':   'mleg',
+            'qty':           str(qty),
             'type':          'limit',
             'time_in_force': 'day',
             'limit_price':   str(limit_px),
@@ -148,6 +149,7 @@ def _build_payload(order: dict) -> dict:
 
     return {
         'order_class':   'mleg',
+        'qty':           str(qty),
         'type':          'limit',
         'time_in_force': 'day',
         'limit_price':   str(limit_px),
@@ -240,7 +242,7 @@ def cmd_dry_run(trade_id: str):
 
 
 # ── cmd: execute ──────────────────────────────────────────────────────────────
-def cmd_execute(trade_id: str):
+def cmd_execute(trade_id: str, qty: int = 1):
     if not ALPACA_KEY or not ALPACA_SECRET:
         print(f'❌  ALPACA_KEY / ALPACA_SECRET not set.')
         print(f'    Create {ENV_FILE} with those keys.')
@@ -255,10 +257,10 @@ def cmd_execute(trade_id: str):
         print(f'⚠️   Order is already [{order["status"]}] — cannot execute')
         sys.exit(1)
 
-    payload = _build_payload(order)
+    payload = _build_payload(order, qty=qty)
     is_ic   = order.get('spread_type') == 'iron_condor'
 
-    print(f'\n  Submitting [{trade_id}]  {order["symbol"]}  {order["type_label"]}  …')
+    print(f'\n  Submitting [{trade_id}]  {order["symbol"]}  {order["type_label"]} (Qty: {qty}) …')
     if is_ic:
         for leg in payload['legs']:
             action = 'Buy ' if leg['side'] == 'buy' else 'Sell'
@@ -300,6 +302,7 @@ def cmd_execute(trade_id: str):
         log_entry = (
             f'\n## {_now()} — [{trade_id}] approved via Nova\n'
             f'- **Symbol**: {order["symbol"]}  {order["type_label"]}\n'
+            f'- **Qty**: {qty}\n'
             f'- **Strikes**: {strikes_label}\n'
             f'- **Expiry**: {order["expiry"]}  DTE: {order["dte"]}\n'
             f'{cost_label}  R:R: {order["rr"]:.1f}x\n'
@@ -348,9 +351,15 @@ if __name__ == '__main__':
     elif args[0] == 'dry-run' and len(args) >= 2:
         cmd_dry_run(args[1])
     elif args[0] == 'execute' and len(args) >= 2:
-        cmd_execute(args[1])
+        qty = 1
+        if len(args) >= 3:
+            try:
+                qty = int(args[2])
+            except ValueError:
+                pass
+        cmd_execute(args[1], qty=qty)
     elif args[0] == 'reject' and len(args) >= 2:
         reason = ' '.join(args[2:]) if len(args) > 2 else 'Rejected via Nova'
         cmd_reject(args[1], reason)
     else:
-        print('Usage: nova_executor.py [list | show <id> | dry-run <id> | execute <id> | reject <id> [reason]]')
+        print('Usage: nova_executor.py [list | show <id> | dry-run <id> | execute <id> [qty] | reject <id> [reason]]')
