@@ -21,6 +21,28 @@
 
 
 
+
+## 2026-06-10 21:20 — Auto Update
+
+Regime: `flat_elevated` | Market: ⚠️ Elevated
+
+| Indicator | Price | Change |
+|-----------|-------|--------|
+| VIX | $20.26 | ↑ 1.96% |
+| SPY | $736.28 | ↓ -0.1% |
+| XLE | $58.22 | ↑ 1.45% |
+| XLY | $115.15 | ↓ -0.62% |
+| XLI | $173.87 | ↓ -0.99% |
+| XLB | $50.61 | ↓ -0.32% |
+| XLC | $112.24 | ↑ 0.68% |
+| XLF | $52.7801 | ↑ 0.61% |
+| XLK | $180.42 | ↓ -0.19% |
+| XLV | $154.57 | ↓ 0.0% |
+
+Spreads found: 5
+
+---
+
 ## 2026-06-09 21:20 — Auto Update
 
 Regime: `bull` | Market: ✅ OK
