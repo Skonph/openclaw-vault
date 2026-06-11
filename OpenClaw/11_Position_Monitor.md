@@ -1,24 +1,24 @@
 # Position Monitor
-**Last run:** 2026-06-10 21:20 | Mode: 🤖 Auto-exit v3
+**Last run:** 2026-06-11 21:20 | Mode: 🤖 Auto-exit v3
 
 ---
 
 ## Account
-- Equity: $2,873.96
+- Equity: $2,883.96
 - Buying Power: $10,975.84
 
 ## Open Positions (1 spread(s))
 
-### TOST — 2026-07-17 (36 DTE) [unknown]
-- Market Value: $-70.00 | 🔴 Unrealised: $-24.00
-  - SHORT CALL $27.0 × -1 @ $0.79 → $0.96
-  - LONG CALL $29.0 × 1 @ $0.46 → $0.45
-  - LONG PUT $20.0 × 1 @ $0.35 → $0.30
-  - SHORT PUT $21.0 × -1 @ $0.48 → $0.49
+### TOST — 2026-07-17 (35 DTE) [unknown]
+- Market Value: $-60.00 | 🔴 Unrealised: $-14.00
+  - SHORT CALL $27.0 × -1 @ $0.79 → $0.67
+  - LONG CALL $29.0 × 1 @ $0.46 → $0.27
+  - LONG PUT $20.0 × 1 @ $0.35 → $0.37
+  - SHORT PUT $21.0 × -1 @ $0.48 → $0.57
 
 ## Exit Actions
 
-**TOST_2026-07-17** — 🔴 Stop loss close | P&L: $-24.00 | Executed: ❌
+**TOST_2026-07-17** — 🔴 Stop loss close | P&L: $-14.00 | Executed: ❌
 
 ## Exit Rules
 1. Profit target  : ≥50% of max profit → auto-close

@@ -832,7 +832,7 @@
     },
     {
       "trade_id": "8889120D",
-      "status": "pending",
+      "status": "expired",
       "created": "2026-06-10 21:09",
       "expires": "2026-06-11 03:09",
       "symbol": "PBR",
@@ -877,7 +877,7 @@
     },
     {
       "trade_id": "B3C42429",
-      "status": "pending",
+      "status": "expired",
       "created": "2026-06-10 21:09",
       "expires": "2026-06-11 03:09",
       "symbol": "BMNR",
@@ -922,7 +922,7 @@
     },
     {
       "trade_id": "2E2EA56B",
-      "status": "pending",
+      "status": "expired",
       "created": "2026-06-10 21:09",
       "expires": "2026-06-11 03:09",
       "symbol": "TOST",
@@ -966,6 +966,6 @@
       "alpaca_order_id": null
     }
   ],
-  "last_scan_time": "2026-06-10 21:20",
-  "updated": "2026-06-10 21:09"
+  "last_scan_time": "2026-06-11 21:20",
+  "updated": "2026-06-11 21:05"
 }

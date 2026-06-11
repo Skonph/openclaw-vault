@@ -1,4 +1,15 @@
 
+## 2026-06-11 21:20 — Autonomous Run
+
+Regime: `bull` | Mode: 🤖 Autonomous
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (1)
+- Market condition elevated — no debit or IC opportunity
+
+---
+
 ## 2026-06-10 21:20 — Autonomous Run
 
 Regime: `flat_elevated` | Mode: 🤖 Autonomous
