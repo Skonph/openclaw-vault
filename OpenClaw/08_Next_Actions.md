@@ -1,4 +1,125 @@
 
+## 2026-06-12 21:20 — Autonomous Run
+
+Regime: `flat_elevated` | Mode: 🤖 Autonomous
+
+### 🚫 Events Blocked (1)
+- CMG: KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (23)
+- SIRI: no qualifying spread
+- CZR: no qualifying spread
+- UUUU: no qualifying spread
+- CPNG: no qualifying spread
+- S: no qualifying spread
+- TOST: no qualifying spread
+- XPEV: no qualifying spread
+- LI: no qualifying spread
+- BTDR: no qualifying spread
+- GLXY: no qualifying spread
+- BEKE: no qualifying spread
+- GEN: no qualifying spread
+- OSCR: no qualifying spread
+- AMTM: no qualifying spread
+- BTU: no qualifying spread
+- SOC: no qualifying spread
+- SSRM: no qualifying spread
+- SM: no qualifying spread
+- BZ: no qualifying spread
+- GAP: no qualifying spread
+- HMC: no qualifying spread
+- MBLY: price $9.5463 outside range
+- CMG: EVENTS BLOCKED — KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+
+---
+
+## 2026-06-11 21:20 — Autonomous Run
+
+Regime: `bull` | Mode: 🤖 Autonomous
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (1)
+- Market condition elevated — no debit or IC opportunity
+
+---
+
+## 2026-06-10 21:20 — Autonomous Run
+
+Regime: `flat_elevated` | Mode: 🤖 Autonomous
+
+### 🚫 Events Blocked (2)
+- GME: KNOWN_EVENTS: 2026-06-10 (within 14d of entry)
+- CMG: KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (23)
+- SIRI: no qualifying spread
+- CZR: no qualifying spread
+- UUUU: no qualifying spread
+- CPNG: no qualifying spread
+- S: no qualifying spread
+- XPEV: no qualifying spread
+- LI: no qualifying spread
+- BTDR: no qualifying spread
+- GLXY: no qualifying spread
+- BEKE: no qualifying spread
+- GEN: no qualifying spread
+- OSCR: daily move too large
+- AMTM: no qualifying spread
+- BTU: no qualifying spread
+- SOC: no qualifying spread
+- SSRM: no qualifying spread
+- SM: no qualifying spread
+- BZ: no qualifying spread
+- GAP: no qualifying spread
+- HMC: no qualifying spread
+- MBLY: price $9.315 outside range
+- GME: EVENTS BLOCKED — KNOWN_EVENTS: 2026-06-10 (within 14d of entry)
+- CMG: EVENTS BLOCKED — KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+
+---
+
+## 2026-06-09 21:20 — Autonomous Run
+
+Regime: `bull` | Mode: 🤖 Autonomous
+
+### 🚫 Events Blocked (1)
+- GME: KNOWN_EVENTS: 2026-06-10 (within 14d of entry)
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (24)
+- SIRI: no qualifying spread
+- CZR: no qualifying spread
+- BMNR: no qualifying spread
+- UUUU: no qualifying spread
+- CMG: no qualifying spread
+- CPNG: no qualifying spread
+- S: no qualifying spread
+- TOST: no qualifying spread
+- XPEV: no qualifying spread
+- LI: no qualifying spread
+- BTDR: no qualifying spread
+- GLXY: daily move too large
+- BEKE: no qualifying spread
+- GEN: no qualifying spread
+- OSCR: no qualifying spread
+- AMTM: no qualifying spread
+- BTU: no qualifying spread
+- SOC: daily move too large
+- SSRM: no qualifying spread
+- SM: no qualifying spread
+- BZ: no qualifying spread
+- HMC: no qualifying spread
+- MBLY: price $9.875 outside range
+- GME: EVENTS BLOCKED — KNOWN_EVENTS: 2026-06-10 (within 14d of entry)
+
+---
+
 ## 2026-05-28 21:20 — Scanner Results
 
 Market: ✅ OK
