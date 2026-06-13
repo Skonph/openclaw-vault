@@ -8,12 +8,12 @@
 
 | Rule | Requirement |
 |------|-------------|
-| Conviction Score | ≥70/100 |
+| Conviction Score | ≥75/100 |
 | IV Rank (52W Percentile) | ≤40% |
 | IV Last (Absolute) | ≤45% |
 | Premium | $0.30–$0.60 net debit |
 | Spread Width | ≤$3 |
-| Underlying Price | $10–$30 |
+| Underlying Price | $10–$40 |
 | DTE | 25–40 days |
 | Earnings Ban | ±14 days |
 | Market Condition | Green/stable only |
@@ -46,7 +46,7 @@
 | 6 | Check IV ≤40% | Yahoo Finance chain |
 | 7 | Check IBKR Events Calendar | IBKR Research |
 | 8 | Verify earnings >14 days away | IBKR Events Calendar |
-| 9 | Score conviction ≥70 | Nova scoring |
+| 9 | Score conviction ≥75 | Nova scoring |
 | 10 | Human final approval | Chat confirmation |
 
 ---
@@ -61,9 +61,9 @@
 - Communication Services
 
 ### Secondary
-- Financials (price ≤$30 only)
+- Financials (price ≤$40 only)
 - Healthcare (no biotech, no earnings ±14d)
-- Technology (small/mid cap, $10–$30 only)
+- Technology (small/mid cap, $10–$40 only)
 
 ### Excluded Permanently
 - Utilities
@@ -111,8 +111,8 @@
 | IV Rank >40% | Options too expensive (relative) |
 | IV Last >45% | Options too expensive (absolute) — even if IV Rank passes |
 | Earnings within ±14 days | IV spike risk |
-| Price outside $10–$30 | Filter breach |
-| Conviction <70/100 | Insufficient edge |
+| Price outside $10–$40 | Filter breach |
+| Conviction <75/100 | Insufficient edge |
 | Nova price vs actual >2% | Data unreliable |
 | Broad market selloff day | Directional headwind |
 | Deep ITM strikes | Wrong structure |
@@ -156,10 +156,10 @@
 ### Score Interpretation
 | Score | Action |
 |-------|--------|
-| ≥75 | Strong — enter if all rules pass |
-| 70–74 | Minimum — only enter if all other rules strong |
-| 65–69 | Reject — below threshold |
-| <65 | Hard reject |
+| ≥80 | Strong — enter if all rules pass |
+| 75–79 | Minimum — enter only if all other rules strong |
+| 70–74 | Reject — below new threshold (raised May 22, 2026) |
+| <70 | Hard reject |
 
 ---
 
@@ -184,7 +184,7 @@ for the ticker covering full trade window (entry → expiry):
 2. Search ticker
 3. Review all events between today and expiry date
 4. Apply deductions to conviction score
-5. If revised score <70 → reject
+5. If revised score <75 → reject
 
 ---
 

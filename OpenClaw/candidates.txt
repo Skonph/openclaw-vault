@@ -1,0 +1,64 @@
+# OpenClaw Candidates
+# Updated: 2026-06-06
+# Source: IBKR MultiSort Screener v2.0 + manual refresh 2026-06-06
+# Factors: Avg Option Volume, Opt. Implied Volatility %, 52-Week IV Rank,
+#          Market Cap, Price/EMA(20), Change % — run per strategy direction
+# Hard filtering handled by scanner: Price $10-40, IV Last ≤45%, OI ≥500,
+#          Bid-ask ≤$0.10, Events ±14d ban, Conviction ≥75
+#
+# ── From bull call screen (Price/EMA positive, IV Rank low) ───────────────────
+SIRI
+CZR
+CLF
+SOFI
+#
+# ── From bear put screen (Price/EMA negative, IV Rank low) ────────────────────
+PBR
+GME
+BMNR
+UUUU
+WBD
+CHWY
+#
+# ── From iron condor screen (Price/EMA near 0, IV Rank 30-50%) ────────────────
+CMG
+CPNG
+S
+TOST
+#
+# ── From previous screen (all strategies, scanner determines direction) ────────
+XPEV
+LI
+BEKE
+GEN
+OSCR
+AMTM
+SOC
+SSRM
+SM
+BZ
+GAP
+HMC
+MBLY
+DKNG
+# PONY — removed 2026-06-05: fell below $10 ($9.56)
+# VNET — removed 2026-06-05: fell below $10 ($9.71)
+# GLXY  — removed 2026-06-06: Galaxy Digital, beta 2.87, IV tracks BTC (~80%+), fails IV_LAST_MAX permanently
+# BTDR  — removed 2026-06-06: Bitdeer, live chain IV 159-265%, fails IV_LAST_MAX=45% every night
+# BTU   — removed 2026-06-06: Peabody coal, consistently low OI at target strikes, near range ceiling ($29-31)
+#
+# ── Watchlist — IV Rank currently >40%, recheck when IV normalizes ─────────────
+# CCL   — IV too high, Iran deal catalyst needed
+# NCLH  — IV too high, same thesis as CCL
+# AAL   — IV too high, recheck when IV rank drops
+# PR    — KNOWN_HOLD until Jun 17 (dividend Jun 16)
+#
+# ── 2026-06-06 Refresh notes ──────────────────────────────────────────────────
+# CLF   ~$14  steel, GM supplier award (bullish), decent option liquidity
+# SOFI  ~$16  fintech pullback, improving profitability, good option volume
+# WBD   ~$27  media, antitrust headwinds on Paramount deal, falling
+# CHWY  ~$21  pet retail, price target cut by Mizuho ahead of earnings
+# DKNG  ~$25  sports betting, consolidating range, liquid options
+# SSRM  ~$29  recovered from Çöpler mine lows — keep but flag for IV check
+# Note: CLF/SOFI/WBD/CHWY/DKNG added via research, not fresh IBKR MultiSort run.
+#       Validate OI at target strikes before next live scan.

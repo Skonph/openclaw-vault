@@ -2,8 +2,8 @@
 
 ## Server Details
 - Host: ubuntu@43.160.222.7
-- Bot directory: ~/trading-bot
-- Env file: /home/ubuntu/trading-bot/.env
+- Bot directory: ~/openclaw
+- Env file: /home/ubuntu/openclaw/.env
 - SSH: ssh ubuntu@43.160.222.7
 
 ## Environment Variables (.env)
@@ -15,7 +15,7 @@
 \`\`\`python
 import os, requests
 from dotenv import load_dotenv
-load_dotenv('/home/ubuntu/trading-bot/.env')
+load_dotenv('/home/ubuntu/openclaw/.env')
 
 headers = {
     'APCA-API-KEY-ID': os.environ.get('ALPACA_API_KEY'),
@@ -63,7 +63,7 @@ Same as above but:
 ## SSH Execution Template (Bash)
 \`\`\`bash
 ssh ubuntu@43.160.222.7 << 'ENDSSH'
-cd ~/trading-bot
+cd ~/openclaw
 python3 - << 'EOF'
 [python code here]
 EOF

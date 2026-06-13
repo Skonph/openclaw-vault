@@ -1,0 +1,30 @@
+[
+  {
+    "trade_id": "20260606_135314",
+    "strategy": "Bull Put Spread",
+    "symbol": "SPY",
+    "expiration": "2026-06-19",
+    "entry_credit": 0.37,
+    "profit_target_debit": 0.18,
+    "stop_loss_debit": 0.74,
+    "order_id": "TEST-AUTO-001",
+    "entered_at": "2026-06-06T13:53:14.034240",
+    "quantity": 1,
+    "short_symbol": "SPY260619P00732000",
+    "long_symbol": "SPY260619P00730000"
+  },
+  {
+    "trade_id": "20260606_142227",
+    "strategy": "Bull Put Spread",
+    "symbol": "SPY",
+    "expiration": "2026-06-19",
+    "entry_credit": 0.37,
+    "profit_target_debit": 0.18,
+    "stop_loss_debit": 0.74,
+    "order_id": "TEST-AUTO-001",
+    "entered_at": "2026-06-06T14:22:27.740105",
+    "quantity": 1,
+    "short_symbol": "SPY260619P00732000",
+    "long_symbol": "SPY260619P00730000"
+  }
+]

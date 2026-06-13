@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Approval Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+    background: #0f1117;
+    color: #e2e8f0;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 1px solid #2d3748;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; color: #f7fafc; }
+  .header .sub { font-size: 11px; color: #718096; margin-top: 2px; }
+  .refresh-btn {
+    background: #2d3748; border: 1px solid #4a5568; color: #a0aec0;
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  .refresh-btn:hover { background: #4a5568; color: #f7fafc; }
+
+  /* Status bar */
+  .status-bar {
+    display: flex; gap: 16px; margin-bottom: 20px;
+    padding: 10px 14px; background: #1a202c; border-radius: 8px;
+    border: 1px solid #2d3748;
+  }
+  .stat { text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 700; }
+  .stat-label { font-size: 10px; color: #718096; text-transform: uppercase; margin-top: 1px; }
+  .stat-num.green { color: #68d391; }
+  .stat-num.yellow { color: #f6e05e; }
+  .stat-num.red { color: #fc8181; }
+  .stat-num.blue { color: #63b3ed; }
+  .divider { width: 1px; background: #2d3748; }
+
+  /* Cards */
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #718096; margin-bottom: 10px;
+  }
+  .card {
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .card.pending  { border-left: 3px solid #f6e05e; }
+  .card.approved { border-left: 3px solid #68d391; opacity: 0.7; }
+  .card.rejected { border-left: 3px solid #fc8181; opacity: 0.6; }
+  .card.executed { border-left: 3px solid #63b3ed; opacity: 0.7; }
+  .card.expired  { border-left: 3px solid #4a5568; opacity: 0.5; }
+
+  .card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .card-title { font-size: 16px; font-weight: 700; color: #f7fafc; }
+  .card-id    { font-size: 10px; color: #718096; margin-top: 3px; font-family: monospace; }
+  .badge {
+    font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  .badge.pending  { background: #744210; color: #f6e05e; }
+  .badge.approved { background: #1c4532; color: #68d391; }
+  .badge.rejected { background: #742a2a; color: #fc8181; }
+  .badge.executed { background: #1a365d; color: #63b3ed; }
+  .badge.expired  { background: #2d3748; color: #718096; }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .grid-item { background: #2d3748; border-radius: 6px; padding: 8px 10px; }
+  .grid-label { font-size: 9px; color: #718096; text-transform: uppercase; margin-bottom: 3px; }
+  .grid-value { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+
+  /* Events / conviction row */
+  .meta-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .meta-chip {
+    display: flex; align-items: center; gap: 5px;
+    background: #2d3748; border-radius: 5px; padding: 5px 10px; font-size: 11px;
+  }
+  .meta-chip.warn { background: #744210; color: #f6e05e; }
+  .meta-chip.ok   { background: #1c4532; color: #68d391; }
+  .meta-chip.bad  { background: #742a2a; color: #fc8181; }
+  .meta-chip.neutral { background: #2d3748; color: #a0aec0; }
+
+  /* Action buttons */
+  .actions { display: flex; gap: 10px; }
+  .btn {
+    flex: 1; padding: 10px; border: none; border-radius: 7px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:hover  { opacity: 0.85; }
+  .btn:active { transform: scale(0.97); }
+  .btn-approve { background: #276749; color: #f0fff4; }
+  .btn-reject  { background: #742a2a; color: #fff5f5; }
+  .btn-dry-run { background: #2c5282; color: #ebf8ff; font-size: 11px; flex: 0.5; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Conviction bar */
+  .conv-bar-bg {
+    height: 6px; background: #2d3748; border-radius: 3px; margin-top: 6px; overflow: hidden;
+  }
+  .conv-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+  /* Log / output */
+  .log {
+    background: #0d1117; border: 1px solid #2d3748; border-radius: 7px;
+    padding: 10px 12px; font-size: 11px; font-family: monospace; color: #a0aec0;
+    max-height: 120px; overflow-y: auto; margin-top: 10px; white-space: pre-wrap;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center; padding: 40px 20px; color: #4a5568;
+  }
+  .empty .icon { font-size: 36px; margin-bottom: 10px; }
+  .empty p { font-size: 13px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: #2d3748; border: 1px solid #4a5568; color: #f7fafc;
+    padding: 10px 16px; border-radius: 8px; font-size: 12px;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+
+  .last-refresh { font-size: 10px; color: #4a5568; text-align: right; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header h1">⚡ OpenClaw Approval Dashboard</div>
+    <div class="sub">Review scanner alerts → Approve or Reject → Alpaca executes</div>
+  </div>
+  <button class="refresh-btn" onclick="loadOrders()">↻ Refresh</button>
+</div>
+
+<div class="status-bar" id="status-bar">
+  <div class="stat"><div class="stat-num yellow" id="cnt-pending">—</div><div class="stat-label">Pending</div></div>
+  <div class="divider"></div>
+  <div class="stat"><div class="stat-num green" id="cnt-approved">—</div><div class="stat-label">Approved</div></div>
+  <div class="divider"></div>
+  <div class="stat"><div class="stat-num blue" id="cnt-executed">—</div><div class="stat-label">Executed</div></div>
+  <div class="divider"></div>
+  <div class="stat"><div class="stat-num red" id="cnt-rejected">—</div><div class="stat-label">Rejected</div></div>
+</div>
+
+<div class="last-refresh" id="last-refresh"></div>
+<div id="cards-container"></div>
+<div class="log" id="action-log" style="display:none"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+// Reads pending_orders.json from local vault (git-pulled from server)
+// Served via: python3 -m http.server 8080 from SkonVault root
+const VAULT_PATH = '../OpenClaw/pending_orders.json';
+const ALPACA_BASE = 'https://paper-api.alpaca.markets/v2';
+
+// Alpaca keys — loaded from environment or entered below
+// These are used ONLY when the Approve button is clicked
+let ALPACA_KEY    = '';
+let ALPACA_SECRET = '';
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Conviction bar colour ─────────────────────────────────────────────────────
+function convColor(score) {
+  if (score >= 85) return '#68d391';
+  if (score >= 75) return '#f6e05e';
+  return '#fc8181';
+}
+
+// ── Load orders from local JSON file ─────────────────────────────────────────
+async function loadOrders() {
+  document.getElementById('last-refresh').textContent =
+    'Last refresh: ' + new Date().toLocaleTimeString();
+
+  let orders = [];
+  try {
+    // Cowork environment: read file via fetch with file:// protocol
+    const res = await fetch(VAULT_PATH);
+    const data = await res.json();
+    orders = data.orders || [];
+  } catch (e) {
+    // Fallback: try reading via window.cowork if available
+    if (window.cowork) {
+      try {
+        const result = await window.cowork.callMcpTool('read_file', { path: VAULT_PATH });
+        const data = JSON.parse(result);
+        orders = data.orders || [];
+      } catch (e2) {
+        document.getElementById('cards-container').innerHTML =
+          `<div class="empty"><div class="icon">📂</div>
+           <p>Could not read pending_orders.json<br>
+           Run <code>git pull origin main</code> in your vault first,<br>
+           then reopen this dashboard.</p></div>`;
+        return;
+      }
+    } else {
+      document.getElementById('cards-container').innerHTML =
+        `<div class="empty"><div class="icon">📂</div>
+         <p>Could not read pending_orders.json<br>
+         Make sure you've run <code>git pull</code> in your vault folder.</p></div>`;
+      return;
+    }
+  }
+
+  renderOrders(orders);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderOrders(orders) {
+  const pending  = orders.filter(o => o.status === 'pending');
+  const approved = orders.filter(o => o.status === 'approved');
+  const executed = orders.filter(o => o.status === 'executed');
+  const rejected = orders.filter(o => o.status === 'rejected');
+
+  document.getElementById('cnt-pending').textContent  = pending.length;
+  document.getElementById('cnt-approved').textContent = approved.length;
+  document.getElementById('cnt-executed').textContent = executed.length;
+  document.getElementById('cnt-rejected').textContent = rejected.length;
+
+  const container = document.getElementById('cards-container');
+  container.innerHTML = '';
+
+  if (orders.length === 0) {
+    container.innerHTML = `<div class="empty"><div class="icon">✅</div>
+      <p>No pending orders. Scanner will add alerts here nightly.</p></div>`;
+    return;
+  }
+
+  // Show pending first, then others
+  const sorted = [...pending, ...approved, ...executed, ...rejected,
+                  ...orders.filter(o => !['pending','approved','executed','rejected'].includes(o.status))];
+
+  sorted.forEach(order => {
+    container.appendChild(buildCard(order));
+  });
+}
+
+// ── Build card ────────────────────────────────────────────────────────────────
+function buildCard(o) {
+  const div = document.createElement('div');
+  div.className = `card ${o.status}`;
+  div.id = `card-${o.trade_id}`;
+
+  const convScore  = o.conviction_score || 0;
+  const evStatus   = o.events_status || 'uncertain';
+  const evIcon     = evStatus === 'clear' ? '✅' : evStatus === 'blocked' ? '🚫' : '⚠️';
+  const evClass    = evStatus === 'clear' ? 'ok' : evStatus === 'blocked' ? 'bad' : 'warn';
+  const typeLabel  = o.spread_type === 'bull_call' ? '📈 Bull Call' : '📉 Bear Put';
+  const isPending  = o.status === 'pending';
+
+  div.innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="card-title">${o.symbol} $${o.long_strike} / $${o.short_strike} &nbsp; ${typeLabel}</div>
+        <div class="card-id">ID: ${o.trade_id} &nbsp;|&nbsp; Created: ${o.created}</div>
+      </div>
+      <div class="badge ${o.status}">${o.status}</div>
+    </div>
+
+    <div class="grid">
+      <div class="grid-item"><div class="grid-label">Expiry</div><div class="grid-value">${o.expiry} (${o.dte}d)</div></div>
+      <div class="grid-item"><div class="grid-label">Net Debit</div><div class="grid-value">$${o.spread_mid}</div></div>
+      <div class="grid-item"><div class="grid-label">R:R</div><div class="grid-value">${o.rr}:1</div></div>
+      <div class="grid-item"><div class="grid-label">IV (long/short)</div><div class="grid-value">${o.long_iv}% / ${o.short_iv}%</div></div>
+      <div class="grid-item"><div class="grid-label">OI (long/short)</div><div class="grid-value">${(o.long_oi||0).toLocaleString()} / ${(o.short_oi||0).toLocaleString()}</div></div>
+      <div class="grid-item"><div class="grid-label">Stock Price</div><div class="grid-value">$${o.price || '—'}</div></div>
+    </div>
+
+    <div class="meta-row">
+      <div class="meta-chip ${evClass}">${evIcon} Events: ${evStatus.toUpperCase()}${evStatus==='uncertain' ? ' — verify IBKR' : ''}</div>
+      <div class="meta-chip ${convScore >= 75 ? 'ok' : 'bad'}">
+        🧠 Conviction: ${convScore}/100 (${o.conviction_mode || 'offline'})
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#718096;margin-bottom:4px">
+        <span>Conviction score</span><span>${convScore}/100 (min 75)</span>
+      </div>
+      <div class="conv-bar-bg">
+        <div class="conv-bar-fill"
+          style="width:${Math.min(convScore,100)}%;background:${convColor(convScore)}"></div>
+      </div>
+    </div>
+
+    ${o.conviction_reason ? `<div style="font-size:11px;color:#718096;margin-bottom:12px">
+      💬 ${o.conviction_reason}</div>` : ''}
+
+    ${isPending ? `
+    <div class="actions">
+      <button class="btn btn-approve" onclick="approve('${o.trade_id}')">
+        ✅ Approve & Execute
+      </button>
+      <button class="btn btn-reject"  onclick="reject('${o.trade_id}')">
+        ❌ Reject
+      </button>
+      <button class="btn btn-dry-run" onclick="dryRun('${o.trade_id}')">
+        🔍 Dry Run
+      </button>
+    </div>` : `
+    <div style="font-size:11px;color:#718096;">
+      ${o.status === 'executed' ? `✅ Executed at ${o.executed_at} | Alpaca: ${o.alpaca_order_id}` : ''}
+      ${o.status === 'rejected' ? `❌ Rejected: ${o.reject_reason || 'no reason given'}` : ''}
+      ${o.status === 'approved' ? `✅ Approved by ${o.approved_by} at ${o.approved_at} — awaiting execution` : ''}
+    </div>`}
+  `;
+
+  return div;
+}
+
+// ── Approve: build OCC symbols + submit Alpaca mleg order ────────────────────
+async function approve(tradeId) {
+  const btn = document.querySelector(`#card-${tradeId} .btn-approve`);
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting...';
+
+  logAction(`[${tradeId}] Approve clicked — building Alpaca order...`);
+
+  // Prompt for keys if not set
+  if (!ALPACA_KEY || !ALPACA_SECRET) {
+    ALPACA_KEY    = prompt('Enter Alpaca paper API key (APCA-API-KEY-ID):');
+    ALPACA_SECRET = prompt('Enter Alpaca paper secret key (APCA-API-SECRET-KEY):');
+    if (!ALPACA_KEY || !ALPACA_SECRET) {
+      logAction('❌ Keys not provided — cancelled');
+      btn.disabled = false; btn.textContent = '✅ Approve & Execute';
+      return;
+    }
+  }
+
+  // Rebuild order from card data — read full order from JSON
+  let orders = [];
+  try {
+    const res = await fetch(VAULT_PATH);
+    const data = await res.json();
+    orders = data.orders || [];
+  } catch (e) { logAction('❌ Could not read order file'); return; }
+
+  const order = orders.find(o => o.trade_id === tradeId);
+  if (!order) { logAction(`❌ Order ${tradeId} not found`); return; }
+  if (order.status !== 'pending') {
+    logAction(`❌ Order ${tradeId} is ${order.status} — cannot execute`);
+    return;
+  }
+
+  // Build OCC symbols
+  const longOCC  = buildOCC(order.symbol, order.expiry, order.spread_type === 'bull_call' ? 'C' : 'P', order.long_strike);
+  const shortOCC = buildOCC(order.symbol, order.expiry, order.spread_type === 'bull_call' ? 'C' : 'P', order.short_strike);
+  const limitPrice = (parseFloat(order.spread_mid) * 1.05).toFixed(2);
+
+  const payload = {
+    order_class: 'mleg',
+    type: 'limit',
+    time_in_force: 'day',
+    limit_price: limitPrice,
+    legs: [
+      { symbol: longOCC,  ratio_qty: 1, side: 'buy',  position_effect: 'open' },
+      { symbol: shortOCC, ratio_qty: 1, side: 'sell', position_effect: 'open' },
+    ]
+  };
+
+  logAction(`Submitting: ${longOCC} / ${shortOCC} @ $${limitPrice}`);
+
+  try {
+    const res = await fetch(`${ALPACA_BASE}/orders`, {
+      method: 'POST',
+      headers: {
+        'APCA-API-KEY-ID':     ALPACA_KEY,
+        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (res.ok) {
+      logAction(`✅ Order accepted! Alpaca ID: ${result.id}`);
+      toast(`✅ ${order.symbol} order submitted — ID: ${result.id}`);
+      // Ask Claude to mark as executed via sendPrompt
+      sendPrompt(`Mark trade ${tradeId} as executed with Alpaca order ID ${result.id}. Run: python3 approval_manager.py`);
+    } else {
+      logAction(`❌ Alpaca rejected: ${result.message || JSON.stringify(result)}`);
+      toast(`❌ Alpaca rejected: ${result.message}`);
+      btn.disabled = false; btn.textContent = '✅ Approve & Execute';
+    }
+  } catch (e) {
+    logAction(`❌ Network error: ${e}`);
+    toast('❌ Network error submitting order');
+    btn.disabled = false; btn.textContent = '✅ Approve & Execute';
+  }
+}
+
+// ── Reject ────────────────────────────────────────────────────────────────────
+function reject(tradeId) {
+  const reason = prompt('Reason for rejection (optional):') || 'Manual reject';
+  logAction(`[${tradeId}] Rejected: ${reason}`);
+  toast(`❌ ${tradeId} rejected — tell Claude to run approval_manager.py reject ${tradeId}`);
+  sendPrompt(`Please run on the server: python3 /home/ubuntu/trading-bot/approval_manager.py reject ${tradeId} "${reason}" — then git push the vault`);
+}
+
+// ── Dry run ───────────────────────────────────────────────────────────────────
+function dryRun(tradeId) {
+  toast(`🔍 Ask Claude: "dry-run trade ${tradeId}"`);
+  sendPrompt(`Dry run trade ${tradeId}: show me the Alpaca order payload that would be submitted, without actually submitting.`);
+}
+
+// ── OCC symbol builder ────────────────────────────────────────────────────────
+function buildOCC(symbol, expiry, cp, strike) {
+  // expiry: '2026-06-20' → '260620'
+  const parts = expiry.split('-');
+  const yy = parts[0].slice(2);
+  const mm = parts[1];
+  const dd = parts[2];
+  const strikeInt = Math.round(parseFloat(strike) * 1000);
+  const strikeStr = strikeInt.toString().padStart(8, '0');
+  return `${symbol}${yy}${mm}${dd}${cp}${strikeStr}`;
+}
+
+// ── Action log ────────────────────────────────────────────────────────────────
+function logAction(msg) {
+  const log = document.getElementById('action-log');
+  log.style.display = 'block';
+  log.textContent += new Date().toLocaleTimeString() + ' — ' + msg + '\n';
+  log.scrollTop = log.scrollHeight;
+  console.log(msg);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+loadOrders();
+setInterval(loadOrders, 60000); // auto-refresh every 60s
+</script>
+</body>
+</html>

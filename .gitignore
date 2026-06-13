@@ -1,0 +1,21 @@
+# OpenClaw — gitignore
+# ─────────────────────
+# Local credentials (NEVER commit)
+trading-bot/.env.local
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "strategy": "Bull Put Spread",
+    "symbol": "SPY",
+    "expiration": "2026-06-19",
+    "dte": 12,
+    "short_strike": 732,
+    "long_strike": 730,
+    "short_symbol": "SPY260619P00732000",
+    "long_symbol": "SPY260619P00730000",
+    "short_bid": 0.82,
+    "long_ask": 0.45,
+    "net_credit": 0.37,
+    "max_loss": 163.0,
+    "max_profit": 37.0,
+    "breakeven": 731.63,
+    "account_id": "VA39433735",
+    "scanned_at": "2026-06-06T14:22:27.739510",
+    "quantity": 1
+  },
+  "order_payload": {
+    "class": "multileg",
+    "symbol": "SPY",
+    "type": "limit",
+    "price": "0.37",
+    "duration": "day",
+    "option_symbol[0]": "SPY260619P00732000",
+    "side[0]": "sell_to_open",
+    "quantity[0]": "1",
+    "option_symbol[1]": "SPY260619P00730000",
+    "side[1]": "buy_to_open",
+    "quantity[1]": "1"
+  }
+}

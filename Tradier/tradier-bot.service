@@ -1,0 +1,17 @@
+[Unit]
+Description=Tradier Telegram Bot — Skon's $2K Paper Trading POC
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/trading-bot
+ExecStart=/home/ubuntu/trading-bot/venv/bin/python3 /home/ubuntu/trading-bot/telegram_bot.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/ubuntu/trading-bot/logs/bot.log
+StandardError=append:/home/ubuntu/trading-bot/logs/bot.log
+
+[Install]
+WantedBy=multi-user.target

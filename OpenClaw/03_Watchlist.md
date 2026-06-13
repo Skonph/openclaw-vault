@@ -119,10 +119,14 @@ Factors to set (prefer LOW values):
 
 Filters:
 
-- Price $10-$30
+- Price $10-$40 (expanded May 22, 2026)
 - Market Cap >$5B
 - NYSE + NASDAQ only
 - Avg Volume >1M
+
+⚠️ Post-screener manual check (add "IV Last" as visible column):
+- IV Last ≤45% — reject any result with IV Last >45% even if IV Rank passes
+- L019: IV Rank alone insufficient — always verify absolute IV before proceeding
 
 Save as: "OpenClaw Bull Call"
 
@@ -137,9 +141,37 @@ Factors to set:
 2. Price/EMA(20) — LOW (downtrend)
 3. Price/EMA(50) — LOW
 
-Same price/volume filters Save as: "OpenClaw Bear Put"
+Same filters: Price $10-$40, Market Cap >$5B, NYSE+NASDAQ, Avg Vol >1M
+Same IV Last ≤45% post-screener check applies
+Save as: "OpenClaw Bear Put"
 
 ```
+
+## Candidates Pipeline — After Each Cowork Session
+*(Added May 22, 2026)*
+
+After running IBKR MultiSort and reviewing candidates, update the server scanner:
+
+```bash
+ssh ubuntu@43.160.222.7 'cat > ~/trading-bot/candidates.txt << '"'"'EOF'"'"'
+# OpenClaw Candidates
+# Updated: YYYY-MM-DD
+# [note active positions or none]
+
+TICKER1
+TICKER2
+...
+EOF
+echo "✅ Done" && cat ~/trading-bot/candidates.txt'
+```
+
+Rules for candidates.txt:
+- Include tickers that pass screener IV Rank + IV Last + price filter
+- Exclude tickers in KNOWN_HOLDS (scanner suppresses them automatically)
+- Exclude tickers with earnings within 14 days
+- Max ~15 tickers — scanner runs all of them nightly
+
+---
 
 ## Barchart IV Rank Screener (Free)
 *Use alongside IBKR for IV rank verification*

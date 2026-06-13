@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw — End-to-End Workflow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    padding: 32px 24px;
+    max-width: 880px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  .header { margin-bottom: 32px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #f7fafc; }
+  .header .sub { font-size: 13px; color: #718096; margin-top: 6px; }
+  .version-badge {
+    display: inline-block; margin-top: 10px;
+    background: #2d3748; border: 1px solid #4a5568;
+    color: #a0aec0; font-size: 11px; padding: 3px 10px; border-radius: 20px;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    padding: 10px 14px; background: #1a202c;
+    border: 1px solid #2d3748; border-radius: 8px;
+    margin-bottom: 28px;
+  }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a0aec0; }
+  .leg-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── Phase ── */
+  .phase { margin-bottom: 28px; }
+  .phase-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .phase-icon { font-size: 18px; }
+  .phase-title { font-size: 13px; font-weight: 700; color: #f7fafc; }
+  .phase-sub { font-size: 11px; color: #718096; margin-top: 1px; }
+  .phase-line { flex: 1; height: 1px; background: #2d3748; margin-left: 4px; }
+
+  /* ── Path divider ── */
+  .path-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 10px 0 8px 0;
+  }
+  .path-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #4a5568; white-space: nowrap;
+  }
+  .path-line { flex: 1; height: 1px; border-top: 1px dashed #2d3748; }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 6px; }
+  .step {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 14px; border-radius: 8px;
+    border-left: 3px solid transparent;
+  }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 13px; font-weight: 600; color: #f7fafc; }
+  .step-detail { font-size: 12px; color: #a0aec0; margin-top: 3px; }
+  .step-code {
+    display: inline-block; margin-top: 5px;
+    background: #1a202c; border: 1px solid #2d3748;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px;
+    color: #68d391; padding: 4px 8px; border-radius: 5px;
+    white-space: pre;
+  }
+  .tag {
+    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+    text-transform: uppercase; flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+  }
+
+  /* Colour themes */
+  .s-auto    { background: #0d1f16; border-left-color: #16a34a; }
+  .s-auto    .step-num { background: #16a34a; color: #fff; }
+  .s-auto    .tag { background: #14532d; color: #4ade80; }
+
+  .s-human   { background: #1c1a0a; border-left-color: #ca8a04; }
+  .s-human   .step-num { background: #ca8a04; color: #fff; }
+  .s-human   .tag { background: #78350f; color: #fcd34d; }
+
+  .s-exec    { background: #0c1629; border-left-color: #2563eb; }
+  .s-exec    .step-num { background: #2563eb; color: #fff; }
+  .s-exec    .tag { background: #1e3a8a; color: #93c5fd; }
+
+  .s-monitor { background: #130d1f; border-left-color: #7c3aed; }
+  .s-monitor .step-num { background: #7c3aed; color: #fff; }
+  .s-monitor .tag { background: #4c1d95; color: #c4b5fd; }
+
+  .s-except  { background: #1c0e0a; border-left-color: #ea580c; }
+  .s-except  .step-num { background: #ea580c; color: #fff; }
+  .s-except  .tag { background: #7c2d12; color: #fdba74; }
+
+  .s-nova    { background: #061a1f; border-left-color: #0891b2; }
+  .s-nova    .step-num { background: #0891b2; color: #fff; }
+  .s-nova    .tag { background: #0c4a6e; color: #67e8f9; }
+
+  /* ── Flow connector ── */
+  .connector { margin-left: 24px; width: 2px; height: 8px; background: #2d3748; }
+
+  /* ── Files table ── */
+  .files-section { margin-top: 32px; }
+  .files-section h2 { font-size: 14px; font-weight: 700; color: #f7fafc; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; padding: 8px 10px;
+    background: #1a202c; color: #718096;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+    border-bottom: 1px solid #2d3748;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid #1a202c; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .fname { font-family: monospace; color: #68d391; font-size: 11px; }
+  .where { color: #a0aec0; }
+  .role { color: #e2e8f0; }
+  .badge-nova {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    background: #0c4a6e; color: #67e8f9; padding: 1px 6px; border-radius: 3px;
+    text-transform: uppercase; margin-left: 5px;
+  }
+
+  /* ── Rules card ── */
+  .rules-section { margin-top: 32px; }
+  .rules-section h2 { font-size: 14px; font-weight: 700; color: #f7fafc; margin-bottom: 12px; }
+  .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rule-item {
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 7px;
+    padding: 8px 12px; font-size: 12px;
+  }
+  .rule-label { color: #718096; font-size: 10px; text-transform: uppercase; margin-bottom: 3px; }
+  .rule-value { color: #e2e8f0; font-weight: 600; }
+
+  /* ── Exception box ── */
+  .exception-box {
+    margin-top: 24px; padding: 12px 16px; border-radius: 8px;
+    background: #1c150a; border: 1px solid #92400e;
+  }
+  .exception-box h3 { font-size: 12px; font-weight: 700; color: #fbbf24; margin-bottom: 6px; }
+  .exception-box p { font-size: 12px; color: #d97706; line-height: 1.5; }
+
+  /* ── Quick commands ── */
+  .commands-section { margin-top: 32px; }
+  .commands-section h2 { font-size: 14px; font-weight: 700; color: #f7fafc; margin-bottom: 12px; }
+  .cmd-block {
+    background: #0d1117; border: 1px solid #2d3748; border-radius: 8px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .cmd-block.nova-block { border-color: #164e63; }
+  .cmd-label { font-size: 10px; color: #718096; text-transform: uppercase; margin-bottom: 8px; font-weight: 700; }
+  .cmd-label.nova-label { color: #0891b2; }
+  code {
+    display: block; font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px; color: #68d391; line-height: 1.8;
+  }
+  code .comment { color: #4a5568; }
+  code .nova-cmd { color: #67e8f9; }
+
+  /* ── Timeline pill ── */
+  .timeline {
+    display: flex; align-items: stretch; gap: 0;
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 8px;
+    overflow: hidden; margin-bottom: 28px; font-size: 11px;
+  }
+  .tl-item {
+    flex: 1; padding: 8px 10px; text-align: center;
+    border-right: 1px solid #2d3748;
+  }
+  .tl-item:last-child { border-right: none; }
+  .tl-time { font-weight: 700; color: #f7fafc; font-size: 12px; }
+  .tl-desc { color: #718096; margin-top: 2px; font-size: 10px; }
+  .tl-auto  { border-top: 2px solid #16a34a; }
+  .tl-mac   { border-top: 2px solid #ca8a04; }
+  .tl-nova  { border-top: 2px solid #0891b2; }
+
+  /* ── Footer ── */
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #2d3748; font-size: 11px; color: #4a5568; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ OpenClaw — End-to-End Workflow</h1>
+  <div class="sub">Autonomous bull call + bear put spread trading system · Alpaca paper account</div>
+  <span class="version-badge">v3.1 · Updated May 2026</span>
+</div>
+
+<div class="legend">
+  <div class="leg"><div class="leg-dot" style="background:#16a34a"></div> Server — fully automatic</div>
+  <div class="leg"><div class="leg-dot" style="background:#ca8a04"></div> Human gate — your action needed</div>
+  <div class="leg"><div class="leg-dot" style="background:#2563eb"></div> Execution — auto on approval</div>
+  <div class="leg"><div class="leg-dot" style="background:#7c3aed"></div> Monitoring — runs every night</div>
+  <div class="leg"><div class="leg-dot" style="background:#0891b2"></div> Nova — Cowork AI fallback path</div>
+  <div class="leg"><div class="leg-dot" style="background:#ea580c"></div> Exception — IBKR manual check</div>
+</div>
+
+<!-- ── Nightly timeline ── -->
+<div class="timeline">
+  <div class="tl-item tl-auto">
+    <div class="tl-time">21:05</div>
+    <div class="tl-desc">Scanner fires (server cron)</div>
+  </div>
+  <div class="tl-item tl-auto">
+    <div class="tl-time">~21:15</div>
+    <div class="tl-desc">Scan complete, pending order written</div>
+  </div>
+  <div class="tl-item tl-auto">
+    <div class="tl-time">21:20</div>
+    <div class="tl-desc">vault_updater.py → GitHub push</div>
+  </div>
+  <div class="tl-item tl-mac">
+    <div class="tl-time">21:25</div>
+    <div class="tl-desc">Mac crontab: git pull (auto)</div>
+  </div>
+  <div class="tl-item tl-nova">
+    <div class="tl-time">21:35</div>
+    <div class="tl-desc">Cowork: Nova briefing fires</div>
+  </div>
+  <div class="tl-item tl-mac">
+    <div class="tl-time">21:35+</div>
+    <div class="tl-desc">You: approve via dashboard or Nova</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ PHASE 1 ═══ -->
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-icon">🕐</span>
+    <div>
+      <div class="phase-title">Phase 1 — Nightly Scan &amp; Intelligence</div>
+      <div class="phase-sub">Server cron at 21:05 Bangkok (Mon–Fri) · openclaw_scanner.py</div>
+    </div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="steps">
+    <div class="step s-auto">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Macro fetch — VIX, SPY, sector ETFs</div>
+        <div class="step-detail">Tradier API pulls live quotes for VIX, SPY, XLE, XLY, XLI, XLB, XLC, XLF.<br>
+        Gate: VIX ≥ 20 OR SPY change ≤ −1.5% → market blocked, no new bull call entries today.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Sector ETF EMA20 direction check</div>
+        <div class="step-detail">45-day price history → compute EMA(20) per sector ETF.<br>
+        ETF above EMA20 → bull call spreads only for that sector's tickers.<br>
+        ETF below EMA20 → bear put spreads only. Unknown → scan both.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Spread scan across candidates.txt (13 tickers)</div>
+        <div class="step-detail">Tradier options chains per ticker × expiry in 25–40 DTE window.<br>
+        Hard filters applied to every leg: IV Last ≤ 45% (L019) · OI ≥ 500 · Bid > $0 · Bid-ask ≤ $0.10 · Net debit $0.30–$0.60 · Spread width ≤ $3 · R:R calculated · KNOWN_HOLDS skipped (e.g. PR until Jun 17).<br>
+        Best R:R per ticker+type kept after deduplication.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Events calendar check — Tradier fundamentals/calendars</div>
+        <div class="step-detail">Checks earnings ± 14 days and ex-dividend dates within 14 days forward for each qualifying ticker.<br>
+        <strong style="color:#fc8181">BLOCKED</strong> — confirmed event in window → skip.<br>
+        <strong style="color:#68d391">CLEAR</strong> — no events found → proceed.<br>
+        <strong style="color:#fbbf24">UNCERTAIN</strong> — Tradier returned no data → proceed but flag ⚠️ for IBKR check before approval.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Conviction scoring — Claude Haiku API</div>
+        <div class="step-detail">Calls Anthropic API (claude-haiku-4-5-20251001) with full spread context.<br>
+        Scores 0–100 across: liquidity (OI depth, bid-ask tightness) · volatility setup (IV rank, IV last) · structure (R:R, DTE sweet spot 28–35) · market alignment (ETF direction, VIX level).<br>
+        Score &lt; 75 → rejected. Score ≥ 75 → proceeds to approval queue.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Write pending_orders.json + snapshot JSON</div>
+        <div class="step-detail">approval_manager.py writes qualifying trade to OpenClaw/pending_orders.json in vault.<br>
+        Trade ID assigned (e.g. A1B2C3D4) · expires 6 hours after creation.<br>
+        Full scan snapshot written to ~/trading-bot/logs/snapshots/.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ PHASE 2 ═══ -->
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-icon">📝</span>
+    <div>
+      <div class="phase-title">Phase 2 — Vault Update, GitHub Push &amp; Mac Sync</div>
+      <div class="phase-sub">Server cron at 21:20 Bangkok · vault_updater.py · Mac crontab pulls at 21:25</div>
+    </div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="steps">
+    <div class="step s-auto">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Generate 4 vault markdown files</div>
+        <div class="step-detail">
+          <strong>07_Macro_Context.md</strong> — macro table (VIX, SPY, XLE, etc.) prepended.<br>
+          <strong>08_Next_Actions.md</strong> — pending approvals with conviction scores, events status, trade IDs.<br>
+          <strong>09_Daily_Briefing.md</strong> — full briefing with Approve/Reject instructions.<br>
+          <strong>templates/Nova_Session_Prompt.md</strong> — updated Nova context with today's pending alerts.
+        </div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Git push to GitHub</div>
+        <div class="step-detail">Stages OpenClaw/ + templates/ (excludes workspace.json).<br>
+        Git pull --rebase first, then push origin main. All vault files including pending_orders.json synced.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-auto">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Mac auto git pull (crontab at 21:25 Bangkok)</div>
+        <div class="step-detail">Mac crontab pulls vault 5 minutes after push completes — vault is fresh before dashboard or Nova reads it.<br>
+        Log: <span style="font-family:monospace;color:#93c5fd">/tmp/openclaw_pull.log</span><br>
+        Setup: <span style="font-family:monospace;color:#68d391">25 21 * * 1-5  cd /Users/SkonP/AI_Prompt/Obsidient/SkonVault &amp;&amp; git pull origin main &gt;&gt; /tmp/openclaw_pull.log 2&gt;&amp;1</span></div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ PHASE 3 ═══ -->
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-icon">👤</span>
+    <div>
+      <div class="phase-title">Phase 3 — Human Review &amp; Approval</div>
+      <div class="phase-sub">Two paths — Browser Dashboard (primary) · Nova/Cowork (fallback)</div>
+    </div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="steps">
+
+    <!-- Path A -->
+    <div class="path-divider">
+      <div class="path-label">Path A — Browser Dashboard (primary)</div>
+      <div class="path-line"></div>
+    </div>
+
+    <div class="step s-human">
+      <div class="step-num">A</div>
+      <div class="step-body">
+        <div class="step-title">Open approval dashboard in browser</div>
+        <div class="step-detail">Mac crontab already pulled the vault at 21:25. Start local server if not running:</div>
+        <div class="step-code">cd /Users/SkonP/AI_Prompt/Obsidient/SkonVault
+python3 -m http.server 8080   # keep running in background</div>
+        <div class="step-detail" style="margin-top:6px">Open: <strong style="color:#93c5fd">http://localhost:8080/trading-bot/approval_dashboard.html</strong><br>
+        Dashboard auto-refreshes every 60 seconds.</div>
+      </div>
+      <div class="tag">human</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-human">
+      <div class="step-num">B</div>
+      <div class="step-body">
+        <div class="step-title">Review alert card — click Approve or Reject</div>
+        <div class="step-detail">Shows: symbol · strikes · expiry · net debit · R:R · IV · OI · events status · conviction bar.<br>
+        <strong style="color:#fcd34d">⚠️ UNCERTAIN events</strong> → verify IBKR calendar before approving.<br>
+        <strong style="color:#4ade80">✅ CLEAR events</strong> + conviction ≥ 75 → safe to approve.<br>
+        Approve button builds OCC symbols and submits directly to Alpaca paper API from the browser.</div>
+      </div>
+      <div class="tag">human</div>
+    </div>
+
+    <!-- Path B -->
+    <div class="path-divider" style="margin-top:14px">
+      <div class="path-label">Path B — Nova / Cowork (fallback · auto-fires at 21:35)</div>
+      <div class="path-line"></div>
+    </div>
+
+    <div class="step s-nova">
+      <div class="step-num">A</div>
+      <div class="step-body">
+        <div class="step-title">Cowork scheduled task fires at 21:35 Bangkok</div>
+        <div class="step-detail">Task <strong>openclaw-daily-review</strong> runs automatically (Mon–Fri). Nova reads pending_orders.json from vault and displays all pending trades in a formatted card — symbol, strikes, expiry, debit, R:R, conviction, events status.<br>
+        No action needed from you — the briefing opens in Cowork chat automatically.</div>
+      </div>
+      <div class="tag">nova</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-nova">
+      <div class="step-num">B</div>
+      <div class="step-body">
+        <div class="step-title">Reply to approve or reject in Cowork chat</div>
+        <div class="step-detail">Type directly in the Nova conversation that opens:<br>
+        <span style="font-family:monospace;color:#67e8f9">approve A1B2C3D4</span> → Nova runs nova_executor.py, submits mleg order to Alpaca, confirms order ID.<br>
+        <span style="font-family:monospace;color:#67e8f9">reject A1B2C3D4 earnings Jun 19</span> → Nova marks rejected, logs reason.<br>
+        <span style="font-family:monospace;color:#67e8f9">dry-run A1B2C3D4</span> → Nova shows full Alpaca payload without submitting.<br>
+        Alpaca creds read automatically from <strong>trading-bot/.env.local</strong> (gitignored, one-time setup).</div>
+      </div>
+      <div class="tag">nova</div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ PHASE 4 ═══ -->
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-icon">🚀</span>
+    <div>
+      <div class="phase-title">Phase 4 — Trade Execution</div>
+      <div class="phase-sub">Triggered immediately on Approve · via dashboard (browser) or nova_executor.py (Nova)</div>
+    </div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="steps">
+    <div class="step s-exec">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Build OCC symbols + submit Alpaca mleg order</div>
+        <div class="step-detail">OCC format: <span style="font-family:monospace;color:#93c5fd">NCLH260620C00017000</span> (symbol + YYMMDD + C/P + strike×1000 padded 8 digits).<br>
+        2-leg limit order: buy long leg + sell short leg · limit = mid × 1.05 (5% slippage buffer) · time_in_force: day.<br>
+        Dashboard path: browser JS calls <strong>POST /v2/orders</strong> directly.<br>
+        Nova path: nova_executor.py calls same endpoint via Python requests.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-exec">
+      <div class="step-num">11</div>
+      <div class="step-body">
+        <div class="step-title">Execution logged + order marked executed</div>
+        <div class="step-detail">10_Execution_Log.md updated with trade details, Alpaca order ID, and approval path (Dashboard or Nova).<br>
+        pending_orders.json status → "executed" · approved_by set to "Nova" or "Skon".<br>
+        Next nightly vault push syncs log to GitHub.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ PHASE 5 ═══ -->
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-icon">👁</span>
+    <div>
+      <div class="phase-title">Phase 5 — Position Monitoring</div>
+      <div class="phase-sub">Runs at end of every nightly scan while position is open · position_monitor.py</div>
+    </div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="steps">
+    <div class="step s-monitor">
+      <div class="step-num">12</div>
+      <div class="step-body">
+        <div class="step-title">Fetch Alpaca open positions + compute P&amp;L</div>
+        <div class="step-detail">GET /v2/positions → groups option legs by underlying + expiry.<br>
+        Parses OCC symbols back to strike / expiry / type. Computes current market value vs cost basis (debit paid).</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-monitor">
+      <div class="step-num">13</div>
+      <div class="step-body">
+        <div class="step-title">Alert thresholds — triggers action card</div>
+        <div class="step-detail">
+          🔴 <strong>Stop loss</strong> — position value ≤ 20% of debit paid (−80% loss) → CLOSE POSITION.<br>
+          ⚠️ <strong>DTE alert</strong> — DTE ≤ 7 days → EVALUATE CLOSE / ROLL.<br>
+          💰 <strong>Profit target</strong> — unrealised profit ≥ 50% of debit at DTE ≤ 21 → EVALUATE EARLY CLOSE.
+        </div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-monitor">
+      <div class="step-num">14</div>
+      <div class="step-body">
+        <div class="step-title">Write 11_Position_Monitor.md → GitHub push</div>
+        <div class="step-detail">Full position status written to vault each night.<br>
+        Alerts also surface in 08_Next_Actions.md and 09_Daily_Briefing.md.<br>
+        Mac auto-pull at 21:25 delivers current position health to vault on Mac.</div>
+      </div>
+      <div class="tag">auto</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ EXCEPTION ═══ -->
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-icon">⚠️</span>
+    <div>
+      <div class="phase-title">Exception — IBKR Manual Check</div>
+      <div class="phase-sub">Only required when events_status = UNCERTAIN</div>
+    </div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="steps">
+    <div class="step s-except">
+      <div class="step-num">!</div>
+      <div class="step-body">
+        <div class="step-title">When does this happen?</div>
+        <div class="step-detail">Tradier fundamentals/calendars returned no data for a ticker (thin coverage on some small-caps like PUMP, SBSW).<br>
+        Trade still goes to approval queue but dashboard shows ⚠️ UNCERTAIN badge and Nova warns in chat.</div>
+      </div>
+      <div class="tag">exception</div>
+    </div>
+    <div class="connector"></div>
+
+    <div class="step s-human">
+      <div class="step-num">!</div>
+      <div class="step-body">
+        <div class="step-title">Action: check IBKR Events Calendar manually</div>
+        <div class="step-detail">In IBKR TWS/Portal → Events Calendar → enter ticker → check entry date through expiry date window.<br>
+        No earnings/dividends in window → Approve via dashboard or Nova.<br>
+        Events found → Reject with reason noted (dashboard or Nova).</div>
+      </div>
+      <div class="tag">human</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ FILES ═══ -->
+<div class="files-section">
+  <h2>📁 System Files</h2>
+  <table>
+    <tr>
+      <th>File</th>
+      <th>Location</th>
+      <th>Role</th>
+    </tr>
+    <tr>
+      <td class="fname">openclaw_scanner.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Master orchestrator — runs all pipeline steps, calls all modules</td>
+    </tr>
+    <tr>
+      <td class="fname">events_checker.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Tradier fundamentals/calendars — earnings + dividend check per ticker</td>
+    </tr>
+    <tr>
+      <td class="fname">conviction_scorer.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Claude Haiku API scorer · offline fallback if no ANTHROPIC_API_KEY</td>
+    </tr>
+    <tr>
+      <td class="fname">approval_manager.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Manages pending_orders.json queue — write / approve / reject / expire</td>
+    </tr>
+    <tr>
+      <td class="fname">executor.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Server-side OCC + Alpaca mleg order execution (CLI or SSH)</td>
+    </tr>
+    <tr>
+      <td class="fname">nova_executor.py<span class="badge-nova">nova</span></td>
+      <td class="where">trading-bot/ (vault, Mac)</td>
+      <td class="role">Local version — Nova calls this via bash to approve + submit to Alpaca from Cowork</td>
+    </tr>
+    <tr>
+      <td class="fname">.env.local<span class="badge-nova">nova</span></td>
+      <td class="where">trading-bot/ (vault, Mac, gitignored)</td>
+      <td class="role">Alpaca paper API key + secret for nova_executor.py — never committed to git</td>
+    </tr>
+    <tr>
+      <td class="fname">position_monitor.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Alpaca positions API — P&amp;L check, stop/DTE/profit target alerts nightly</td>
+    </tr>
+    <tr>
+      <td class="fname">vault_updater.py</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">Reads scan JSON → writes 4 vault .md files → git push to GitHub</td>
+    </tr>
+    <tr>
+      <td class="fname">candidates.txt</td>
+      <td class="where">~/trading-bot/ (server)</td>
+      <td class="role">13 tickers to scan — update after each IBKR MultiSort screener session</td>
+    </tr>
+    <tr>
+      <td class="fname">pending_orders.json</td>
+      <td class="where">OpenClaw/ (vault, git-synced)</td>
+      <td class="role">Approval queue — written by server, read by dashboard + Nova on Mac</td>
+    </tr>
+    <tr>
+      <td class="fname">approval_dashboard.html</td>
+      <td class="where">trading-bot/ (vault)</td>
+      <td class="role">Browser UI (primary) — review alerts, click Approve/Reject, submits Alpaca mleg order</td>
+    </tr>
+    <tr>
+      <td class="fname">09_Daily_Briefing.md</td>
+      <td class="where">OpenClaw/ (vault)</td>
+      <td class="role">Nightly briefing with pending approvals, market summary, position status</td>
+    </tr>
+    <tr>
+      <td class="fname">10_Execution_Log.md</td>
+      <td class="where">OpenClaw/ (vault)</td>
+      <td class="role">Permanent log of every executed trade with Alpaca order ID and approval path</td>
+    </tr>
+    <tr>
+      <td class="fname">11_Position_Monitor.md</td>
+      <td class="where">OpenClaw/ (vault)</td>
+      <td class="role">Nightly position health report — P&amp;L, DTE, alerts</td>
+    </tr>
+  </table>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ RULES ═══ -->
+<div class="rules-section">
+  <h2>📐 Ruleset v4.0 (Hard Filters — all must pass before conviction scoring)</h2>
+  <div class="rules-grid">
+    <div class="rule-item"><div class="rule-label">Price range</div><div class="rule-value">$10 – $40</div></div>
+    <div class="rule-item"><div class="rule-label">IV Rank (relative)</div><div class="rule-value">≤ 40%</div></div>
+    <div class="rule-item"><div class="rule-label">IV Last — L019 (absolute)</div><div class="rule-value">≤ 45% both legs</div></div>
+    <div class="rule-item"><div class="rule-label">Net debit (premium)</div><div class="rule-value">$0.30 – $0.60</div></div>
+    <div class="rule-item"><div class="rule-label">Spread width</div><div class="rule-value">≤ $3</div></div>
+    <div class="rule-item"><div class="rule-label">DTE window</div><div class="rule-value">25 – 40 days</div></div>
+    <div class="rule-item"><div class="rule-label">Open interest — both legs</div><div class="rule-value">≥ 500</div></div>
+    <div class="rule-item"><div class="rule-label">Bid-ask spread — per leg</div><div class="rule-value">≤ $0.10</div></div>
+    <div class="rule-item"><div class="rule-label">Bid price</div><div class="rule-value">> $0.00 both legs</div></div>
+    <div class="rule-item"><div class="rule-label">Earnings ban</div><div class="rule-value">± 14 days</div></div>
+    <div class="rule-item"><div class="rule-label">Dividend ban (ex-date)</div><div class="rule-value">+14 days forward</div></div>
+    <div class="rule-item"><div class="rule-label">Conviction minimum</div><div class="rule-value">≥ 75 / 100</div></div>
+    <div class="rule-item"><div class="rule-label">VIX gate</div><div class="rule-value">&lt; 20</div></div>
+    <div class="rule-item"><div class="rule-label">SPY drop gate</div><div class="rule-value">&gt; −1.5%</div></div>
+    <div class="rule-item"><div class="rule-label">Max open positions</div><div class="rule-value">1 at a time</div></div>
+    <div class="rule-item"><div class="rule-label">Stop loss</div><div class="rule-value">−80% of debit paid</div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════ COMMANDS ═══ -->
+<div class="commands-section">
+  <h2>💻 Quick Reference Commands</h2>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Server crontab (set once)</div>
+    <code><span class="comment"># 21:05 Bangkok — scanner + events + conviction + pending write</span>
+05 21 * * 1-5 cd /home/ubuntu &amp;&amp; python3 ~/trading-bot/openclaw_scanner.py >> ~/trading-bot/logs/scanner.log 2>&amp;1
+
+<span class="comment"># 21:20 Bangkok — vault update + GitHub push</span>
+20 21 * * 1-5 cd /home/ubuntu &amp;&amp; python3 ~/trading-bot/vault_updater.py >> ~/trading-bot/logs/vault.log 2>&amp;1</code>
+  </div>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Mac crontab — auto git pull (set once)</div>
+    <code><span class="comment"># 21:25 Bangkok — pull vault 5 min after server pushes</span>
+25 21 * * 1-5  cd /Users/SkonP/AI_Prompt/Obsidient/SkonVault &amp;&amp; git pull origin main >> /tmp/openclaw_pull.log 2>&amp;1</code>
+  </div>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Mac — manual pull + dashboard (if not using crontab yet)</div>
+    <code>cd /Users/SkonP/AI_Prompt/Obsidient/SkonVault
+git pull origin main
+<span class="comment"># keep running in background:</span>
+python3 -m http.server 8080
+<span class="comment"># Open: http://localhost:8080/trading-bot/approval_dashboard.html</span></code>
+  </div>
+
+  <div class="cmd-block nova-block">
+    <div class="cmd-label nova-label">Nova — approval commands (type in Cowork chat)</div>
+    <code><span class="nova-cmd">approve A1B2C3D4</span>           <span class="comment"># submits mleg limit order to Alpaca paper</span>
+<span class="nova-cmd">reject  A1B2C3D4 earnings Jun 19</span>  <span class="comment"># marks rejected with reason</span>
+<span class="nova-cmd">dry-run A1B2C3D4</span>          <span class="comment"># shows payload without submitting</span>
+<span class="nova-cmd">show    A1B2C3D4</span>          <span class="comment"># full JSON detail for one order</span></code>
+  </div>
+
+  <div class="cmd-block nova-block">
+    <div class="cmd-label nova-label">Nova executor — direct bash (for manual testing)</div>
+    <code>python3 /Users/SkonP/AI_Prompt/Obsidient/SkonVault/trading-bot/nova_executor.py list
+python3 ... nova_executor.py dry-run A1B2C3D4
+python3 ... nova_executor.py execute A1B2C3D4
+python3 ... nova_executor.py reject  A1B2C3D4 "reason here"</code>
+  </div>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Server — manual scan test</div>
+    <code>ssh ubuntu@43.160.222.7
+python3 ~/trading-bot/openclaw_scanner.py</code>
+  </div>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Server — standalone module tests</div>
+    <code>python3 ~/trading-bot/events_checker.py NCLH CCL AAL VALE
+python3 ~/trading-bot/conviction_scorer.py
+python3 ~/trading-bot/approval_manager.py list
+python3 ~/trading-bot/position_monitor.py --stdout</code>
+  </div>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Server — CLI approve / reject / execute (SSH alternative)</div>
+    <code>python3 ~/trading-bot/approval_manager.py approve A1B2C3D4
+python3 ~/trading-bot/approval_manager.py reject  A1B2C3D4 "earnings Jun 15"
+python3 ~/trading-bot/executor.py dry-run A1B2C3D4
+python3 ~/trading-bot/executor.py execute A1B2C3D4</code>
+  </div>
+
+  <div class="cmd-block">
+    <div class="cmd-label">Update candidates after IBKR screener session</div>
+    <code>ssh ubuntu@43.160.222.7 'nano ~/trading-bot/candidates.txt'
+<span class="comment"># Replace tickers with fresh screener results (keep # comments at top)</span></code>
+  </div>
+</div>
+
+<footer>
+  OpenClaw v3.1 · Server: ubuntu@43.160.222.7 · Vault: /Users/SkonP/AI_Prompt/Obsidient/SkonVault<br>
+  Data: Tradier API (market data + events) · Execution: Alpaca paper API · Scoring: Claude Haiku (Anthropic API)<br>
+  Approval paths: Browser Dashboard · Nova/Cowork (scheduled 21:35 Bangkok) · Updated May 2026
+</footer>
+
+</body>
+</html>
