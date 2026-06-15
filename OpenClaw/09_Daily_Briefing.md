@@ -1,21 +1,21 @@
 # OpenClaw Daily Briefing
-**Generated:** 2026-06-12 21:20 Bangkok | Mode: 🤖 Autonomous
+**Generated:** 2026-06-15 21:20 Bangkok | Mode: 🤖 Autonomous
 
 ---
 
 ## Portfolio
-- Capital: $2,867
+- Capital: $2,862
 - Scanner: ✅ v4.0 — autonomous execution
 
 ## Market
 - Condition: ✅ OK
-- Regime: `flat_elevated`
-- VIX: 18.93 | SPY: 0.13% | XLE: 1.43%
+- Regime: `bull`
+- VIX: 16.36 | SPY: 1.6% | XLE: -3.92%
 
 ## Tonight's Results
 - Auto-executed: 0
 - Skipped: 0
-- Events blocked: 1
+- Events blocked: 2
 
 ## No qualifying trades tonight. Capital preserved.
 

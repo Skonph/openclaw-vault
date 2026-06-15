@@ -1,4 +1,44 @@
 
+## 2026-06-15 21:20 — Autonomous Run
+
+Regime: `bull` | Mode: 🤖 Autonomous
+
+### 🚫 Events Blocked (2)
+- CMG: KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+- CMG: KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (26)
+- TOST: active position open
+- SIRI: no qualifying spread
+- CZR: no qualifying spread
+- CLF: no qualifying spread
+- SOFI: no qualifying spread
+- BMNR: daily move too large
+- UUUU: daily move too large
+- CHWY: no qualifying spread
+- CPNG: no qualifying spread
+- S: no qualifying spread
+- XPEV: no qualifying spread
+- LI: no qualifying spread
+- BEKE: no qualifying spread
+- GEN: no qualifying spread
+- OSCR: no qualifying spread
+- AMTM: no qualifying spread
+- SOC: no qualifying spread
+- SSRM: daily move too large
+- SM: daily move too large
+- BZ: no qualifying spread
+- GAP: no qualifying spread
+- HMC: no qualifying spread
+- MBLY: price $9.685 outside range
+- DKNG: no qualifying spread
+- CMG: EVENTS BLOCKED — KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+- CMG: EVENTS BLOCKED — KNOWN_EVENTS: 2026-07-29 (within 14d of expiry 2026-07-17)
+
+---
+
 ## 2026-06-12 21:20 — Autonomous Run
 
 Regime: `flat_elevated` | Mode: 🤖 Autonomous
