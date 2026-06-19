@@ -1,4 +1,40 @@
 
+## 2026-06-19 21:20 — Autonomous Run
+
+Regime: `bull` | Mode: 🤖 Autonomous
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (26)
+- TOST: active position open
+- SIRI: no qualifying spread
+- CZR: no qualifying spread
+- CLF: no qualifying spread
+- SOFI: no qualifying spread
+- BMNR: no qualifying spread
+- UUUU: daily move too large
+- WBD: no qualifying spread
+- CHWY: no qualifying spread
+- CMG: no qualifying spread
+- CPNG: no qualifying spread
+- S: no qualifying spread
+- XPEV: no qualifying spread
+- LI: no qualifying spread
+- BEKE: no qualifying spread
+- GEN: no qualifying spread
+- OSCR: no qualifying spread
+- AMTM: no qualifying spread
+- SOC: no qualifying spread
+- SSRM: no qualifying spread
+- SM: no qualifying spread
+- BZ: no qualifying spread
+- GAP: no qualifying spread
+- HMC: no qualifying spread
+- MBLY: price $8.46 outside range
+- DKNG: no qualifying spread
+
+---
+
 ## 2026-06-18 21:20 — Autonomous Run
 
 Regime: `bull` | Mode: 🤖 Autonomous
