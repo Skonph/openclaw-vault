@@ -299,6 +299,8 @@ def get_sma_20(symbol):
     and calculate the 20-day Simple Moving Average (SMA).
     """
     if TEST_MODE:
+        if symbol in MOCK_QUOTES:
+            return round(MOCK_QUOTES[symbol]["last"] * 0.98, 2)
         return 730.0  # mock SMA below current SPY/QQQ prices for testing
         
     import datetime as dt
