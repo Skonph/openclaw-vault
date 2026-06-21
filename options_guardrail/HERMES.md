@@ -4,6 +4,24 @@ Welcome, Hermes! This document provides a complete briefing on the **Options Gua
 
 ---
 
+## ⚠️ Active System Status (June 2026 Migration)
+
+Please note the following active system states to avoid running redundant checks, wasting API queries, or attempting recovery actions:
+
+1. **IBKR Gateway (`ibc-gateway.service`) is Intentionally Stopped & Disabled**:
+   - **Reason**: The VPS has been migrated to a lower-spec 2GB RAM Singapore instance. Running Zulu Java, GUI components, and the `Xvfb` headless display consumes ~1GB of RAM, causing severe memory pressure and potential OOM issues on the server.
+   - **Status**: Do NOT attempt to restart, enable, or troubleshoot the `ibc-gateway.service`. All trading operations are currently focused strictly on Alpaca (OpenClaw) and Tradier.
+   
+2. **OpenClaw Cron Logs (`~/openclaw/logs/`) are Currently Empty**:
+   - **Reason**: The VPS migration was completed on Sunday while the US markets were closed.
+   - **Status**: Do NOT troubleshoot the lack of files in `~/openclaw/logs/`. These log files are redirected during cron execution and will automatically generate starting Monday when the scheduled jobs fire.
+
+3. **Tradier SMA Test-Mode Filter Bug is Patched**:
+   - **Status**: The bug where SPY's `$730.00` SMA was applied to all tickers in test mode has been resolved in the latest codebase update.
+
+---
+
+
 ## 🔎 Project Overview
 **Options Guardrail** is a production-grade automated options execution and safety system. It manages multi-leg options execution, real-time portfolio marking, and custom marked-equity drawdown kill-switches for risk control.
 
