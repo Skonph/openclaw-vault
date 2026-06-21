@@ -1,6 +1,8 @@
 # OpenClaw — Project Context & Continuation Brief
-**Last updated:** 2026-06-13 (BKK)  
-**Status:** Autonomous pipeline live. TOST manual Iron Condor executed on Jun 8. Hermes resolver scheduled. IC executor patched and validated.  
+**Last updated:** 2026-06-19 (BKK)  
+**2026-06-18 — Shared market-context consumer (DEPLOYED & VERIFIED LIVE):** `openclaw_scanner.py` has a pure helper `_macro_quote_from_context(sym, ctx_quotes)` and the Step-2 macro loop sources VIX/SPY from the shared `~/shared/market_context.json` (written nightly 20:55 ICT by `market_context_writer.py`) when fresh — skipping those 2 of 10 per-ticker fetches and matching Tradier/guardrail off the same snapshot. Sectors (XLE…XLV) still fetch live (used for EMA20). Falls back to live `get_quote` per ticker if the context is missing/stale (freshness-guarded `read_macro_signal.py`). Tests `OpenClaw/test_macro_consumer.py` 7/7 (passed on server post-deploy). **Deployed to `~/openclaw/` 2026-06-18 after Tradier's live `📡` confirmed.** ✅ **VERIFIED LIVE 2026-06-18 night** — the 21:05 scan printed `📡 Shared market_context fresh (regime moderate)` and sourced `VIX $17.14 📡 / SPY $744.72 📡` from the shared file (matching Tradier/guardrail's identical snapshot). See vault `SESSION_SUMMARY_2026-06-18.md` and `shared/INTEGRATION.md`.  
+**2026-06-19 — Multi-position portfolio policy (replaces the binary max-1 gate):** `vault_updater.py` no longer hard-blocks at 1 open spread (`_has_open_options()` early-return removed). Concurrency is now governed by a **portfolio risk budget** enforced per-order in `auto_execute_orders`: (a) **count cap** `MAX_CONCURRENT_POSITIONS=2`, (b) **portfolio-risk cap** `PORTFOLIO_RISK_PCT=0.15` (total open defined-risk ≤ 15% of equity ≈ $435 now — the real governor), (c) **per-direction cap** `MAX_PER_DIRECTION=1` (≤1 bull / bear / neutral, prevents correlated stacking). All env-overridable (`OPENCLAW_MAX_POSITIONS`, `OPENCLAW_PORTFOLIO_RISK_PCT`, `OPENCLAW_MAX_PER_DIRECTION`). State is **live from Alpaca** (`_open_option_underlyings()` reads `/positions`) plus a crash-safe **reconciled risk ledger** `open_risk_ledger.json` (keyed by underlying; entries pruned when the position no longer shows open on Alpaca — same out-of-band-close pattern as the guardrail fix). Unledgered/legacy open positions (e.g. the TOST IC) are counted and charged a conservative fair-share so the budget never under-counts. Conviction ≥75 gate unchanged. Pure decision helpers (`_portfolio_admits`, `_order_max_loss`, `_reconcile_ledger`, `_occ_underlying`) tested in `OpenClaw/test_multiposition.py` (13/13). The hardcoded `ACTIVE_POSITIONS` list in `openclaw_scanner.py` is now cosmetic only (executor reads Alpaca live); scanner message updated accordingly. **Rationale:** accelerate track-record accumulation for graduation without stacking correlated leverage — judge graduation on risk-adjusted results + that the budget held, not raw win rate.  
+**Status:** Autonomous pipeline live. TOST manual Iron Condor executed on Jun 8 — used as live-fire validation for the IC executor (4 legs filled correctly, `position_intent` auto-assigned). Found and fixed an inverted `limit_price` sign for net-credit mleg orders (IC open + IC/credit close) across `vault_updater.py`, `nova_executor.py`, `position_monitor.py` — local tests 12/12 (`test_mleg_pricing.py`), pending deploy + server verification. `vault_updater.py` gate-bypass scope fixed and locally tested (6/6) — 'approved' orders now bypass only the events-status gate, not cooling-off or conviction. `ANTHROPIC_API_KEY` configured — conviction scorer now running in `mode: api` (Claude Haiku) with verified offline fallback on error.  
 **Purpose:** Load this file at the start of every new Cowork/Nova session to continue development with full context. Read all sections before suggesting or implementing anything.
 
 ---
@@ -21,7 +23,7 @@ Fully autonomous options spread trading system running on an Ubuntu server in Ba
 ### Server (primary runtime)
 | Item | Value |
 |------|-------|
-| Host | `ubuntu@43.160.222.7` |
+| Host | `ubuntu@43.156.9.185` |
 | Timezone | Asia/Bangkok (UTC+7) |
 | Scripts | `/home/ubuntu/openclaw/` |
 | Vault (git) | `/home/ubuntu/openclaw-vault/` |
@@ -228,8 +230,8 @@ Hermes runs as a persistent systemd service (`hermes-gateway.service`) on the se
 
 ## 10. Current Account State (As of 2026-06-13)
 
-- **Equity:** $2,898.17 (paper)
-- **Open positions:** None
+- **Equity:** $2,898.17 (paper) — includes the unrealized P&L on the open TOST IC below
+- **Open positions:** 1 — TOST Iron Condor (4 legs, exp 2026-07-17), unrealized P&L **-$44** as of 2026-06-13. Confirmed open (not closed) via `check_tost_status.py` (read-only Alpaca check); no closing order exists. See `04_Trade_Journal.md` Trade 5.
 - **Pending scans:** Resolved via Hermes scheduling.
 
 ---
@@ -239,6 +241,18 @@ Hermes runs as a persistent systemd service (`hermes-gateway.service`) on the se
 1. **Events Status Clearing:** Updated `approval_manager.py` so that marking an order as approved explicitly sets its `events_status` to `'clear'`.
 2. **Auto-Executor Updates:** Modified `vault_updater.py` to process both `'pending'` and `'approved'` orders, bypassing safety gates for explicitly `'approved'` orders, and printing a clear warning if a pending order remains `'uncertain'` at 21:10 BKK.
 3. **LLM Conviction Scorer Integration:** Documented setup to enable `_score_anthropic()` via `ANTHROPIC_API_KEY` configuration.
+4. **Gate-bypass scope narrowed (fix + test):** Refactored the three safety gates in `vault_updater.auto_execute_orders()` into a standalone `_check_gates(order, cooling_off, today)` helper. `mark_approved()` (called by Hermes) only resolves Gate 2 (`events_status -> 'clear'`) — it never touches `conviction_pass` or cooling-off state. The old code let `status != 'approved'` skip *all three* gates, so an explicitly-approved order could execute even if it had failed conviction (Gate 3) or hit a recent stop-loss cooling-off window (Gate 1). Now:
+   - **Gate 1 (cooling-off)** — always enforced, regardless of status.
+   - **Gate 2 (events_status)** — bypassed only for `status == 'approved'` (Hermes' intended scope).
+   - **Gate 3 (conviction_pass)** — always enforced, regardless of status.
+   New local test: `test_vault_updater_gates.py` (6/6 passing — `python3 test_vault_updater_gates.py`).
+
+5. **Conviction-weighted position sizing (Improvement #5):** `_calc_qty(spread_mid, conviction_score)` in `vault_updater.py` now scales the existing equity-based risk amount (`clamp(equity*5%, $200, $500)`) by a conviction tier multiplier:
+   - Tier 1 (conviction 75–84): 1.0x → risk_amount in [$200, $500]
+   - Tier 2 (conviction 85–94): 1.5x → risk_amount in [$300, $750]
+   - Tier 3 (conviction 95–100): 2.0x → risk_amount in [$400, $1000]
+
+   Since `conviction_pass` already gates trading at conviction ≥75, this only changes *how much* is risked, not *whether* a trade fires — higher-conviction setups (per the Claude-Haiku scorer, §11 item 3) get proportionally larger positions, up to a raised ceiling for the top tier ($1000 vs. the previous flat $500 cap). The call site passes `order.get('conviction_score', 75)`, defaulting to tier 1 if missing. New local test: `test_conviction_sizing.py` (10/10 passing — `python3 test_conviction_sizing.py`).
 
 ---
 
@@ -248,8 +262,11 @@ Hermes runs as a persistent systemd service (`hermes-gateway.service`) on the se
 |-------|----------|--------|
 | `approval_manager.py approve` sets `events_status → clear` | ✅ Resolved | Updated to set events_status to 'clear' when approved. |
 | position_monitor double-fire at 21:20 (via vault_updater) + 21:30 (cron) | ✅ Resolved | Confirmed 21:30 cron is for Tradier's monitor, no overlap. |
+| `vault_updater` 'approved' orders bypassed conviction (Gate 3) and cooling-off (Gate 1), not just events (Gate 2) | ✅ Resolved (2026-06-13) | Refactored into `_check_gates()`; only Gate 2 is bypassable via approval. Verified by `test_vault_updater_gates.py` (6/6). |
+| `ANTHROPIC_API_KEY` not set — conviction scorer runs offline-only | ✅ Resolved (2026-06-13) | Key added to `.env`/`.env.local` + `anthropic` package installed on server. `python3 conviction_scorer.py` now returns `mode: api` with Claude-Haiku reasoning (NCLH test: 78/100, "Solid bull call setup with excellent risk:reward..."). `_score_anthropic()` still falls back to `_score_offline()` on any API error (network/rate-limit/bad response), so a future outage degrades gracefully rather than blocking the scan. `openclaw_scanner.py` calls `score_conviction()` per qualifying alert (~0-5/night) — cost is negligible. |
 | New candidates (CLF, SOFI, WBD, CHWY, DKNG) not yet OI-validated | 🟡 Medium | Scanner will naturally filter via OI_MIN = 500, but wasted scans if consistently failing |
 | Hermes has 10 min (21:10–21:20) to resolve all UNCERTAIN tickers | 🟡 Medium | Fine for 1–2 tickers. If 4+ UNCERTAIN, vault_updater prints a warning on unresolved tick. |
+| **mleg `limit_price` sign inverted for net-credit orders** (IC open in `vault_updater._build_ic_payload` and `nova_executor._build_payload`; IC/profitable-spread close in `position_monitor.auto_close_spread`) | ✅ Resolved (2026-06-13) | Verified live via `check_alpaca_order.py` against the TOST IC (`d0b87fc1-...`): order filled at net credit `-0.46`, but the submitted limit was `+0.54` — a positive limit is non-binding for a credit fill, so the 95% credit floor never applied. Alpaca convention: net DEBIT = positive `limit_price`, net CREDIT = negative. Fixed all three builders to emit the correct sign; `auto_close_spread`'s IC-close branch previously collapsed to a ~$0.01 debit limit (`max(negative * 0.95, 0.01)`), which would almost never fill — extracted as `_close_limit_price()` and fixed for both close directions. `nova_executor.cmd_execute` now also records `submitted_limit` for `_verify_fills()` slippage tracking. 12/12 local tests pass (`test_mleg_pricing.py`). `position_intent`/`position_effect` field-naming discrepancy checked and found harmless — Alpaca auto-assigns `position_intent` from `side` and ignores the unrecognized `position_effect` key. |
 
 ---
 
@@ -264,24 +281,27 @@ Hermes runs as a persistent systemd service (`hermes-gateway.service`) on the se
 2. **IBKR MultiSort validation for new candidates**
    - Open IBKR Option Chain for CLF, SOFI, WBD, CHWY, DKNG. Check OI at ATM and ±1 strike for DTE 25–50 days.
 
-3. **Conviction Scorer Upgrade**
-   - Consider enabling `_score_anthropic()` by setting `ANTHROPIC_API_KEY` in `.env` for higher quality convictions.
+2b. **Deploy shared market-context consumer** (STAGED 2026-06-18, see header). After Tradier's live `📡` confirms the writer→reader→consumer chain works in production, deploy `openclaw_scanner.py` + `read_macro_signal.py` + `test_macro_consumer.py` to `~/openclaw/` and confirm the `📡 Shared market_context fresh` line appears in the 21:05 scan log. This is the real call-dedup consumer (vs. Tradier's consistency-only benefit).
+
+3. ~~**Conviction Scorer Upgrade**~~ ✅ Done 2026-06-13 — `ANTHROPIC_API_KEY` set, `_score_anthropic()` confirmed live (`mode: api`).
 
 ### Medium-term
-5. **IC live-fire monitoring**
-   - No regime change needed — IC executor is code-complete
-   - When VIX hits 18–30 with flat SPY: monitor that vault_updater submits 4-leg mleg and fills are reported correctly in morning_report
-   - Files involved: `vault_updater.py` (`_build_ic_payload`), `morning_report.py` (`_verify_fills`)
+5. ~~**IC live-fire monitoring**~~ ✅ Done 2026-06-13 — Used the already-filled TOST IC
+   (`d0b87fc1-...`, 2026-06-08) as a live test case via `check_alpaca_order.py`. All
+   4 legs filled correctly and `position_intent` was auto-assigned correctly by
+   Alpaca. Found and fixed a real bug along the way: `_build_ic_payload`'s
+   `limit_price` sign was inverted (positive instead of negative for a net-credit
+   IC), making the 95% credit floor non-binding — the TOST IC filled at $0.46
+   credit vs. an intended $0.54 floor. Fixed in `vault_updater.py`,
+   `nova_executor.py`, and `position_monitor.py` (`auto_close_spread` /
+   `_close_limit_price`). See §12 for full detail and `test_mleg_pricing.py`
+   (12/12 passing).
 
 6. **Vault_updater timing buffer (if needed)**
    - If Hermes regularly runs close to 21:20 with multiple UNCERTAIN tickers: change vault_updater cron from `20 21` to `25 21`
    - File: server crontab (`crontab -e` on ubuntu user)
 
-7. **Conviction scorer upgrade**
-   - `conviction_scorer.py` has `_score_anthropic()` but falls back to offline scoring
-   - If `ANTHROPIC_API_KEY` is set in `.env`, it upgrades automatically
-   - Consider enabling for higher-quality conviction scores on borderline trades (65–80 range)
-   - File to edit: `/home/ubuntu/openclaw/.env` — add `ANTHROPIC_API_KEY=sk-...`
+7. ~~**Conviction scorer upgrade**~~ ✅ Done 2026-06-13 — see §12. Watch the first few live nightly scans to confirm `conviction_mode: "api"` shows up in `pending_orders.json` entries (not just the standalone test).
 
 ---
 
@@ -294,11 +314,36 @@ When starting a new session, tell Claude/Nova:
 - Direct file edits via Cowork tools
 - Files live at `/Users/SkonP/AI_Prompt/Obsidient/SkonVault/OpenClaw/`
 - After editing: `cd /Users/SkonP/AI_Prompt/Obsidient/SkonVault && git add . && git commit -m "..." && git push origin main`
-- Server pulls: `ssh ubuntu@43.160.222.7 "cd /home/ubuntu/openclaw-vault && git pull origin main"`
+- Server pulls: `ssh ubuntu@43.156.9.185 "cd /home/ubuntu/openclaw-vault && git pull origin main"`
+
+### Deploying the 2026-06-13 vault_updater gate fix
+The fix lives in `~/openclaw-vault/OpenClaw/vault_updater.py` on the server (git-pull path), but `openclaw_scanner.py`/`vault_updater.py` actually execute from `/home/ubuntu/openclaw/`. Sync both:
+
+```bash
+scp ~/AI_Prompt/Obsidient/SkonVault/OpenClaw/vault_updater.py \
+    ~/AI_Prompt/Obsidient/SkonVault/OpenClaw/test_vault_updater_gates.py \
+    ubuntu@43.156.9.185:~/openclaw/
+
+# Sanity check on server (no network calls, pure logic test)
+ssh ubuntu@43.156.9.185 'cd ~/openclaw && python3 test_vault_updater_gates.py'
+```
+
+### Deploying the 2026-06-13 conviction-weighted sizing fix (Improvement #5)
+`_calc_qty` in `vault_updater.py` now takes `conviction_score` and applies a tier multiplier (see §11 item 5). Same file, redeploy together with its new test:
+
+```bash
+scp ~/AI_Prompt/Obsidient/SkonVault/OpenClaw/vault_updater.py \
+    ~/AI_Prompt/Obsidient/SkonVault/OpenClaw/test_conviction_sizing.py \
+    ubuntu@43.156.9.185:~/openclaw/
+
+# Sanity check on server (no network calls; Alpaca /account call fails gracefully
+# and falls back to base_risk=$200, so the tier multiplier is fully testable)
+ssh ubuntu@43.156.9.185 'cd ~/openclaw && python3 test_conviction_sizing.py'
+```
 
 ### For server-side changes (crontab, .env, approval_manager.py):
 - Delegate to Hermes via Telegram with specific instructions
-- Or SSH directly: `ssh ubuntu@43.160.222.7`
+- Or SSH directly: `ssh ubuntu@43.156.9.185`
 - Hermes has terminal toolset and can edit files and restart services directly
 
 ### For testing/dry-runs:

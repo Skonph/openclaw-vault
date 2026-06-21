@@ -1,0 +1,44 @@
+{
+  "session_date": "2026-06-01",
+  "generated_at_iso": "2026-05-31T20:30:00+07:00",
+  "regime": "trend",
+  "reasoning": "ES held VWAP overnight, NQ leading. Light calendar (no tier-1 prints). Two correlated long-beta ideas, sized small; QQQ credit spread adds a short-delta-vol hedge. Conviction medium.",
+  "no_trade": false,
+  "plans": [
+    {
+      "plan_id": "2026-06-01-SPY-1",
+      "symbol": "SPY",
+      "structure": "debit_call_spread",
+      "regime": "trend",
+      "thesis": "Continuation above overnight VWAP toward 540.",
+      "legs": [
+        {"symbol": "SPY", "expiry": "2026-06-19", "strike": 535, "right": "C", "side": "BUY", "ratio": 1},
+        {"symbol": "SPY", "expiry": "2026-06-19", "strike": 540, "right": "C", "side": "SELL", "ratio": 1}
+      ],
+      "net_price": 2.10,
+      "max_loss_usd": 4200.0,
+      "target_profit_usd": 5800.0,
+      "requested_qty": 20,
+      "invalidation": {"kind": "underlying_below", "value": 531.0},
+      "conviction": "medium",
+      "timing_note": "No entry before 10:00 ET; void if SPY gaps below 531 at open."
+    },
+    {
+      "plan_id": "2026-06-01-QQQ-1",
+      "symbol": "QQQ",
+      "structure": "credit_put_spread",
+      "regime": "low_iv_grind",
+      "thesis": "Support at 442; sell premium below with defined risk.",
+      "legs": [
+        {"symbol": "QQQ", "expiry": "2026-06-19", "strike": 440, "right": "P", "side": "SELL", "ratio": 1},
+        {"symbol": "QQQ", "expiry": "2026-06-19", "strike": 435, "right": "P", "side": "BUY", "ratio": 1}
+      ],
+      "net_price": -1.40,
+      "max_loss_usd": 3600.0,
+      "target_profit_usd": 1400.0,
+      "requested_qty": 10,
+      "invalidation": {"kind": "underlying_below", "value": 438.0},
+      "conviction": "medium"
+    }
+  ]
+}

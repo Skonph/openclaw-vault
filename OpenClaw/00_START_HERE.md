@@ -22,7 +22,7 @@
 - Secondary watch: CCL/NCLH — IV not yet compressed, est. late May/early June
 
 ## Key Systems
-- Trading bot server: ubuntu@43.160.222.7
+- Trading bot server: ubuntu@43.156.9.185
 - Bot directory: ~/trading-bot
 - Env file: /home/ubuntu/trading-bot/.env
 - Snapshots: /Users/SkonP/AI_Prompt/trade/price_snapshots/

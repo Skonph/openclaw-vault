@@ -67,7 +67,7 @@ TRADIER_HEADERS = {
 
 # ─── Rules (v4.0) ─────────────────────────────────────────────────────────────
 PRICE_MIN       = 10.0
-PRICE_MAX       = 40.0        # expanded May 22
+PRICE_MAX       = 100.0        # expanded May 22, raised to 100 Jun 19
 IV_RANK_MAX     = 40.0
 IV_LAST_MAX     = 45.0        # L019 — absolute IV cap
 PREMIUM_MIN     = 0.30
@@ -75,8 +75,8 @@ PREMIUM_MAX     = 0.60
 SPREAD_WIDTH_MAX= 3.0
 DTE_MIN         = 25
 DTE_MAX         = 50    # raised from 40 — captures standard monthly expiry (~45 DTE)
-OI_MIN          = 500
-BID_ASK_MAX     = 0.10        # per leg
+OI_MIN          = 300         # lowered to 300 to broaden candidate pool
+BID_ASK_MAX     = 0.15        # widened to 0.15 for better fill liquidity
 VIX_MAX         = 20.0
 VIX_HARD_STOP   = 30.0        # above this = cash only, all strategies blocked
 VIX_IC_MIN      = 18.0        # minimum VIX for Iron Condor (need elevated IV to sell)
@@ -120,7 +120,10 @@ TICKER_TO_ETF = {t: etf for etf, tickers in SECTOR_ETFS.items() for t in tickers
 
 MACRO_TICKERS = ['VIX', 'SPY', 'XLE', 'XLY', 'XLI', 'XLB', 'XLC', 'XLF', 'XLK', 'XLV']
 
-ACTIVE_POSITIONS = []   # set manually when a trade is open
+ACTIVE_POSITIONS = [
+    {'symbol': 'TOST'},  # Iron Condor, exp 2026-07-17, opened 2026-06-08
+                         # (unrealized -$44 as of 2026-06-13 — see 04_Trade_Journal.md Trade 5)
+]   # set manually when a trade is open; cleared when position closes
 
 
 # ─── Market regime ────────────────────────────────────────────────────────────
@@ -144,6 +147,21 @@ def determine_regime(spy_chg: float, vix_price) -> str:
     if abs(spy_chg) <= SPY_FLAT_RANGE:
         return 'flat_elevated' if vix_price >= VIX_IC_MIN else 'flat_low'
     return 'bull' if spy_chg > SPY_FLAT_RANGE else 'bear'
+
+
+def _macro_quote_from_context(sym, ctx_quotes):
+    """
+    Return a get_quote-shaped dict {'price', 'change_pct'} for `sym` from the
+    shared market_context.json quotes block, or None if the symbol isn't present
+    (caller then falls back to a live get_quote). Pure + testable.
+
+    Lets OpenClaw decide off the SAME VIX/SPY snapshot as Tradier/guardrail and
+    skip those redundant per-ticker fetches when the context is fresh.
+    """
+    cq = (ctx_quotes or {}).get(sym)
+    if not cq or cq.get('last') is None:
+        return None
+    return {'price': cq['last'], 'change_pct': cq.get('change_pct', 0)}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -687,11 +705,16 @@ def run_daily_scan():
     holds  = []
     ic_ok  = False   # set True when regime == 'flat_elevated'
 
-    # ── Step 1: Skip new scan if position already open ─────────────────────────
+    # ── Step 1: Note open positions (concurrency is governed by the executor) ───
+    # vault_updater.py now enforces a PORTFOLIO BUDGET (max N concurrent + total
+    # defined-risk ≤ % equity + ≤1 per direction) using LIVE Alpaca positions, so
+    # the scanner no longer hard-blocks at 1 — it scans normally and the executor
+    # admits qualifying orders up to the budget. (ACTIVE_POSITIONS below is a
+    # cosmetic hint only; the real position state is read live from Alpaca.)
     if has_active_position():
-        print('⚠️  Active position open — monitoring only, skip new entries')
+        print('ℹ️  Existing position(s) noted — executor will admit new entries up to the portfolio budget')
         for pos in ACTIVE_POSITIONS:
-            holds.append(f"{pos['symbol']}: active position open")
+            holds.append(f"{pos['symbol']}: position open (executor governs concurrency)")
 
     # ── Step 2: Fetch macro data ───────────────────────────────────────────────
     print('📊 Fetching macro indicators...')
@@ -699,11 +722,28 @@ def run_daily_scan():
     vix_price = None
     spy_chg   = 0.0
 
+    # Shared market context (cross-system consistency; safe fallback). When the
+    # nightly market_context.json is fresh, source VIX/SPY from it — skipping
+    # those redundant per-ticker fetches and matching Tradier/guardrail exactly.
+    # Falls back to a live get_quote per ticker if missing/stale (returns None).
+    try:
+        from read_macro_signal import load_macro_signal
+        _shared_ctx = load_macro_signal()
+    except Exception:
+        _shared_ctx = None
+    _ctx_quotes = (_shared_ctx or {}).get('quotes', {})
+    if _shared_ctx:
+        print(f'  📡 Shared market_context fresh (regime {_shared_ctx.get("regime")}) '
+              f'— sourcing VIX/SPY from it')
+
     for sym in MACRO_TICKERS:
-        q = get_quote(sym)
+        q = _macro_quote_from_context(sym, _ctx_quotes)  # SPY/VIX when context fresh
+        src = ' 📡' if q else ''
+        if q is None:
+            q = get_quote(sym)                            # live fallback / sectors
         if q:
             macro[sym] = q
-            print(f'  {sym}: ${q["price"]} ({q["change_pct"]}%)')
+            print(f'  {sym}: ${q["price"]} ({q["change_pct"]}%){src}')
             if sym == 'VIX': vix_price = q['price']
             if sym == 'SPY': spy_chg   = q['change_pct']
         else:

@@ -1,0 +1,8 @@
+{
+  "_README": "Base manual calendar: 2026 FOMC decision dates (statement 14:00 ET) pre-filled. FRED auto-covers CPI/NFP/PCE/GDP/PPI/Retail, so you do NOT need to add those. Add ISM or other events ad hoc by inserting more date keys. A date present (even []) is authoritative; a date absent falls back to FRED.",
+  "2026-06-17": [{"time": "14:00 ET", "event": "FOMC Rate Decision (SEP/dot plot)", "impact": "high"}],
+  "2026-07-29": [{"time": "14:00 ET", "event": "FOMC Rate Decision", "impact": "high"}],
+  "2026-09-16": [{"time": "14:00 ET", "event": "FOMC Rate Decision (SEP/dot plot)", "impact": "high"}],
+  "2026-10-28": [{"time": "14:00 ET", "event": "FOMC Rate Decision", "impact": "high"}],
+  "2026-12-09": [{"time": "14:00 ET", "event": "FOMC Rate Decision (SEP/dot plot)", "impact": "high"}]
+}

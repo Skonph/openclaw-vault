@@ -89,7 +89,7 @@
 - Fill within 10% of limit
 - Day orders only
 - Auto-cancel if unfilled at next open
-- SSH to ubuntu@43.160.222.7 for execution
+- SSH to ubuntu@43.156.9.185 for execution
 - Verify order status in Alpaca within 10 minutes
 
 ---

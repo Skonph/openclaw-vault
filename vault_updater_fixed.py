@@ -257,7 +257,7 @@ ACTIVE POSITIONS: None
 KNOWN_HOLDS (do not score until recheck date):
 - PR: recheck Jun 17, 2026
 
-SERVER: ubuntu@43.160.222.7
+SERVER: ubuntu@43.156.9.185
 
 HARD RESTRICTIONS:
 1. Never generate ticker candidates independently

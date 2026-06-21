@@ -164,3 +164,40 @@ Next milestone: First intentional winning trade (F win was accidental)
 | Real est. P&L | ~-$135 |
 | Paper capital | ~$2,845 |
 | Rule compliance rate | 100% last 3 trades ✅ |
+
+---
+
+## Trade 5 — TOST Iron Condor Jul17 OPEN
+
+| Field | Detail |
+|-------|--------|
+| Entry Date | Jun 8, 2026 |
+| Ticker | TOST (Toast Inc) |
+| Strategy | Iron Condor (4-leg mleg order) |
+| Legs | Buy 20P / Sell 21P / Sell 27C / Buy 29C, all exp Jul 17 2026 |
+| Entry Fill | Net credit $0.46 received (order `d0b87fc1-...`, filled 2026-06-08T15:29:48Z) |
+| Per-leg entry fills | 20P long $0.35, 21P short $0.48, 27C short $0.79, 29C long $0.46 |
+| Purpose | Live-fire test of the mleg pricing fix (Improvement #3) |
+| Status | **OPEN** — confirmed via `check_tost_status.py` (read-only Alpaca check, 2026-06-13) |
+| Current unrealized P&L (as of 2026-06-13) | **-$44** (27C -$11, 29C -$19, 20P -$13, 21P -$1) |
+| Closing orders | None found |
+| Expiry | Jul 17, 2026 |
+
+### Notes
+- This was previously listed as "unresolved" in the cross-system rollup pending a status check; `check_tost_status.py` confirms all 4 legs are still open as positions, with no closing order submitted.
+- The -$44 unrealized loss is mark-to-market only (paper) and is already reflected in the $2,898.17 equity figure reported in `OPENCLAW_CONTEXT.md` §10.
+- Action: monitor into expiry (Jul 17) or close per `02_Ruleset_v4.md` exit rules if a stop condition is hit first.
+
+---
+
+## Summary Statistics (Updated Jun 13)
+
+| Metric | Value |
+|--------|-------|
+| Total trades | 4 closed + 1 open |
+| Winners (closed) | 1 (F accidental — L017) |
+| Losers (closed) | 3 (AAL, IAG, HMC — all rule-compliant stops) |
+| Active positions | 1 (TOST Iron Condor, unrealized -$44) |
+| Real est. P&L (closed) | ~-$135 |
+| Paper capital | $2,898.17 (includes -$44 unrealized on TOST) |
+| Rule compliance rate | 100% last 3 closed trades ✅ |

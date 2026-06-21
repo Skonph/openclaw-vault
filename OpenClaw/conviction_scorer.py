@@ -46,171 +46,118 @@ VIX_MID        = 18   # VIX 15–18 = acceptable
 
 def _score_offline(alert: dict, macro: dict) -> dict:
     """
-    Score a spread alert using quantitative rules only.
-    alert keys expected (same as scanner output):
-      spread_type, long_iv, short_iv, long_oi, short_oi,
-      long_bid, long_ask, short_bid, short_ask,
-      spread_mid, max_profit, rr, dte, price,
-      etf_above_ema20 (bool|None)
-    macro keys expected: {'VIX': {'price': 14.5, ...}, ...}
+    Score a spread alert using standardized quantitative rules.
+    Factors (max 25 pts each, total 100):
+      - credit_floor: Premium collected relative to spread width / floor
+      - delta: Safety margin of short strikes (conservative delta)
+      - dte: Proximity to DTE sweet-spot (28-35 days)
+      - macro_alignment: Volatility regime (VIX) and trend (EMA20) alignment
     """
-    score       = 50  # base
-    factors     = {}
+    factors = {
+        'credit_floor': 0,
+        'delta': 0,
+        'dte': 0,
+        'macro_alignment': 0
+    }
+
     spread_type = alert.get('spread_type', 'bull_call')
-    is_credit   = spread_type == 'iron_condor'   # credit strategies score differently
+    is_credit   = spread_type == 'iron_condor' or 'credit' in spread_type
 
-    # ── Liquidity (max +30) ────────────────────────────────────────────────────
-    long_oi  = alert.get('long_oi',  0)
-    short_oi = alert.get('short_oi', 0)
-    min_oi   = min(long_oi, short_oi)
-
-    if min_oi >= 2000:
-        liq_oi = 15
-    elif min_oi >= 1000:
-        liq_oi = 10
-    elif min_oi >= 500:   # minimum allowed
-        liq_oi = 5
-    else:
-        liq_oi = 0
-    score += liq_oi
-    factors['oi_score'] = liq_oi
-
-    # Bid-ask per leg (lower = better fill probability)
-    long_ba  = round(alert.get('long_ask',  0) - alert.get('long_bid',  0), 3)
-    short_ba = round(alert.get('short_ask', 0) - alert.get('short_bid', 0), 3)
-    max_ba   = max(long_ba, short_ba)
-
-    if max_ba <= 0.04:
-        liq_ba = 15
-    elif max_ba <= 0.06:
-        liq_ba = 10
-    elif max_ba <= 0.08:
-        liq_ba = 5
-    else:
-        liq_ba = 0
-    score += liq_ba
-    factors['bid_ask_score'] = liq_ba
-
-    # ── Volatility (max +25) — direction depends on strategy ─────────────────
-    iv_rank  = alert.get('iv_rank', 30)   # scanner may not populate; default mid
-    long_iv  = alert.get('long_iv', 0)
-    short_iv = alert.get('short_iv', 0)
-    avg_iv   = (long_iv + short_iv) / 2 if long_iv and short_iv else long_iv
-
-    if is_credit:
-        # Iron Condor: higher IV rank = more premium to sell = better
-        if iv_rank >= 40:   vol_rank = 15
-        elif iv_rank >= 30: vol_rank = 10
-        elif iv_rank >= 20: vol_rank = 5
-        else:               vol_rank = 0   # IV too cheap to sell
-    else:
-        # Debit spread: lower IV rank = cheaper to buy = better
-        if iv_rank <= 15:   vol_rank = 15
-        elif iv_rank <= 25: vol_rank = 10
-        elif iv_rank <= 35: vol_rank = 5
-        else:               vol_rank = 0
-    score += vol_rank
-    factors['iv_rank_score'] = vol_rank
-
-    if is_credit:
-        # Iron Condor: higher avg IV = more premium collected (within L019 cap)
-        if avg_iv >= 35:   vol_last = 10
-        elif avg_iv >= 28: vol_last = 7
-        elif avg_iv >= 22: vol_last = 3
-        else:              vol_last = 0   # too cheap to sell
-    else:
-        # Debit spread: lower avg IV = cheaper to buy
-        if avg_iv <= 30:   vol_last = 10
-        elif avg_iv <= 38: vol_last = 7
-        elif avg_iv <= 42: vol_last = 3
-        else:              vol_last = 0   # L019 should have already blocked >45%
-    score += vol_last
-    factors['iv_last_score'] = vol_last
-
-    # ── Structure (max +25) — R:R thresholds differ by strategy ──────────────
-    rr  = alert.get('rr', 0)
-    dte = alert.get('dte', 0)
-
-    if is_credit:
-        # IC credit ratio: net_credit / max_loss — naturally lower (0.25–0.50 normal)
-        if rr >= 0.50:   str_rr = 15
-        elif rr >= 0.35: str_rr = 12
-        elif rr >= 0.25: str_rr = 8
-        elif rr >= 0.15: str_rr = 3
-        else:            str_rr = 0
-    else:
-        # Debit spread: max_profit / debit paid (1.5–5+)
-        if rr >= 4.0:   str_rr = 15
-        elif rr >= 3.0: str_rr = 12
-        elif rr >= 2.0: str_rr = 8
-        elif rr >= 1.5: str_rr = 3
-        else:           str_rr = 0
-    score += str_rr
-    factors['rr_score'] = str_rr
-
-    if 28 <= dte <= 35:     # sweet spot (same for all strategies)
-        str_dte = 10
-    elif 25 <= dte < 28 or 35 < dte <= 40:
-        str_dte = 5
-    else:
-        str_dte = 0
-    score += str_dte
-    factors['dte_score'] = str_dte
-
-    # ── Market alignment (max +20) ────────────────────────────────────────────
-    etf_above_ema = alert.get('etf_above_ema20')   # True/False/None
-
-    if is_credit:
-        # Iron Condor is direction-neutral — ETF direction not a factor
-        mkt_etf = 5   # neutral partial credit always
-    elif etf_above_ema is True and spread_type == 'bull_call':
-        mkt_etf = 10   # bullish ETF + bull call = aligned
-    elif etf_above_ema is False and spread_type == 'bear_put':
-        mkt_etf = 10   # bearish ETF + bear put = aligned
-    elif etf_above_ema is None:
-        mkt_etf = 3    # uncertain — partial credit
-    else:
-        mkt_etf = 0    # misaligned
-    score += mkt_etf
-    factors['etf_alignment_score'] = mkt_etf
-
-    vix_price = None
+    # 1. Credit Floor (max 25 pts)
+    # Credit/width ratio evaluation
+    ratio = 0.0
     try:
-        vix_price = float((macro.get('VIX') or {}).get('price') or 0) or None
+        long_strike = float(alert.get('long_strike', 0))
+        short_strike = float(alert.get('short_strike', 0))
+        width = abs(short_strike - long_strike)
+        mid = float(alert.get('spread_mid', 0.0))
+        
+        if width > 0:
+            if is_credit:
+                # Credit spread: want high credit relative to width (e.g. >= 30%)
+                ratio = abs(mid) / width
+                if ratio >= 0.35:     factors['credit_floor'] = 25
+                elif ratio >= 0.25:   factors['credit_floor'] = 20
+                elif ratio >= 0.15:   factors['credit_floor'] = 10
+                else:                 factors['credit_floor'] = 0
+            else:
+                # Debit spread: want low cost relative to width (e.g. <= 40%)
+                ratio = mid / width
+                if ratio <= 0.35:     factors['credit_floor'] = 25
+                elif ratio <= 0.45:   factors['credit_floor'] = 20
+                elif ratio <= 0.50:   factors['credit_floor'] = 10
+                else:                 factors['credit_floor'] = 0
     except Exception:
-        pass
+        factors['credit_floor'] = 15  # default
 
-    if vix_price is not None:
-        if is_credit:
-            # Iron Condor: higher VIX = more premium to sell = better
-            if vix_price >= 20:   mkt_vix = 10
-            elif vix_price >= 18: mkt_vix = 7
-            elif vix_price >= 15: mkt_vix = 3
-            else:                 mkt_vix = 0   # VIX < 15 = too cheap to sell
-        else:
-            # Debit spread: lower VIX = cheaper premiums = better
-            if vix_price < VIX_LOW:    mkt_vix = 10
-            elif vix_price < VIX_MID:  mkt_vix = 5
-            else:                      mkt_vix = 0
+    # 2. Delta (max 25 pts)
+    # Target short delta (e.g. <= 0.15 is safest, up to 0.35 is acceptable)
+    short_delta = alert.get('short_delta')
+    if short_delta is not None:
+        try:
+            d = abs(float(short_delta))
+            if d <= 0.15:      factors['delta'] = 25
+            elif d <= 0.25:    factors['delta'] = 20
+            elif d <= 0.35:    factors['delta'] = 10
+            else:              factors['delta'] = 0
+        except Exception:
+            factors['delta'] = 15
     else:
-        mkt_vix = 3   # unknown VIX — partial credit
-    score += mkt_vix
-    factors['vix_score'] = mkt_vix
+        factors['delta'] = 15  # default/neutral when delta not present
 
-    # ── Cap at 100 ────────────────────────────────────────────────────────────
-    score = min(score, 100)
+    # 3. DTE Sweet-Spot (max 25 pts)
+    # 28-35 DTE is optimal (max points), 25-40 DTE is acceptable
+    try:
+        dte = int(alert.get('dte', 0))
+        if 28 <= dte <= 35:
+            factors['dte'] = 25
+        elif 25 <= dte <= 40:
+            factors['dte'] = 15
+        else:
+            factors['dte'] = 5
+    except Exception:
+        dte = 0
+        factors['dte'] = 15
 
-    # ── One-line reasoning ────────────────────────────────────────────────────
-    top = sorted(factors.items(), key=lambda x: -x[1])[:2]
-    bottom = [k for k, v in factors.items() if v == 0]
-    reasoning_parts = [f"OI {min_oi:,}", f"R:R {rr}:1", f"DTE {dte}d", f"avg IV {avg_iv:.0f}%"]
-    if etf_above_ema is not None:
-        reasoning_parts.append('ETF aligned' if mkt_etf == 10 else 'ETF misaligned')
-    if vix_price:
-        reasoning_parts.append(f"VIX {vix_price:.1f}")
-    reasoning = ' | '.join(reasoning_parts)
+    # 4. Macro Alignment (max 25 pts)
+    # VIX level and ETF trend alignment
+    try:
+        etf_above_ema = alert.get('etf_above_ema20')  # True/False/None
+        align_score = 0
+        if is_credit:
+            # Iron Condors are neutral, direction doesn't matter
+            align_score += 7
+        elif etf_above_ema is True and spread_type == 'bull_call':
+            align_score += 12  # bullish trend matches strategy
+        elif etf_above_ema is False and spread_type == 'bear_put':
+            align_score += 12  # bearish trend matches strategy
+        elif etf_above_ema is None:
+            align_score += 5   # neutral/unknown
+        
+        # Volatility alignment (VIX)
+        vix_price = float((macro.get('VIX') or {}).get('price') or 0)
+        if vix_price > 0:
+            if is_credit:
+                # Credit spread: want higher VIX (more premium) but not extreme
+                if 18 <= vix_price <= 30:  align_score += 13
+                elif 15 <= vix_price < 18: align_score += 8
+                else:                      align_score += 0
+            else:
+                # Debit spread: want lower VIX (cheaper premiums)
+                if vix_price < 15:         align_score += 13
+                elif vix_price <= 20:      align_score += 8
+                else:                      align_score += 0
+        else:
+            align_score += 5  # default
+        
+        factors['macro_alignment'] = min(25, align_score)
+    except Exception:
+        factors['macro_alignment'] = 15
 
+    score = sum(factors.values())
     passed = score >= CONVICTION_MIN
+    reasoning = f"Credit Ratio: {ratio:.1%} | Delta: {short_delta or 'N/A'} | DTE: {dte}d | Macro Score: {factors['macro_alignment']}/25"
+
     return {
         'symbol':    alert.get('symbol', '?'),
         'score':     score,
@@ -241,16 +188,15 @@ def _score_anthropic(alert: dict, macro: dict) -> dict | None:
         vix  = (macro.get('VIX') or {}).get('price', 'N/A')
         spy  = (macro.get('SPY') or {}).get('change_pct', 'N/A')
 
-        prompt = f"""You are OpenClaw conviction scorer. Score this options spread 0-100.
+        prompt = f"""You are the OpenClaw conviction scorer. Score this options spread 0-100.
 Respond with ONLY a JSON object. No explanation outside JSON.
 
 SPREAD:
 - Symbol: {alert['symbol']} ({type_label})
 - Strikes: ${alert['long_strike']} / ${alert['short_strike']}
 - Expiry: {alert.get('expiry', 'N/A')} ({alert['dte']} DTE)
-- Net Debit: ${alert['spread_mid']} | Max Profit: ${alert['max_profit']} | R:R: {alert['rr']}:1
+- Net Debit/Credit: ${alert['spread_mid']} | Max Profit: ${alert['max_profit']} | R:R: {alert['rr']}:1
 - IV (long/short): {alert['long_iv']}% / {alert['short_iv']}%
-- OI (long/short): {alert['long_oi']:,} / {alert['short_oi']:,}
 - Stock Price: ${alert.get('price', 'N/A')}
 - ETF above EMA20: {alert.get('etf_above_ema20', 'unknown')}
 
@@ -263,13 +209,14 @@ RULES ALREADY PASSED:
 - Events calendar clear ±14 days, no known holds
 
 SCORING CRITERIA:
-- Liquidity quality (OI depth, tight bid-ask)
-- Volatility setup (IV rank relative cheapness, IV last absolute level)
-- Spread structure (R:R, DTE sweet spot 28-35)
-- Market alignment (ETF direction, VIX level, broad market)
+Evaluate the following four standard factors (0-25 points each, total 100):
+1. credit_floor: Premium collected relative to spread width / floor
+2. delta: Safety margin of short strikes (conservative delta)
+3. dte: Proximity to DTE sweet-spot (28-35 days)
+4. macro_alignment: Volatility regime (VIX) and trend (EMA20) alignment
 
 Respond ONLY with this JSON:
-{{"score": 82, "pass": true, "reasoning": "one concise sentence", "factors": {{"liquidity": 25, "volatility": 20, "structure": 22, "market": 15}}}}"""
+{{"score": 85, "pass": true, "reasoning": "one concise sentence", "factors": {{"credit_floor": 22, "delta": 23, "dte": 20, "macro_alignment": 20}}}}"""
 
         message = client.messages.create(
             model='claude-haiku-4-5-20251001',

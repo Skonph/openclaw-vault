@@ -267,6 +267,26 @@ def group_spread_legs(positions: list) -> dict:
 
 # ─── Auto-close execution ─────────────────────────────────────────────────────
 
+def _close_limit_price(net_credit: float) -> float:
+    """
+    Convert a "net_credit on close" figure (positive = we receive money,
+    negative = we pay money) into an Alpaca mleg limit_price.
+
+    Alpaca mleg sign convention is the opposite of net_credit: limit_price > 0
+    means a net DEBIT (we pay), limit_price < 0 means a net CREDIT (we receive).
+    """
+    raw_price = -net_credit
+    if raw_price >= 0:
+        # Closing for a net debit (e.g. closing an Iron Condor). Accept paying
+        # up to 5% more than the current estimated debit, for execution
+        # certainty — the old `max(net_credit * 0.95, 0.01)` collapsed to a
+        # ~$0.01 limit here, which would almost never fill.
+        return round(max(raw_price * 1.05, 0.01), 2)
+    # Closing for a net credit (e.g. closing a profitable debit spread).
+    # Accept receiving as little as 95% of the current estimated credit.
+    return round(min(raw_price * 0.95, -0.01), 2)
+
+
 def auto_close_spread(legs: list, reason: str) -> bool:
     """Submit mleg close order. Long → sell_to_close. Short → buy_to_close."""
     close_legs = []
@@ -293,8 +313,14 @@ def auto_close_spread(legs: list, reason: str) -> bool:
         print('  ⚠️  No legs to close')
         return False
 
-    qty      = legs[0]['qty']
-    limit_px = round(max(net_credit * 0.95, 0.01), 2)
+    qty = abs(legs[0]['qty'])
+
+    # net_credit here = (sum of current prices of legs we're SELLING to close)
+    #                  - (sum of current prices of legs we're BUYING to close)
+    #                  i.e. positive = we receive money on close, negative = we
+    #                  pay money on close. See _close_limit_price() for the
+    #                  conversion to Alpaca's mleg sign convention.
+    limit_px = _close_limit_price(net_credit)
 
     payload = {
         'order_class':   'mleg',
@@ -333,7 +359,7 @@ def analyse_and_exit(key: str, legs: list, regime: dict) -> dict:
     underlying   = legs[0]['underlying']
     expiry       = legs[0]['expiry']
     dte          = legs[0]['dte']
-    qty          = legs[0]['qty']
+    qty          = abs(legs[0]['qty'])
     spread_type  = _get_spread_direction(legs)
 
     total_market_value = sum(l['market_value'] for l in legs)
@@ -366,6 +392,21 @@ def analyse_and_exit(key: str, legs: list, regime: dict) -> dict:
 
     trade    = _get_trade_data(underlying, expiry)
     trade_id = trade.get('trade_id') if trade else None
+
+    # Calculate age/elapsed days
+    elapsed_days = 0
+    if trade:
+        entry_date_str = trade.get('executed_at') or trade.get('approved_at') or trade.get('created')
+        if entry_date_str:
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                try:
+                    dt_entered = datetime.strptime(entry_date_str, fmt)
+                    elapsed_days = (datetime.now() - dt_entered).days
+                    break
+                except ValueError:
+                    pass
+
+    print(f'  Age: {elapsed_days} days')
 
     # ── Rule 1: Profit target ─────────────────────────────────────────────────
     if profit_pct >= PROFIT_TARGET_PCT:
@@ -414,6 +455,21 @@ def analyse_and_exit(key: str, legs: list, regime: dict) -> dict:
             _record_pnl(underlying, expiry, spread_type, total_unrealised, reason, trade_id)
         print(f'  ⏰ Rule 3: Expiry gate DTE {dte} → close')
         return {'key': key, 'status': 'expiry_close', 'pnl': total_unrealised, 'success': success}
+
+    # ── Rule 3.5: Recycle gate (elapsed_days >= 14) ──────────────────────────
+    if elapsed_days >= 14:
+        reason  = f'Recycle gate elapsed {elapsed_days} days'
+        success = auto_close_spread(legs, reason)
+        if success:
+            send_telegram(
+                f'♻️ *{underlying} — RECYCLE GATE CLOSE*\n'
+                f'Position open for {elapsed_days} days (>= 14 days) — force-closing to recycle capital\n'
+                f'P&L: *${total_unrealised:+.2f}*\n'
+                f'_Rule 3.5: Auto-close at 14-day hold limit_'
+            )
+            _record_pnl(underlying, expiry, spread_type, total_unrealised, reason, trade_id)
+        print(f'  ♻️ Rule 3.5: Recycle gate elapsed {elapsed_days} days → close')
+        return {'key': key, 'status': 'recycle_close', 'pnl': total_unrealised, 'success': success}
 
     # ── Rule 4: Dead trade (DTE ≤ 21, loss > 25%) ────────────────────────────
     if dte <= DEAD_TRADE_DTE and loss_vs_debit > DEAD_TRADE_LOSS:
@@ -481,6 +537,7 @@ def write_monitor_report(groups: dict, account: dict, results: list):
         'profit_close':  '💰 Profit target close',
         'stop_close':    '🔴 Stop loss close',
         'expiry_close':  '⏰ Expiry gate close',
+        'recycle_close': '♻️ Recycle gate close',
         'dead_close':    '🗑  Dead trade close',
         'reversal_alert':'⚠️  Trend reversal alert',
         'ok':            '✅ Holding',
@@ -493,7 +550,7 @@ def write_monitor_report(groups: dict, account: dict, results: list):
             label  = status_map.get(status, status)
             pnl    = r.get('pnl', 0)
             report += f'**{r["key"]}** — {label} | P&L: ${pnl:+.2f}'
-            if status in ('profit_close', 'stop_close', 'expiry_close', 'dead_close'):
+            if status in ('profit_close', 'stop_close', 'expiry_close', 'recycle_close', 'dead_close'):
                 report += f' | Executed: {"✅" if r.get("success") else "❌"}'
             if status == 'reversal_alert':
                 report += f' | Regime: {r.get("regime","?")} vs {r.get("spread_type","?")}'
@@ -503,6 +560,7 @@ def write_monitor_report(groups: dict, account: dict, results: list):
     report += f'1. Profit target  : ≥{PROFIT_TARGET_PCT*100:.0f}% of max profit → auto-close\n'
     report += f'2. Stop loss      : value ≤{STOP_LOSS_PCT*100:.0f}% of debit → auto-close\n'
     report += f'3. Expiry gate    : DTE ≤{EXPIRY_GATE_DTE} → auto-close (gamma risk)\n'
+    report += f'3.5 Recycle gate  : elapsed days ≥ 14 days → auto-close\n'
     report += f'4. Dead trade     : DTE ≤{DEAD_TRADE_DTE} + loss >{DEAD_TRADE_LOSS*100:.0f}% of debit → auto-close\n'
     report += f'5. Trend reversal : regime contradicts spread direction → Telegram alert\n'
     report += '\n---\n*Auto-generated by position_monitor.py v3.0*\n'

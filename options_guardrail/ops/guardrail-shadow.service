@@ -1,0 +1,13 @@
+[Unit]
+Description=Guardrail shadow report (no-execution phase: market + would-trade plans)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/guardrail
+EnvironmentFile=/home/ubuntu/guardrail/.env
+ExecStart=/home/ubuntu/guardrail/run.sh shadow_report.py --watchlist SPY,QQQ,IWM
+StandardOutput=append:/home/ubuntu/guardrail/logs/shadow.log
+StandardError=append:/home/ubuntu/guardrail/logs/shadow.log

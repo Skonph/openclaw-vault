@@ -49,18 +49,43 @@ if TEST_MODE:
 # ─── DUAL-API CONFIG ──────────────────────────────────────────────────────────
 #
 #  MARKET DATA  →  Production API  (real-time, live Greeks, live bid/ask)
-#  TRADE OPS    →  Sandbox API     (paper orders, positions, account balance)
+#  TRADE OPS    →  Alpaca API       (paper orders, positions, account balance)
 #
 PROD_URL       = "https://api.tradier.com/v1"       # Real-time market data
-SANDBOX_URL    = "https://sandbox.tradier.com/v1"   # Paper trade execution
+SANDBOX_URL    = "https://sandbox.tradier.com/v1"   # Legacy Tradier sandbox url
 
 PROD_TOKEN     = os.getenv("TRADIER_PROD_TOKEN",    "YOUR_PRODUCTION_TOKEN_HERE")
 SANDBOX_TOKEN  = os.getenv("TRADIER_SANDBOX_TOKEN", "YOUR_SANDBOX_TOKEN_HERE")
 ACCOUNT_ID     = os.getenv("TRADIER_SANDBOX_ACCOUNT","YOUR_SANDBOX_ACCOUNT_ID_HERE")
 
-MAX_RISK        = 100   # Hard max loss per trade ($) (5% of $2,000 equity)
-MAX_POSITIONS   = 2     # Phase 1: max concurrent open positions
-STARTING_CAPITAL = float(os.getenv("STARTING_CAPITAL", "2000"))  # Your POC benchmark
+ALPACA_KEY     = os.getenv("ALPACA_API_KEY",        "YOUR_ALPACA_KEY_HERE")
+ALPACA_SECRET  = os.getenv("ALPACA_SECRET_KEY",     "YOUR_SECRET_KEY_HERE")
+ALPACA_BASE    = os.getenv("ALPACA_BASE_URL",       "https://paper-api.alpaca.markets/v2")
+
+MAX_RISK        = 320   # Hard max loss per trade ($) = 2% of the $16k primary account (2026-06-20 graduation scaling; was 300). Allows $2-3 wide spreads.
+MAX_POSITIONS   = 5     # Max concurrent open positions. 5 × MAX_RISK_TIER3 ($480) = $2,400 = 15% of $16k portfolio risk cap.
+STARTING_CAPITAL = float(os.getenv("STARTING_CAPITAL", "16000"))  # PRIMARY real account ($16k). NOTE: also set STARTING_CAPITAL=16000 in server .env.
+
+# Dynamic 2-contract sizing thresholds (tuned via backtest.py, 2026-06-13).
+# _score_spread's score = net_credit / max_loss. For the $1-wide spreads that
+# dominate under MAX_RISK=100, real-world scores cluster around 0.004-0.007,
+# with above-average-credit setups (net_credit >= ~$0.50, where max_loss <= 50
+# and the `2*single_contract_risk <= MAX_RISK` check can pass) reaching ~0.01+.
+# The previous threshold of 0.30 was ~50x too high and never fired (dead code).
+DYNAMIC_SIZING_SCORE_THRESHOLD    = 0.010   # single-leg (bull put / bear call)
+DYNAMIC_SIZING_SCORE_THRESHOLD_IC = 0.020   # iron condor (sum of put + call leg scores)
+
+# Tier-3 "high conviction" sizing (Improvement #5, 2026-06-13). Fires on top
+# of the tier-2 rule above for exceptionally rich-credit days. score=0.018
+# single-leg corresponds to ~$0.63 net_credit on a $1-wide spread
+# (max_loss~37); IC threshold (0.032) is roughly double a single leg's tier-3
+# score, mirroring the tier-2 IC-vs-single-leg ratio (0.020 vs 0.010).
+# MAX_RISK_TIER3 raises the risk ceiling for this tier only (3x max_loss<=150
+# vs. the standard 2x max_loss<=100), since 3x at the tier-2 ceiling would
+# otherwise be impossible for the same max_loss<=50 trades.
+DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3    = 0.018   # single-leg, qty=3
+DYNAMIC_SIZING_SCORE_THRESHOLD_IC_TIER3 = 0.032   # iron condor, qty=3
+MAX_RISK_TIER3 = 480   # qty=3 ceiling = 1.5× MAX_RISK ($320). Per-trade max loss ≤ $480; 5 positions × $480 = $2,400 = 15% of $16k. (was 450)
 
 # Pre-built headers for each API
 PROD_HEADERS = {
@@ -71,21 +96,61 @@ SANDBOX_HEADERS = {
     "Authorization": f"Bearer {SANDBOX_TOKEN}",
     "Accept": "application/json"
 }
+ALPACA_HEADERS = {
+    "APCA-API-KEY-ID":     ALPACA_KEY,
+    "APCA-API-SECRET-KEY": ALPACA_SECRET,
+    "Content-Type":        "application/json",
+}
 
 def _check_credentials():
     """Warn clearly if .env values are still placeholders."""
     missing = []
-    if "YOUR_PRODUCTION" in PROD_TOKEN:
+    if not PROD_TOKEN or "YOUR_PRODUCTION" in PROD_TOKEN:
         missing.append("TRADIER_PROD_TOKEN")
-    if "YOUR_SANDBOX_TOKEN" in SANDBOX_TOKEN:
-        missing.append("TRADIER_SANDBOX_TOKEN")
-    if "YOUR_SANDBOX_ACCOUNT" in ACCOUNT_ID:
-        missing.append("TRADIER_SANDBOX_ACCOUNT")
+    if not ALPACA_KEY or "YOUR_ALPACA" in ALPACA_KEY:
+        missing.append("ALPACA_API_KEY")
+    if not ALPACA_SECRET or "YOUR_SECRET" in ALPACA_SECRET:
+        missing.append("ALPACA_SECRET_KEY")
     if missing:
         print(f"\n  ⚠️  Missing .env values: {', '.join(missing)}")
-        print("  Copy .env.example → .env and fill in all three keys.")
+        print("  Copy .env.example → .env and fill in the keys.")
         print("  Run with --test to continue without credentials.\n")
         sys.exit(1)
+
+def _check_alpaca_paper_account():
+    """Safety guard: enforce that we are trading on a paper account only."""
+    if TEST_MODE:
+        return
+    # 1. Base URL check
+    if "paper-api" not in ALPACA_BASE.lower():
+        if os.getenv("LIVE_TRADING", "").lower() != "true":
+            print(f"\n  🚫 LIVE TRADING BLOCKED — ALPACA_BASE_URL points to live API: {ALPACA_BASE}")
+            print("  To override this for real money trading, set LIVE_TRADING=true in .env\n")
+            sys.exit(1)
+        else:
+            print("\n  ⚠️ WARNING: LIVE TRADING IS ENABLED! Real money is at risk!\n")
+            return
+
+    # 2. Query /v2/account to confirm
+    try:
+        url = f"{ALPACA_BASE}/account"
+        r = requests.get(url, headers=ALPACA_HEADERS, timeout=10)
+        r.raise_for_status()
+        acc_data = r.json()
+        acc_num = acc_data.get("account_number", "")
+        is_paper_acc = acc_num.startswith("PA") or acc_num.startswith("DU") or acc_num.startswith("DF")
+        if not is_paper_acc:
+            if os.getenv("LIVE_TRADING", "").lower() != "true":
+                print(f"\n  🚫 LIVE TRADING BLOCKED — Account number {acc_num} does not appear to be a paper account.")
+                print("  To override this, set LIVE_TRADING=true in .env\n")
+                sys.exit(1)
+            else:
+                print(f"\n  ⚠️ WARNING: LIVE TRADING ACTIVE on account {acc_num}!\n")
+    except Exception as e:
+        print(f"\n  ⚠️ WARNING: Could not verify account paper status via API: {e}")
+        if "paper-api" not in ALPACA_BASE.lower() and os.getenv("LIVE_TRADING", "").lower() != "true":
+            print("  🚫 Base URL is not paper and API verification failed. Live trading blocked.")
+            sys.exit(1)
 
 if not TEST_MODE:
     _check_credentials()
@@ -99,6 +164,14 @@ MOCK_QUOTES = {
     "SMH": {"symbol": "SMH",  "last": 248.90, "change": 2.10,  "change_percentage": 0.85},
     "XLE": {"symbol": "XLE",  "last": 87.45,  "change": 0.62,  "change_percentage": 0.71},
     "TLT": {"symbol": "TLT",  "last": 88.30,  "change": -0.18, "change_percentage": -0.20},
+    "XLF": {"symbol": "XLF",  "last": 45.20,  "change": 0.15,  "change_percentage": 0.33},
+    "XLK": {"symbol": "XLK",  "last": 210.50, "change": 1.20,  "change_percentage": 0.57},
+    "XLV": {"symbol": "XLV",  "last": 142.10, "change": 0.40,  "change_percentage": 0.28},
+    "XLI": {"symbol": "XLI",  "last": 122.30, "change": -0.10, "change_percentage": -0.08},
+    "XLY": {"symbol": "XLY",  "last": 180.40, "change": 0.95,  "change_percentage": 0.53},
+    "DIA": {"symbol": "DIA",  "last": 395.20, "change": 0.80,  "change_percentage": 0.20},
+    "GLD": {"symbol": "GLD",  "last": 220.60, "change": -1.10, "change_percentage": -0.50},
+    "USO": {"symbol": "USO",  "last": 75.80,  "change": 0.45,  "change_percentage": 0.60},
 }
 
 MOCK_PUTS = [
@@ -133,7 +206,7 @@ MOCK_BALANCES = {
 }
 
 # ─── WATCHLIST ────────────────────────────────────────────────────────────────
-MARKET_SCAN_SYMBOLS = ["SPY", "QQQ", "IWM", "VIX", "SMH", "XLE", "TLT"]
+MARKET_SCAN_SYMBOLS = ["SPY", "QQQ", "IWM", "VIX", "XLF", "XLK", "XLE", "XLV", "XLI", "XLY", "DIA", "GLD", "TLT", "USO"]
 
 # Phase 1 trade candidates — liquid ETFs only
 TRADE_CANDIDATES = {
@@ -298,6 +371,33 @@ def check_calendar_skip():
 
 # ─── SECTION 1: MORNING MARKET SCAN ─────────────────────────────────────────
 
+def apply_shared_macro(quote_map, sig):
+    """
+    Override the regime-driving symbols in quote_map from the shared market
+    context (market_context.json, written by market_context_writer.py) so Tradier
+    decides off the SAME VIX/SPY snapshot as OpenClaw and the guardrail.
+
+    Pure + testable. Maps the canonical `quotes.<SYM>` block onto Tradier's
+    quote_map fields (`last`, `change`, `change_percentage`) for SPY/QQQ/IWM/VIX;
+    leaves sector symbols (SMH/XLE/TLT) from the live feed. Returns the (mutated)
+    quote_map. No-op if sig is falsy.
+    """
+    if not sig:
+        return quote_map
+    quotes = sig.get("quotes", {})
+    for sym in ("SPY", "QQQ", "IWM", "VIX"):
+        sq = quotes.get(sym)
+        if not sq or sq.get("last") is None:
+            continue
+        q = quote_map.setdefault(sym, {})
+        q["last"] = sq["last"]
+        if sq.get("change_pct") is not None:
+            q["change_percentage"] = sq["change_pct"]
+        if sq.get("change") is not None:
+            q["change"] = sq["change"]
+    return quote_map
+
+
 def morning_scan():
     """Fetch key market quotes and print a structured morning brief."""
     print("\n" + "═" * 60)
@@ -319,6 +419,23 @@ def morning_scan():
         if isinstance(quotes, dict):
             quotes = [quotes]
         quote_map = {q["symbol"]: q for q in quotes}
+
+        # ── SHARED MACRO SIGNAL (cross-system consistency; safe fallback) ─────
+        # Prefer the nightly shared signal for the regime-driving inputs so all
+        # three systems decide off the SAME VIX/SPY snapshot. Silently falls back
+        # to the live quotes above if the signal is missing/stale/unreadable.
+        try:
+            from read_macro_signal import load_macro_signal
+            _sig = load_macro_signal()
+        except Exception:
+            _sig = None
+        if _sig:
+            apply_shared_macro(quote_map, _sig)
+            _vix = _sig.get("quotes", {}).get("VIX", {}).get("last")
+            _spy = _sig.get("quotes", {}).get("SPY", {}).get("change_pct")
+            print(f"  📡 Shared market_context applied "
+                  f"(regime {_sig.get('regime')}, VIX {_vix}, SPY {_spy}%) "
+                  f"— consistent across systems")
 
     spy = quote_map.get("SPY", {})
     qqq = quote_map.get("QQQ", {})
@@ -356,8 +473,8 @@ def morning_scan():
     from datetime import timezone as _tz, timedelta as _td
     dow = datetime.now(_tz.utc).astimezone(_tz(_td(hours=-4))).weekday()  # ET weekday
     DOW_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
-    if dow in (0, 4):   # Monday=0, Friday=4
-        print(f"\n  ⛔ {DOW_NAMES[dow]} — skipping entry (gap/weekend risk). Check back Tuesday.")
+    if dow in (4,):   # Friday=4
+        print(f"\n  ⛔ {DOW_NAMES[dow]} — skipping entry (gap/weekend risk). Check back Monday.")
         return {
             "spy": spy_price, "qqq": qqq_price, "vix": vix_level,
             "spy_change": spy.get("change_percentage", 0),
@@ -388,14 +505,14 @@ def morning_scan():
         regime_msg = (f"🟡 VIX {vix_level:.1f} ({VIX_SECONDARY_FLOOR}–{VIX_SPY_FLOOR} zone) — "
                       f"SPY premium thin, scanning QQQ → IWM for spread opportunities")
     elif abs(spy_change_pct) <= 0.5 and vix_level >= 18:
-        strategy   = "iron_condor"
-        regime_msg = "🔵 SIDEWAYS + ELEVATED IV — Iron Condor (collect from both sides)"
+        strategy   = "pass"
+        regime_msg = "⚪ SIDEWAYS + ELEVATED IV — Iron Condor cut, no-trade"
     elif spy_change_pct > 0.5:
         strategy   = "bull_put_spread"
         regime_msg = "🟢 BULLISH — Bull Put Spread (sell OTM puts below market)"
     elif spy_change_pct < -0.5:
-        strategy   = "bear_call_spread"
-        regime_msg = "🟡 BEARISH MOMENTUM — Bear Call Spread (sell OTM calls above market)"
+        strategy   = "pass"
+        regime_msg = "⚪ BEARISH MOMENTUM — Bear Call Spread cut, no-trade"
     else:
         strategy   = "bull_put_spread"
         regime_msg = "🟢 FLAT/MILD — Bull Put Spread (single-side default)"
@@ -410,6 +527,7 @@ def morning_scan():
         "spy_change": spy_change_pct,
         "strategy":   strategy,
         "all_green":  strategy == "bull_put_spread",
+        "quote_map":  quote_map,
     }
 
 # ─── SECTION 2: OPTIONS CHAIN SCAN ───────────────────────────────────────────
@@ -509,10 +627,10 @@ def _score_spread(short_put, long_put, width):
         "width":       width,
     }
 
-MIN_DTE = 10   # Never enter with fewer than 10 DTE (gamma risk zone)
-MAX_DTE = 28   # Never enter beyond 28 DTE — widened from 21 to catch further expirations and handle holidays
-TARGET_DELTA_MAX = 0.35   # Short delta ≤ 0.35 — widened to catch more strikes
-TARGET_DELTA_MIN = 0.10   # Short delta ≥ 0.10 — widened for low-IV days
+MIN_DTE = 7   # Never enter with fewer than 7 DTE (gamma risk zone)
+MAX_DTE = 35   # Never enter beyond 35 DTE — widened to catch more expirations
+TARGET_DELTA_MAX = 0.40   # Short delta ≤ 0.40 — widened to catch more strikes
+TARGET_DELTA_MIN = 0.15   # Short delta ≥ 0.15 — widened for low-IV days
 
 # VIX routing tiers:
 #   VIX ≥ 15       → normal SPY-first scan
@@ -521,7 +639,7 @@ TARGET_DELTA_MIN = 0.10   # Short delta ≥ 0.10 — widened for low-IV days
 VIX_SPY_FLOOR      = 15   # minimum VIX to trade SPY spreads
 VIX_SECONDARY_FLOOR = 12  # below this, nothing is worth selling
 
-def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=16.0):
+def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=16.0, write_pending=True):
     """
     Smart spread selector:
       1. Searches expirations 2–5 weeks out (nearest first), skips any < 10 DTE
@@ -607,11 +725,17 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
     qty = 1
     score = best["score"]
     single_contract_risk = best["max_loss"]
-    if vix > 20 and score > 0.30 and (2 * single_contract_risk <= MAX_RISK):
+    if vix > 20 and score > DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3 and (3 * single_contract_risk <= MAX_RISK_TIER3):
+        qty = 3
+        if write_pending:
+            print(f"  ⚡⚡ VIX > 20 & Score > {DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3}: High-conviction sizing scaled to {qty} contracts.")
+    elif vix > 20 and score > DYNAMIC_SIZING_SCORE_THRESHOLD and (2 * single_contract_risk <= MAX_RISK):
         qty = 2
-        print(f"  ⚡ VIX > 20 & Score > 0.30: Dynamic contract sizing scaled to {qty} contracts.")
+        if write_pending:
+            print(f"  ⚡ VIX > 20 & Score > {DYNAMIC_SIZING_SCORE_THRESHOLD}: Dynamic contract sizing scaled to {qty} contracts.")
     else:
-        print(f"  ⚡ Contract size set to {qty} contract(s).")
+        if write_pending:
+            print(f"  ⚡ Contract size set to {qty} contract(s).")
 
     max_loss   = round(best["max_loss"] * qty, 2)
     max_profit = round(best["max_profit"] * qty, 2)
@@ -629,51 +753,51 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
     stop_loss_close     = round(net_credit * 2.0,  2)
     pct_otm      = round((spy_price - short_strike) / spy_price * 100, 2)
 
-    print(f"\n{'═'*62}")
-    print(f"  ✅ PROPOSED TRADE — PENDING YOUR APPROVAL")
-    print(f"{'═'*62}")
-    print(f"  Strategy:        Bull Put Spread  (${width:.0f}-wide) [Qty: {qty}]")
-    print(f"  Underlying:      {symbol}  (current ${spy_price:.2f})")
-    print(f"  Expiration:      {best_exp}  ({dte} DTE)")
-    print(f"  Short strike:    {pct_otm:.1f}% OTM  |  Delta {short_delta:.3f}  |  IV {short_iv:.1f}%  |  Theta {short_theta:.4f}")
-    print(f"  ──────────────────────────────────────────────────────")
-    print(f"  SHORT:  SELL {symbol} ${short_strike:.0f} Put  @ ${short_bid:.2f} (bid)")
-    print(f"  LONG:   BUY  {symbol} ${long_strike:.0f} Put  @ ${long_ask:.2f} (ask)")
-    print(f"  ──────────────────────────────────────────────────────")
-    print(f"  Net Credit:      ${net_credit:.2f}/share  (${max_profit:.0f} total)")
-    print(f"  Max Profit:      ${max_profit:.0f}  (spread expires worthless)")
-    print(f"  Max Loss:        ${max_loss:.0f}  (SPY closes below ${long_strike:.0f})")
-    print(f"  Breakeven:       ${breakeven:.2f}  (SPY must stay above this)")
-    print(f"  Prob. of profit: ~{100 + short_delta*100:.0f}%")
-    print(f"  Reward/Risk:     {net_credit/((width - net_credit)):.2f}:1")
-    print(f"  ── Exit Rules ─────────────────────────────────────────")
-    print(f"  Profit target:   BTC ≤ ${profit_target_close:.2f}  (50% profit)")
-    print(f"  Hard stop:       BTC ≥ ${stop_loss_close:.2f}  (2× entry cost)")
-    print(f"  Time stop:       Close at market if open with 2 DTE remaining")
-    print(f"  Risk/Account:    {max_loss/STARTING_CAPITAL*100:.1f}% of ${STARTING_CAPITAL:,.0f} benchmark")
+    if write_pending:
+        print(f"\n{'═'*62}")
+        print(f"  ✅ PROPOSED TRADE — PENDING YOUR APPROVAL")
+        print(f"{'═'*62}")
+        print(f"  Strategy:        Bull Put Spread  (${width:.0f}-wide) [Qty: {qty}]")
+        print(f"  Underlying:      {symbol}  (current ${spy_price:.2f})")
+        print(f"  Expiration:      {best_exp}  ({dte} DTE)")
+        print(f"  Short strike:    {pct_otm:.1f}% OTM  |  Delta {short_delta:.3f}  |  IV {short_iv:.1f}%  |  Theta {short_theta:.4f}")
+        print(f"  ──────────────────────────────────────────────────────")
+        print(f"  SHORT:  SELL {symbol} ${short_strike:.0f} Put  @ ${short_bid:.2f} (bid)")
+        print(f"  LONG:   BUY  {symbol} ${long_strike:.0f} Put  @ ${long_ask:.2f} (ask)")
+        print(f"  ──────────────────────────────────────────────────────")
+        print(f"  Net Credit:      ${net_credit:.2f}/share  (${max_profit:.0f} total)")
+        print(f"  Max Profit:      ${max_profit:.0f}  (spread expires worthless)")
+        print(f"  Max Loss:        ${max_loss:.0f}  (SPY closes below ${long_strike:.0f})")
+        print(f"  Breakeven:       ${breakeven:.2f}  (SPY must stay above this)")
+        print(f"  Prob. of profit: ~{100 + short_delta*100:.0f}%")
+        print(f"  Reward/Risk:     {net_credit/((width - net_credit)):.2f}:1")
+        print(f"  ── Exit Rules ─────────────────────────────────────────")
+        print(f"  Profit target:   BTC ≤ ${profit_target_close:.2f}  (50% profit)")
+        print(f"  Hard stop:       BTC ≥ ${stop_loss_close:.2f}  (2× entry cost)")
+        print(f"  Time stop:       Close at market if open with 2 DTE remaining")
+        print(f"  Risk/Account:    {max_loss/STARTING_CAPITAL*100:.1f}% of ${STARTING_CAPITAL:,.0f} benchmark")
 
     # Format OCC option symbols: e.g. SPY260605P00733000
     exp_formatted = best_exp.replace("-", "")[2:]
     short_sym = f"{symbol}{exp_formatted}P{int(short_strike*1000):08d}"
     long_sym  = f"{symbol}{exp_formatted}P{int(long_strike*1000):08d}"
 
-    print(f"\n  ─── SANDBOX ORDER PAYLOAD ─────────────────────────────")
-    print(f"""
-  POST /v1/accounts/{ACCOUNT_ID}/orders
+    if write_pending:
+        print(f"\n  ─── ALPACA ORDER PAYLOAD ──────────────────────────────")
+        print(f"""
+  POST /v2/orders
   {{
-      "class":             "multileg",
-      "symbol":            "{symbol}",
-      "type":              "credit",
-      "price":             "{net_credit:.2f}",
-      "duration":          "day",
-      "option_symbol[0]":  "{short_sym}",
-      "side[0]":           "sell_to_open",
-      "quantity[0]":       "{qty}",
-      "option_symbol[1]":  "{long_sym}",
-      "side[1]":           "buy_to_open",
-      "quantity[1]":       "{qty}"
+      "order_class":   "mleg",
+      "type":          "limit",
+      "limit_price":   "-{net_credit:.2f}",
+      "qty":           "{qty}",
+      "time_in_force": "day",
+      "legs": [
+          {{"symbol": "{short_sym}", "ratio_qty": 1, "side": "sell", "position_effect": "open"}},
+          {{"symbol": "{long_sym}",  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}}
+      ]
   }}
-    """)
+        """)
 
     # ── SAVE PENDING TRADE for Telegram /approve ─────────────────────────────
     # telegram_bot.py reads this file when the user sends /approve
@@ -699,23 +823,22 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
             "quantity":     qty,
         },
         "order_payload": {
-            "class":              "multileg",
-            "symbol":             symbol,
-            "type":               "credit",
-            "price":              f"{net_credit:.2f}",
-            "duration":           "day",
-            "option_symbol[0]":   short_sym,
-            "side[0]":            "sell_to_open",
-            "quantity[0]":        str(qty),
-            "option_symbol[1]":   long_sym,
-            "side[1]":            "buy_to_open",
-            "quantity[1]":        str(qty),
+            "order_class":   "mleg",
+            "type":          "limit",
+            "limit_price":   f"-{net_credit:.2f}",
+            "qty":           str(qty),
+            "time_in_force": "day",
+            "legs": [
+                {"symbol": short_sym, "ratio_qty": 1, "side": "sell", "position_effect": "open"},
+                {"symbol": long_sym,  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}
+            ]
         }
     }
-    _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
-    with open(_pending_path, "w") as _f:
-        _json.dump(_pending, _f, indent=2)
-    print(f"  💾 Trade saved → pending_trade.json  (reply /approve in Telegram to execute)")
+    if write_pending:
+        _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
+        with open(_pending_path, "w") as _f:
+            _json.dump(_pending, _f, indent=2)
+        print(f"  💾 Trade saved → pending_trade.json  (reply /approve in Telegram to execute)")
 
     return {
         "strategy":             "Bull Put Spread",
@@ -735,6 +858,8 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
         "short_symbol":         short_sym,
         "long_symbol":          long_sym,
         "quantity":             qty,
+        "score":                score,
+        "underlying_price":     spy_price,
     }
 
 # ─── SECTION 3B: BEAR CALL SPREAD CONSTRUCTION ───────────────────────────────
@@ -823,9 +948,12 @@ def construct_bear_call_spread(symbol="SPY", expiration=None, spy_price=742, vix
     qty = 1
     score = best["score"]
     single_contract_risk = best["max_loss"]
-    if vix > 20 and score > 0.30 and (2 * single_contract_risk <= MAX_RISK):
+    if vix > 20 and score > DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3 and (3 * single_contract_risk <= MAX_RISK_TIER3):
+        qty = 3
+        print(f"  ⚡⚡ VIX > 20 & Score > {DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3}: High-conviction sizing scaled to {qty} contracts.")
+    elif vix > 20 and score > DYNAMIC_SIZING_SCORE_THRESHOLD and (2 * single_contract_risk <= MAX_RISK):
         qty = 2
-        print(f"  ⚡ VIX > 20 & Score > 0.30: Dynamic contract sizing scaled to {qty} contracts.")
+        print(f"  ⚡ VIX > 20 & Score > {DYNAMIC_SIZING_SCORE_THRESHOLD}: Dynamic contract sizing scaled to {qty} contracts.")
     else:
         print(f"  ⚡ Contract size set to {qty} contract(s).")
 
@@ -873,21 +1001,19 @@ def construct_bear_call_spread(symbol="SPY", expiration=None, spy_price=742, vix
     short_sym = f"{symbol}{exp_formatted}C{int(short_strike*1000):08d}"
     long_sym  = f"{symbol}{exp_formatted}C{int(long_strike*1000):08d}"
 
-    print(f"\n  ─── SANDBOX ORDER PAYLOAD ─────────────────────────────")
+    print(f"\n  ─── ALPACA ORDER PAYLOAD ──────────────────────────────")
     print(f"""
-  POST /v1/accounts/{ACCOUNT_ID}/orders
+  POST /v2/orders
   {{
-      "class":             "multileg",
-      "symbol":            "{symbol}",
-      "type":              "credit",
-      "price":             "{net_credit:.2f}",
-      "duration":          "day",
-      "option_symbol[0]":  "{short_sym}",
-      "side[0]":           "sell_to_open",
-      "quantity[0]":       "{qty}",
-      "option_symbol[1]":  "{long_sym}",
-      "side[1]":           "buy_to_open",
-      "quantity[1]":       "{qty}"
+      "order_class":   "mleg",
+      "type":          "limit",
+      "limit_price":   "-{net_credit:.2f}",
+      "qty":           "{qty}",
+      "time_in_force": "day",
+      "legs": [
+          {{"symbol": "{short_sym}", "ratio_qty": 1, "side": "sell", "position_effect": "open"}},
+          {{"symbol": "{long_sym}",  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}}
+      ]
   }}
     """)
 
@@ -914,17 +1040,15 @@ def construct_bear_call_spread(symbol="SPY", expiration=None, spy_price=742, vix
             "quantity":     qty,
         },
         "order_payload": {
-            "class":              "multileg",
-            "symbol":             symbol,
-            "type":               "credit",
-            "price":              f"{net_credit:.2f}",
-            "duration":           "day",
-            "option_symbol[0]":   short_sym,
-            "side[0]":            "sell_to_open",
-            "quantity[0]":        str(qty),
-            "option_symbol[1]":   long_sym,
-            "side[1]":            "buy_to_open",
-            "quantity[1]":        str(qty),
+            "order_class":   "mleg",
+            "type":          "limit",
+            "limit_price":   f"-{net_credit:.2f}",
+            "qty":           str(qty),
+            "time_in_force": "day",
+            "legs": [
+                {"symbol": short_sym, "ratio_qty": 1, "side": "sell", "position_effect": "open"},
+                {"symbol": long_sym,  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}
+            ]
         }
     }
     _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
@@ -1046,9 +1170,12 @@ def construct_iron_condor(symbol="SPY", expiration=None, spy_price=742, vix=16.0
     # Calculate quantity
     qty = 1
     combined_score = best_put["score"] + best_call["score"]
-    if vix > 20 and combined_score > 0.30 and (2 * (single_contract_risk / 100.0) * 100 <= MAX_RISK):
+    if vix > 20 and combined_score > DYNAMIC_SIZING_SCORE_THRESHOLD_IC_TIER3 and (3 * single_contract_risk <= MAX_RISK_TIER3):
+        qty = 3
+        print(f"  ⚡⚡ VIX > 20 & Score > {DYNAMIC_SIZING_SCORE_THRESHOLD_IC_TIER3}: High-conviction sizing scaled to {qty} contracts.")
+    elif vix > 20 and combined_score > DYNAMIC_SIZING_SCORE_THRESHOLD_IC and (2 * single_contract_risk <= MAX_RISK):
         qty = 2
-        print(f"  ⚡ VIX > 20 & Score > 0.30: Dynamic contract sizing scaled to {qty} contracts.")
+        print(f"  ⚡ VIX > 20 & Score > {DYNAMIC_SIZING_SCORE_THRESHOLD_IC}: Dynamic contract sizing scaled to {qty} contracts.")
     else:
         print(f"  ⚡ Contract size set to {qty} contract(s).")
 
@@ -1100,19 +1227,21 @@ def construct_iron_condor(symbol="SPY", expiration=None, spy_price=742, vix=16.0
     call_short_sym = f"{symbol}{exp_formatted}C{int(css*1000):08d}"
     call_long_sym  = f"{symbol}{exp_formatted}C{int(cls*1000):08d}"
 
-    print(f"\n  ─── SANDBOX ORDER PAYLOAD (4-leg multileg) ────────────")
+    print(f"\n  ─── ALPACA ORDER PAYLOAD ──────────────────────────────")
     print(f"""
-  POST /v1/accounts/{ACCOUNT_ID}/orders
+  POST /v2/orders
   {{
-      "class":             "multileg",
-      "symbol":            "{symbol}",
-      "type":              "credit",
-      "price":             "{total_credit:.2f}",
-      "duration":          "day",
-      "option_symbol[0]":  "{put_short_sym}",   "side[0]": "sell_to_open",  "quantity[0]": "{qty}",
-      "option_symbol[1]":  "{put_long_sym}",    "side[1]": "buy_to_open",   "quantity[1]": "{qty}",
-      "option_symbol[2]":  "{call_short_sym}",  "side[2]": "sell_to_open",  "quantity[2]": "{qty}",
-      "option_symbol[3]":  "{call_long_sym}",   "side[3]": "buy_to_open",   "quantity[3]": "{qty}"
+      "order_class":   "mleg",
+      "type":          "limit",
+      "limit_price":   "-{total_credit:.2f}",
+      "qty":           "{qty}",
+      "time_in_force": "day",
+      "legs": [
+          {{"symbol": "{put_short_sym}",  "ratio_qty": 1, "side": "sell", "position_effect": "open"}},
+          {{"symbol": "{put_long_sym}",   "ratio_qty": 1, "side": "buy",  "position_effect": "open"}},
+          {{"symbol": "{call_short_sym}", "ratio_qty": 1, "side": "sell", "position_effect": "open"}},
+          {{"symbol": "{call_long_sym}",  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}}
+      ]
   }}
     """)
 
@@ -1142,15 +1271,17 @@ def construct_iron_condor(symbol="SPY", expiration=None, spy_price=742, vix=16.0
             "scanned_at":        datetime.now().isoformat(),
         },
         "order_payload": {
-            "class":             "multileg",
-            "symbol":            symbol,
-            "type":              "credit",
-            "price":             f"{total_credit:.2f}",
-            "duration":         "day",
-            "option_symbol[0]":  put_short_sym,  "side[0]": "sell_to_open", "quantity[0]": str(qty),
-            "option_symbol[1]":  put_long_sym,   "side[1]": "buy_to_open",  "quantity[1]": str(qty),
-            "option_symbol[2]":  call_short_sym, "side[2]": "sell_to_open", "quantity[2]": str(qty),
-            "option_symbol[3]":  call_long_sym,  "side[3]": "buy_to_open",  "quantity[3]": str(qty),
+            "order_class":   "mleg",
+            "type":          "limit",
+            "limit_price":   f"-{total_credit:.2f}",
+            "qty":           str(qty),
+            "time_in_force": "day",
+            "legs": [
+                {"symbol": put_short_sym,  "ratio_qty": 1, "side": "sell", "position_effect": "open"},
+                {"symbol": put_long_sym,   "ratio_qty": 1, "side": "buy",  "position_effect": "open"},
+                {"symbol": call_short_sym, "ratio_qty": 1, "side": "sell", "position_effect": "open"},
+                {"symbol": call_long_sym,  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}
+            ]
         }
     }
     _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
@@ -1188,50 +1319,62 @@ def construct_iron_condor(symbol="SPY", expiration=None, spy_price=742, vix=16.0
 
 def execute_trade(trade_data):
     """
-    Submit approved trade to Tradier paper trading account.
+    Submit approved trade to Alpaca paper trading account.
     ONLY call this after receiving explicit approval.
     """
     if not trade_data:
         print("  ❌ No valid trade data. Run construct_bull_put_spread first.")
         return
 
-    confirm = input("\n  ⚠️  TYPE 'APPROVE' TO SUBMIT THIS TRADE: ").strip().upper()
+    confirm = input("\n  ⚠️  TYPE 'APPROVE' TO SUBMIT THIS TRADE TO ALPACA: ").strip().upper()
     if confirm != "APPROVE":
         print("  Trade submission cancelled.")
         return
 
+    _check_alpaca_paper_account()
+
+    qty = str(trade_data.get("quantity", 1))
     payload = {
-        "class": "multileg",
-        "symbol": trade_data["symbol"],
-        "type": "credit",
-        "price": str(trade_data["net_credit"]),
-        "duration": "day",
-        "option_symbol[0]": trade_data["short_option_symbol"],
-        "side[0]": "sell_to_open",
-        "quantity[0]": "1",
-        "option_symbol[1]": trade_data["long_option_symbol"],
-        "side[1]": "buy_to_open",
-        "quantity[1]": "1"
+        "order_class": "mleg",
+        "type": "limit",
+        "limit_price": f"-{trade_data['net_credit']:.2f}",
+        "qty": qty,
+        "time_in_force": "day",
+        "legs": [
+            {"symbol": trade_data["short_option_symbol"], "ratio_qty": 1, "side": "sell", "position_effect": "open"},
+            {"symbol": trade_data["long_option_symbol"],  "ratio_qty": 1, "side": "buy",  "position_effect": "open"}
+        ]
     }
 
-    # Submit paper order to Sandbox API
-    response = post_order(f"/accounts/{ACCOUNT_ID}/orders", payload)
-    order_id = response.get("order", {}).get("id", "unknown")
-    status   = response.get("order", {}).get("status", "unknown")
+    url = f"{ALPACA_BASE}/orders"
+    try:
+        r = requests.post(url, headers=ALPACA_HEADERS, json=payload, timeout=15)
+        r.raise_for_status()
+        resp = r.json()
+    except Exception as e:
+        print(f"  ❌ Order submission failed: {e}")
+        return
 
-    print(f"\n  ✅ ORDER SUBMITTED")
+    order_id = resp.get("id", "unknown")
+    status   = resp.get("status", "unknown")
+
+    print(f"\n  ✅ ORDER SUBMITTED (Alpaca)")
     print(f"  Order ID:  {order_id}")
     print(f"  Status:    {status}")
-    print(f"  Credit:    ${trade_data['net_credit']:.2f}")
+    print(f"  Credit:    ${trade_data['net_credit']:.2f} (Alpaca Limit: -${trade_data['net_credit']:.2f})")
     print(f"\n  → Log this in PLAYBOOK.md Trade Log")
 
-    return response
+    # Save to active_trades.json so position_monitor.py can manage exits
+    if status in ("accepted", "pending_new", "accepted_for_bidding", "partially_filled", "filled", "new"):
+        _save_active_trade(trade_data, {"success": True, "order_id": order_id, "order_status": status}, datetime.now().strftime("%Y-%m-%d"))
+
+    return resp
 
 # ─── SECTION 4B: AUTONOMOUS EXECUTION + TRADE LOG ───────────────────────────
 
 def auto_execute_trade():
     """
-    Auto-submit the pending trade (written by construct_*) to Tradier sandbox.
+    Auto-submit the pending trade (written by construct_*) to Alpaca.
     Called immediately after trade construction — no manual approval needed.
     Returns an exec_result dict consumed by notify_telegram() and log_trade_activity().
     """
@@ -1245,41 +1388,41 @@ def auto_execute_trade():
 
     payload = trade_data.get("order_payload", {})
     meta    = trade_data.get("meta", {})
-    account = ACCOUNT_ID or meta.get("account_id", "")
 
     if TEST_MODE:
-        print("  🧪 TEST MODE — order not submitted to sandbox (auto-execute suppressed)")
+        print("  🧪 TEST MODE — order not submitted to Alpaca (auto-execute suppressed)")
         return {"success": True, "order_id": "TEST-AUTO-001", "order_status": "simulated"}
 
-    if not account or not SANDBOX_TOKEN or "YOUR_SANDBOX" in SANDBOX_TOKEN:
-        return {"success": False, "error": "Missing SANDBOX credentials in .env"}
+    # Enforce paper-only execution checks
+    _check_alpaca_paper_account()
 
-    url = f"{SANDBOX_URL}/accounts/{account}/orders"
+    if not ALPACA_KEY or not ALPACA_SECRET or "YOUR_ALPACA" in ALPACA_KEY:
+        return {"success": False, "error": "Missing ALPACA credentials in .env"}
+
+    url = f"{ALPACA_BASE}/orders"
     try:
-        r = requests.post(url, headers=SANDBOX_HEADERS, data=payload, timeout=15)
-        try:
-            resp = r.json()
-        except ValueError as je:
-            print(f"  ❌ Auto-execute response not JSON. HTTP status: {r.status_code}")
-            print(f"  Response content: {r.text[:300]}")
-            return {"success": False, "error": f"HTTP {r.status_code}: non-JSON response ({r.text[:100]})"}
+        r = requests.post(url, headers=ALPACA_HEADERS, json=payload, timeout=15)
+        content_type = r.headers.get("content-type", "")
+        if r.status_code not in (200, 201) or "application/json" not in content_type:
+            print(f"  ❌ Auto-execute failed. HTTP {r.status_code}: {r.text[:300]}")
+            return {"success": False, "error": f"HTTP {r.status_code}: {r.text[:150]}"}
+        resp = r.json()
     except Exception as e:
         print(f"  ❌ Auto-execute error: {e}")
         return {"success": False, "error": str(e)}
 
-    order_id = resp.get("order", {}).get("id", "unknown")
-    status   = resp.get("order", {}).get("status", "unknown")
+    order_id = resp.get("id", "unknown")
+    status   = resp.get("status", "unknown")
 
-    if r.status_code in (200, 201) and status in ("ok", "pending", "open", "filled"):
+    if r.status_code in (200, 201) and status in ("accepted", "pending_new", "accepted_for_bidding", "partially_filled", "filled", "new"):
         archive = os.path.join(os.path.dirname(__file__),
                                f"executed_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
         os.rename(pending_path, archive)
-        print(f"  ✅ AUTO-EXECUTED:  Order ID {order_id}  |  Status: {status}")
+        print(f"  ✅ AUTO-EXECUTED (Alpaca):  Order ID {order_id}  |  Status: {status}")
         return {"success": True, "order_id": str(order_id), "order_status": status}
     else:
-        err = resp.get("errors", resp)
-        print(f"  ❌ Order rejected (HTTP {r.status_code}): {err}")
-        return {"success": False, "error": str(err)[:200], "order_id": "rejected"}
+        print(f"  ❌ Order rejected (HTTP {r.status_code}): {resp}")
+        return {"success": False, "error": str(resp)[:200], "order_id": "rejected"}
 
 
 def log_trade_activity(trade, exec_result):
@@ -1385,51 +1528,85 @@ def _save_active_trade(trade, exec_result, trade_date):
         json.dump(active, f, indent=2)
     print(f"  📂 Active trade saved → active_trades.json (monitored for exits)")
 
+
+def log_scan_heartbeat(reason, scan=None, detail=None):
+    """
+    Append a single 'scan' heartbeat record to trade_log.jsonl on every no-trade
+    LIVE run. This makes a healthy "declined today" run distinguishable from a
+    silently-broken one: previously a no-trade outcome (calendar skip, cash/pass
+    regime, position limit, or no qualifying spread) logged nothing, so an empty
+    log looked identical whether the cron passed correctly or crashed.
+
+    Skipped in TEST_MODE (keeps trade_log.jsonl free of mock-run noise).
+
+    `reason` is a short machine code: calendar_skip | position_limit | cash |
+    pass | no_qualifying_spread.
+
+    NOTE: consumers MUST ignore type=='scan' records when counting entries/exits
+    (see daily_summary.get_today_records / get_performance_stats — both patched).
+    """
+    if TEST_MODE:
+        return
+    from datetime import date as _date
+    log_path = os.path.join(os.path.dirname(__file__), "trade_log.jsonl")
+    entry = {
+        "type":       "scan",
+        "date":       _date.today().isoformat(),
+        "scanned_at": datetime.now().isoformat(),
+        "result":     "no_trade",
+        "reason":     reason,
+        "strategy":   (scan or {}).get("strategy"),
+        "spy":        (scan or {}).get("spy"),
+        "vix":        (scan or {}).get("vix"),
+    }
+    if detail:
+        entry["detail"] = detail
+    try:
+        with open(log_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+        print(f"  📝 Scan heartbeat logged (no_trade: {reason}) → trade_log.jsonl")
+    except Exception as e:
+        print(f"  ⚠️  Heartbeat log failed: {e}")
+
 # ─── SECTION 5: POSITION MONITOR ─────────────────────────────────────────────
 
 def check_positions():
-    """Fetch and display all open positions with unrealized P&L."""
+    """Fetch and display all open positions with unrealized P&L from Alpaca."""
     from datetime import timezone, timedelta
     now_et = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-4)))
-    print(f"\n  OPEN POSITIONS — {now_et.strftime('%Y-%m-%d %H:%M ET')}")
+    print(f"\n  OPEN POSITIONS — {now_et.strftime('%Y-%m-%d %H:%M ET')} (Alpaca)")
     print(f"  {'─'*55}")
 
     if TEST_MODE:
-        positions = MOCK_POSITIONS
-        quote_map = {}
+        positions = [
+            {
+                "symbol": "SPY260626P00740000",
+                "qty": "-3",
+                "unrealized_pl": "-150.00"
+            },
+            {
+                "symbol": "SPY260626P00735000",
+                "qty": "3",
+                "unrealized_pl": "90.00"
+            }
+        ]
     else:
-        # Positions from Sandbox API (paper account)
-        # Tradier returns {"positions": "null"} (a string) when account is flat
-        data           = get_account(f"/accounts/{ACCOUNT_ID}/positions")
-        positions_raw  = data.get("positions", None)
-        if not positions_raw or positions_raw == "null" or isinstance(positions_raw, str):
-            positions = []
-        else:
-            pos = positions_raw.get("position", [])
-            positions = [pos] if isinstance(pos, dict) else pos
-        if positions:
-            symbols_to_check = [p["symbol"] for p in positions]
-            # Current prices from Production API (real-time)
-            quote_data  = get_market("/markets/quotes", {"symbols": ",".join(symbols_to_check)})
-            quotes_list = quote_data.get("quotes", {}).get("quote", [])
-            if isinstance(quotes_list, dict):
-                quotes_list = [quotes_list]
-            quote_map = {q["symbol"]: q for q in quotes_list}
-        else:
-            quote_map = {}
+        _check_alpaca_paper_account()
+        url = f"{ALPACA_BASE}/positions"
+        r = requests.get(url, headers=ALPACA_HEADERS, timeout=10)
+        r.raise_for_status()
+        positions = r.json()
 
     total_pnl = 0
     for p in positions:
-        sym        = p["symbol"]
-        qty        = p["quantity"]
-        cost       = p["cost_basis"]
-        current_q  = quote_map.get(sym, {})
-        current_px = current_q.get("last", 0)
-        mkt_value  = current_px * abs(qty) * 100
-        pnl        = mkt_value - cost if qty > 0 else cost - mkt_value
+        if p.get("asset_class", "us_option") != "us_option" and not TEST_MODE:
+            continue
+        sym = p["symbol"]
+        qty = int(p["qty"])
+        pnl = float(p.get("unrealized_pl", 0))
         total_pnl += pnl
 
-        pnl_icon = "🟢" if pnl > 0 else "🔴"
+        pnl_icon = "🟢" if pnl >= 0 else "🔴"
         print(f"  {pnl_icon} {sym:<30}  Qty: {qty:>3}  P&L: ${pnl:>8.2f}")
 
     print(f"  {'─'*55}")
@@ -1438,32 +1615,36 @@ def check_positions():
 # ─── SECTION 6: ACCOUNT SUMMARY ──────────────────────────────────────────────
 
 def account_summary():
-    """Show account balances and buying power."""
+    """Show account balances and buying power from Alpaca."""
     if TEST_MODE:
-        bal = MOCK_BALANCES
+        cash = 100000.00
+        equity = 16000.00
+        bp = 100000.00
+        poc_pnl = 0.0
     else:
-        # Account balances from Sandbox API (paper account)
-        data = get_account(f"/accounts/{ACCOUNT_ID}/balances")
-        bal  = data.get("balances", {})
+        _check_alpaca_paper_account()
+        url = f"{ALPACA_BASE}/account"
+        r = requests.get(url, headers=ALPACA_HEADERS, timeout=10)
+        r.raise_for_status()
+        acc_data = r.json()
 
-    # Tradier sandbox returns equity=0 and balance in total_cash — normalise both
-    equity_raw = bal.get("total_equity", 0) or bal.get("equity", 0) or 0
-    cash       = bal.get("total_cash",   0) or bal.get("cash",   0) or 0
-    equity     = equity_raw if equity_raw > 0 else cash   # use cash when equity is 0
-    bp         = bal.get("option_short_value", 0) or bal.get("option_buying_power", 0) or cash
-    pnl_day    = bal.get("close_pl", 0) or 0
+        cash = float(acc_data.get("cash", 0))
+        equity = float(acc_data.get("equity", 0))
+        bp = float(acc_data.get("buying_power", 0))
 
-    # POC tracking: only closed options P&L matters — sandbox cash is $100K virtual
-    poc_pnl     = float(pnl_day)
+        last_equity = float(acc_data.get("last_equity", equity))
+        poc_pnl = equity - last_equity
+
     poc_pnl_pct = (poc_pnl / STARTING_CAPITAL * 100) if STARTING_CAPITAL else 0
 
-    print(f"\n  ACCOUNT SUMMARY")
+    print(f"\n  ACCOUNT SUMMARY (Alpaca)")
     print(f"  {'─'*42}")
-    print(f"  Virtual Cash (sandbox):  ${cash:>10.2f}")
+    print(f"  Cash Balance:            ${cash:>10.2f}")
+    print(f"  Account Equity:          ${equity:>10.2f}")
     print(f"  Options Buying Power:    ${bp:>10.2f}")
     print(f"  ── POC Tracking vs. ${STARTING_CAPITAL:,.0f} benchmark ──────")
-    print(f"  Closed Options P&L:      ${poc_pnl:>+10.2f}  ({poc_pnl_pct:>+.2f}%)")
-    print(f"  Trades needed to goal:   grow $2K → target +20% = +$400")
+    print(f"  Today's P&L (Equity change): ${poc_pnl:>+10.2f}  ({poc_pnl_pct:>+.2f}%)")
+    print(f"  Trades needed to goal:   grow ${STARTING_CAPITAL:,.0f} → target +20% = +${STARTING_CAPITAL*0.20:,.0f}")
 
 # ─── SECTION 7: TELEGRAM NOTIFICATION ───────────────────────────────────────
 
@@ -1576,25 +1757,27 @@ def full_morning_routine():
     if skip:
         print(f"\n  ⛔ CALENDAR SKIP — {reason}. Skipping new trade entries.")
         notify_telegram(scan, None, None)
+        log_scan_heartbeat("calendar_skip", scan, detail=reason)
         return None
 
     strategy  = scan.get("strategy", "pass")
     spy_price = scan["spy"]
     vix_level = scan.get("vix", 16.0)
+    quote_map = scan.get("quote_map", {})
     trade     = None
 
     exec_result = None
 
-    qqq_price = scan["qqq"]
-    iwm_price = scan.get("iwm", 0)
-
     # ── POSITION LIMIT GUARD ─────────────────────────────────────────────────
     active_path = os.path.join(os.path.dirname(__file__), "active_trades.json")
     active_count = 0
+    active_symbols = []
     if os.path.exists(active_path):
         try:
             with open(active_path) as _af:
-                active_count = len(json.load(_af))
+                active_trades = json.load(_af)
+                active_count = len(active_trades)
+                active_symbols = [t.get("symbol") for t in active_trades if t.get("symbol")]
         except Exception:
             active_count = 0
 
@@ -1602,57 +1785,156 @@ def full_morning_routine():
         print(f"\n  ⛔ Position limit reached ({active_count}/{MAX_POSITIONS} active trades open).")
         print(f"  Waiting for existing positions to close before entering new trade.")
         notify_telegram(scan, None, None)
+        log_scan_heartbeat("position_limit", scan, detail=f"{active_count}/{MAX_POSITIONS} open")
         return None
 
     if strategy == "cash":
         print("\n  🔴 VIX > 30 — extreme volatility. Go to cash. No trade today.")
     elif strategy == "pass":
-        print("\n  ⚪ IV universally low — no premium worth selling. No trade today.")
-    elif strategy == "low_vix_secondary":
-        # SPY IV too thin — QQQ and IWM carry structurally higher IV
-        # Use same directional bias as SPY but on higher-beta underlyings
+        print("\n  ⚪ No premium selling today (regime routed to no-trade or IV too low).")
+    elif strategy in ("bull_put_spread", "low_vix_secondary"):
+        # If low_vix_secondary, check if the change was bearish momentum (cut)
         spy_change = scan.get("spy_change", 0)
         if spy_change < -0.5:
-            _construct = construct_bear_call_spread
-            _label     = "Bear Call Spread"
+            print("\n  ⚪ Bearish momentum in low VIX regime — Bear Call Spread cut, no-trade.")
         else:
-            _construct = construct_bull_put_spread
-            _label     = "Bull Put Spread"
-
-        print(f"\n  📊 Low VIX — trying QQQ for {_label}...")
-        trade = _construct(symbol="QQQ", spy_price=qqq_price, vix=vix_level)
-        if not trade and iwm_price > 0:
-            print(f"\n  🔄 QQQ no valid spread — trying IWM...")
-            trade = _construct(symbol="IWM", spy_price=iwm_price, vix=vix_level)
-        if not trade:
-            print("\n  ⚪ QQQ and IWM: no valid spread at current IV levels either.")
-    elif strategy == "iron_condor":
-        print("\n  📊 Entering: Iron Condor — trying SPY first...")
-        trade = construct_iron_condor(symbol="SPY", spy_price=spy_price, vix=vix_level)
-        if not trade:
-            print("\n  🔄 SPY no valid condor — trying QQQ as fallback...")
-            trade = construct_iron_condor(symbol="QQQ", spy_price=qqq_price, vix=vix_level)
-    elif strategy == "bull_put_spread":
-        print("\n  📊 Entering: Bull Put Spread — trying SPY first...")
-        trade = construct_bull_put_spread(symbol="SPY", spy_price=spy_price, vix=vix_level)
-        if not trade:
-            print("\n  🔄 SPY no valid spread — trying QQQ as fallback...")
-            trade = construct_bull_put_spread(symbol="QQQ", spy_price=qqq_price, vix=vix_level)
-    elif strategy == "bear_call_spread":
-        print("\n  📊 Entering: Bear Call Spread — trying SPY first...")
-        trade = construct_bear_call_spread(symbol="SPY", spy_price=spy_price, vix=vix_level)
-        if not trade:
-            print("\n  🔄 SPY no valid spread — trying QQQ as fallback...")
-            trade = construct_bear_call_spread(symbol="QQQ", spy_price=qqq_price, vix=vix_level)
+            # 13 diversified ETFs
+            etfs = ["SPY", "QQQ", "IWM", "XLF", "XLK", "XLE", "XLV", "XLI", "XLY", "DIA", "GLD", "TLT", "USO"]
+            print(f"\n  📊 Scanning {len(etfs)} ETFs for Bull Put Spread opportunities...")
+            best_cand = None
+            best_score = -1.0
+            
+            for sym in etfs:
+                if sym in active_symbols:
+                    print(f"  ⏩ {sym} — skipping, active position already exists")
+                    continue
+                sym_q = quote_map.get(sym, {})
+                sym_price = sym_q.get("last", 0)
+                if not sym_price:
+                    print(f"  ⚠️ {sym} — skipping, no quote price found")
+                    continue
+                
+                print(f"  🔍 Scanning {sym} (current ${sym_price:.2f})...")
+                cand = construct_bull_put_spread(symbol=sym, spy_price=sym_price, vix=vix_level, write_pending=False)
+                if cand:
+                    score = cand.get("score", 0.0)
+                    print(f"    ✓ Valid spread found for {sym} (Score: {score:.4f}, Credit: ${cand['net_credit']:.2f}, Risk: ${cand['max_loss']:.2f})")
+                    if score > best_score:
+                        best_score = score
+                        best_cand = cand
+                        
+            if best_cand:
+                print(f"\n  🏆 Best candidate: {best_cand['symbol']} (Score: {best_score:.4f})")
+                # Run construct again to print proposing logs and save to pending_trade.json
+                trade = construct_bull_put_spread(
+                    symbol=best_cand["symbol"],
+                    spy_price=best_cand["underlying_price"],
+                    vix=vix_level,
+                    write_pending=True
+                )
+            else:
+                print("\n  ⚪ No qualifying Bull Put Spreads found across all 13 ETFs.")
 
     # ── AUTONOMOUS EXECUTION ─────────────────────────────────────────────────
     if trade:
+        # Phase 2: Cross-system portfolio risk auditor check
+        direction = "unknown"
+        strategy_name = trade.get("strategy", "")
+        if "Bull" in strategy_name:
+            direction = "bull"
+        elif "Bear" in strategy_name:
+            direction = "bear"
+        elif "Iron Condor" in strategy_name:
+            direction = "neutral"
+
+        credit = float(trade.get("net_credit", 0.0))
+        qty = int(trade.get("quantity", 1))
+        if strategy_name == "Iron Condor":
+            short_put = trade.get("put_short_symbol", "")
+            long_put = trade.get("put_long_symbol", "")
+            width = abs(parse_occ_strike(short_put) - parse_occ_strike(long_put))
+            max_risk = max(0.0, width - credit) * 100.0 * qty
+        else:
+            short = trade.get("short_symbol", "")
+            long = trade.get("long_symbol", "")
+            width = abs(parse_occ_strike(short) - parse_occ_strike(long))
+            max_risk = max(0.0, width - credit) * 100.0 * qty
+
+        ok, why = _cross_system_allows(trade.get("symbol"), direction, max_risk)
+        if not ok:
+            print(f"\n  ⛔ Cross-system audit skip: {why}")
+            log_scan_heartbeat("position_limit", scan, detail=why)
+            notify_telegram(scan, None, None)
+            return None
+
         print("\n  ⚡ AUTO-EXECUTING TRADE (no approval required)...")
         exec_result = auto_execute_trade()
         log_trade_activity(trade, exec_result)
+    else:
+        # No trade fired — record WHY so the live cron is observable.
+        reason = {"cash": "cash", "pass": "pass"}.get(strategy, "no_qualifying_spread")
+        log_scan_heartbeat(reason, scan)
 
     notify_telegram(scan, trade, exec_result)
     return trade
+
+
+def parse_occ_strike(occ: str) -> float:
+    """Parse option strike price from a standard 21-char OCC symbol."""
+    if not occ or len(occ) < 8:
+        return 0.0
+    try:
+        strike_str = occ[-8:]
+        return float(strike_str) / 1000.0
+    except Exception:
+        return 0.0
+
+
+def _cross_system_allows(symbol: str, direction: str, order_max_loss: float,
+                         ledger_path_str: str = "/home/ubuntu/shared/active_portfolio_ledger.json") -> tuple:
+    """Check if the proposed order is allowed under cross-system risk and correlation limits."""
+    try:
+        import subprocess
+        # Freshness Hook: Re-run updater to sync live positions on server
+        subprocess.run(["python3", "/home/ubuntu/shared/update_portfolio_ledger.py"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception as e:
+        print(f"[WARN] Failed to auto-update portfolio ledger: {e}")
+
+    if not os.path.exists(ledger_path_str):
+        return True, ""
+
+    try:
+        with open(ledger_path_str) as f:
+            positions = json.load(f)
+    except Exception as e:
+        print(f"[WARN] Failed to load active portfolio ledger: {e}")
+        return True, ""
+
+    # 1. Cross-System Risk Limit: Combined risk cap
+    cross_risk_cap = float(os.environ.get("CROSS_SYSTEM_RISK_CAP", "5000.0"))
+    existing_risk = sum(float(p.get("max_risk_usd", 0.0)) for p in positions)
+    if existing_risk + order_max_loss > cross_risk_cap:
+        return False, f"cross-system risk cap (${existing_risk + order_max_loss:,.0f} > ${cross_risk_cap:,.0f})"
+
+    # 2. Correlation Filter: Avoid stacking correlated risk on SPY/QQQ/IWM
+    correlated_indices = {"SPY", "QQQ", "IWM"}
+    for p in positions:
+        if p.get("system") == "tradier":
+            continue
+
+        p_symbol = p.get("symbol", "")
+        p_dir = p.get("direction", "unknown")
+        if p_dir == "unknown" or p_dir != direction:
+            continue
+
+        if symbol in correlated_indices and p_symbol in correlated_indices:
+            return False, f"cross-system index correlation ({symbol} and {p_symbol} both {direction})"
+        
+        if symbol == p_symbol:
+            return False, f"cross-system position concentration ({symbol} already {direction} in {p.get('system')})"
+
+    return True, ""
 
 if __name__ == "__main__":
     if "--positions" in sys.argv:

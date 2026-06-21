@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Guardrail report at 08:30 ICT (after US close)
+
+[Timer]
+# 08:30 ICT = 01:30 UTC (ICT = UTC+7). Tue-Sat UTC covers Mon-Fri US sessions:
+# a US session on day D closes ~20:00-21:00 UTC; the next 08:30 ICT is D+1 01:30 UTC.
+# Keep the server clock in UTC (timedatectl set-timezone UTC).
+OnCalendar=Tue-Sat *-*-* 01:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

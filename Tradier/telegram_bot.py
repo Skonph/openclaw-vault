@@ -2,7 +2,7 @@
 """
 Tradier Telegram Bot — Skon's $2K Paper Trading POC
 ────────────────────────────────────────────────────
-Runs on Ubuntu (ubuntu@43.160.222.7) as a systemd service.
+Runs on Ubuntu (ubuntu@43.156.9.185) as a systemd service.
 Long-polls Telegram for commands. Trades execute autonomously — no approval needed.
 
 Commands:

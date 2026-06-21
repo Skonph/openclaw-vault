@@ -123,9 +123,13 @@ def _build_payload(order: dict, qty: int = 1) -> dict:
         call_short_occ = build_occ(symbol, expiry, 'call', float(order['call_short_strike']))
         call_long_occ  = build_occ(symbol, expiry, 'call', float(order['call_long_strike']))
 
-        # IC is a credit — limit_price is min net credit we accept (95% of expected)
-        net_credit = float(order['spread_mid'])
-        limit_px   = round(max(net_credit * 0.95, 0.01), 2)
+        # IC is a credit — limit_price is min net credit we accept (95% of expected).
+        # Alpaca mleg sign convention: net DEBIT = positive, net CREDIT = negative.
+        # Submit a NEGATIVE limit_price so the order only fills at >= 95% of the
+        # expected credit (a positive value would be non-binding for a credit fill).
+        net_credit  = float(order['spread_mid'])
+        limit_floor = round(max(net_credit * 0.95, 0.01), 2)
+        limit_px    = -limit_floor
 
         return {
             'order_class':   'mleg',
@@ -237,7 +241,9 @@ def cmd_dry_run(trade_id: str):
         limit_note = 'spread_mid × 1.08'
         print(f'  Legs     : {payload["legs"][0]["symbol"]}  (buy)')
         print(f'           : {payload["legs"][1]["symbol"]}  (sell)')
-    print(f'  Limit    : ${payload["limit_price"]}  ({limit_note})')
+    limit_px = float(payload['limit_price'])
+    limit_desc = f'${-limit_px:.2f} credit' if limit_px < 0 else f'${limit_px:.2f} debit'
+    print(f'  Limit    : {limit_desc}  (raw: {payload["limit_price"]}, {limit_note})')
     print(f'\n  Full payload:\n{json.dumps(payload, indent=4)}\n')
 
 
@@ -270,7 +276,8 @@ def cmd_execute(trade_id: str, qty: int = 1):
         short_occ = payload['legs'][1]['symbol']
         print(f'  Buy  : {long_occ}')
         print(f'  Sell : {short_occ}')
-    print(f'  Limit: ${payload["limit_price"]}')
+    _lp = float(payload['limit_price'])
+    print(f'  Limit: {"$" + format(-_lp, ".2f") + " credit" if _lp < 0 else "$" + format(_lp, ".2f") + " debit"}  (raw: {payload["limit_price"]})')
 
     r = requests.post(
         f'{ALPACA_BASE}/v2/orders',
@@ -287,6 +294,7 @@ def cmd_execute(trade_id: str, qty: int = 1):
             'alpaca_order_id': alpaca_id,
             'approved_by':     'Nova',
             'approved_at':     _now(),
+            'submitted_limit': _lp,   # for fill quality tracking in morning_report._verify_fills
         })
         _save_orders(data)
 

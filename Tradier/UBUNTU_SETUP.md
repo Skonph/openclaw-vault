@@ -1,5 +1,5 @@
 # Ubuntu Server Setup — Tradier Daily Scan
-**Server:** `ubuntu@43.160.222.7`  
+**Server:** `ubuntu@43.156.9.185`  
 **Goal:** Run `daily_scan.py` directly from Ubuntu so it has unrestricted access to Tradier's APIs (no proxy blocking). Cron fires at 9:45 AM ET Mon–Fri automatically.
 
 ---
@@ -10,12 +10,12 @@ Run these on your **Mac terminal**:
 
 ```bash
 # Create target directory on server
-ssh ubuntu@43.160.222.7 "mkdir -p ~/trading-bot/logs"
+ssh ubuntu@43.156.9.185 "mkdir -p ~/trading-bot/logs"
 
 # Copy the script, wrapper, and env template
-scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/daily_scan.py  ubuntu@43.160.222.7:~/trading-bot/
-scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/run_scan.sh    ubuntu@43.160.222.7:~/trading-bot/
-scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/.env.example   ubuntu@43.160.222.7:~/trading-bot/
+scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/daily_scan.py  ubuntu@43.156.9.185:~/trading-bot/
+scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/run_scan.sh    ubuntu@43.156.9.185:~/trading-bot/
+scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/.env.example   ubuntu@43.156.9.185:~/trading-bot/
 ```
 
 > ⚠️ **Do NOT copy your `.env` file** — recreate it on the server directly (Step 3). This avoids credentials transiting scp logs.
@@ -27,7 +27,7 @@ scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/.env.example   ubuntu@43.160.222.7:~
 SSH in and set up a virtualenv:
 
 ```bash
-ssh ubuntu@43.160.222.7
+ssh ubuntu@43.156.9.185
 
 # On the Ubuntu server:
 cd ~/trading-bot
@@ -155,13 +155,13 @@ You can tail the live log from your Mac terminal at any time:
 
 ```bash
 # View today's scan result
-ssh ubuntu@43.160.222.7 "cat ~/trading-bot/logs/$(date +%Y-%m-%d).log"
+ssh ubuntu@43.156.9.185 "cat ~/trading-bot/logs/$(date +%Y-%m-%d).log"
 
 # Watch cron output live (when scan is running)
-ssh ubuntu@43.160.222.7 "tail -f ~/trading-bot/logs/cron.log"
+ssh ubuntu@43.156.9.185 "tail -f ~/trading-bot/logs/cron.log"
 
 # List all saved logs
-ssh ubuntu@43.160.222.7 "ls -lh ~/trading-bot/logs/"
+ssh ubuntu@43.156.9.185 "ls -lh ~/trading-bot/logs/"
 ```
 
 ---
@@ -172,7 +172,7 @@ When `daily_scan.py` is updated on your Mac:
 
 ```bash
 # From Mac:
-scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/daily_scan.py ubuntu@43.160.222.7:~/trading-bot/
+scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/daily_scan.py ubuntu@43.156.9.185:~/trading-bot/
 ```
 
 ---
@@ -184,7 +184,7 @@ Your Mac (viewing results)
     │
     │  SSH / Email
     ▼
-Ubuntu Server 43.160.222.7
+Ubuntu Server 43.156.9.185
     │  cron: 9:45 AM ET Mon-Fri
     │  bash run_scan.sh
     ▼

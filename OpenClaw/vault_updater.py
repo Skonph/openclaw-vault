@@ -15,6 +15,7 @@ v4 changes:
 
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -49,6 +50,18 @@ ALPACA_SECRET = os.environ.get('ALPACA_SECRET_KEY', '')
 ALPACA_BASE   = os.environ.get('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets/v2').rstrip('/')
 if not ALPACA_BASE.endswith('/v2'):
     ALPACA_BASE += '/v2'
+
+# ─── Multi-position portfolio policy (2026-06-19) ──────────────────────────────
+# Replaces the old binary "max 1 spread" gate. Concurrency is governed by a
+# PORTFOLIO RISK BUDGET (the real cap) + a count cap + a per-direction
+# concentration cap — so the system accumulates a track record faster without
+# stacking correlated leverage on the small paper account. All env-overridable.
+MAX_CONCURRENT_POSITIONS = int(os.environ.get('OPENCLAW_MAX_POSITIONS', '2'))
+PORTFOLIO_RISK_PCT       = float(os.environ.get('OPENCLAW_PORTFOLIO_RISK_PCT', '0.15'))
+MAX_PER_DIRECTION        = int(os.environ.get('OPENCLAW_MAX_PER_DIRECTION', '1'))
+_DIRECTION = {'bull_call': 'bull', 'bear_put': 'bear', 'iron_condor': 'neutral'}
+OPEN_RISK_LEDGER = (Path('/home/ubuntu/openclaw') if os.path.exists('/home/ubuntu/openclaw')
+                    else Path(__file__).parent) / 'open_risk_ledger.json'
 
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
@@ -157,21 +170,44 @@ def build_occ(symbol: str, expiry: str, opt_type: str, strike: float) -> str:
     return f'{symbol}{exp_digits}{ot}{strike_str}'
 
 
-def _calc_qty(spread_mid: float) -> int:
+def _calc_qty(spread_mid: float, conviction_score: float = 75) -> int:
     """
-    Dynamic position sizing: 5% of account equity.
-    Floor: $200 | Ceiling: $500 | Min 1 contract.
-    Falls back to $200 if account fetch fails.
+    Dynamic position sizing: 5% of account equity, scaled by a
+    conviction-weighted multiplier (Improvement #5, 2026-06-13).
+
+    Base risk_amount = clamp(equity * 5%, $200, $500)  [unchanged from before]
+
+    Conviction tiers (conviction_score is gated >=75 upstream, so this only
+    ever sees 75-100):
+      Tier 1 (75-84):  multiplier 1.0x -> risk_amount in [$200,  $500]
+      Tier 2 (85-94):  multiplier 1.5x -> risk_amount in [$300,  $750]
+      Tier 3 (95-100): multiplier 2.0x -> risk_amount in [$400, $1000]
+
+    The ceiling rises with conviction (top tier can risk up to $1000/trade
+    instead of the previous flat $500 cap), so higher-conviction setups can
+    take a meaningfully larger position without changing the underlying
+    equity-based formula.
+
+    Falls back to $200 (tier-1 floor) if account fetch fails.
     """
+    if conviction_score >= 95:
+        multiplier = 2.0
+    elif conviction_score >= 85:
+        multiplier = 1.5
+    else:
+        multiplier = 1.0
+
     try:
         r = requests.get(f'{ALPACA_BASE}/account', headers=_alpaca_headers(), timeout=5)
         if r.status_code == 200:
-            equity      = float(r.json().get('equity', 0))
-            risk_amount = max(200.0, min(equity * 0.05, 500.0))
+            equity    = float(r.json().get('equity', 0))
+            base_risk = max(200.0, min(equity * 0.05, 500.0))
         else:
-            risk_amount = 200.0
+            base_risk = 200.0
     except Exception:
-        risk_amount = 200.0
+        base_risk = 200.0
+
+    risk_amount = base_risk * multiplier
     cost_per_contract = float(spread_mid) * 100
     return max(1, int(risk_amount / cost_per_contract))
 
@@ -220,6 +256,158 @@ def _has_open_options() -> bool:
     return False
 
 
+# ─── Multi-position portfolio gate ──────────────────────────────────────────────
+
+def _occ_underlying(occ_symbol: str) -> str:
+    """Underlying ticker from an OCC option symbol (e.g. 'TOST260717P00012000' -> 'TOST')."""
+    m = re.match(r'^([A-Za-z\.]+)', occ_symbol or '')
+    return m.group(1) if m else (occ_symbol or '')
+
+
+def _open_option_underlyings() -> set:
+    """Live set of underlying tickers with open option positions on Alpaca.
+    Empty set on error (same conservative posture as the old gate)."""
+    try:
+        r = requests.get(f'{ALPACA_BASE}/positions', headers=_alpaca_headers(), timeout=10)
+        if r.status_code == 200:
+            return {_occ_underlying(p.get('symbol', ''))
+                    for p in r.json() if p.get('asset_class') == 'us_option'}
+    except Exception as e:
+        print(f'  ⚠️  Position check error: {e}')
+    return set()
+
+
+def _get_equity(default: float = 2000.0) -> float:
+    try:
+        r = requests.get(f'{ALPACA_BASE}/account', headers=_alpaca_headers(), timeout=5)
+        if r.status_code == 200:
+            return float(r.json().get('equity', default))
+    except Exception:
+        pass
+    return default
+
+
+def _load_risk_ledger() -> dict:
+    """Crash-safe read of {underlying: {direction, max_loss, trade_id, opened_at}}."""
+    try:
+        if OPEN_RISK_LEDGER.exists():
+            data = json.loads(OPEN_RISK_LEDGER.read_text())
+            return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        pass
+    return {}
+
+
+def _save_risk_ledger(ledger: dict) -> None:
+    try:
+        OPEN_RISK_LEDGER.write_text(json.dumps(ledger, indent=2))
+    except OSError as e:
+        print(f'  ⚠️  Could not save risk ledger: {e}')
+
+
+def _reconcile_ledger(ledger: dict, open_underlyings: set) -> dict:
+    """Drop ledger entries whose underlying is no longer open on Alpaca (closed
+    out-of-band) so the budget reflects reality. Pure given its inputs."""
+    return {u: e for u, e in ledger.items() if u in open_underlyings}
+
+
+def _order_max_loss(spread_type: str, order: dict, qty: int, limit_px: float) -> float:
+    """Defined max loss (USD). Debit spread = net debit paid; Iron Condor =
+    (wing width − net credit) × 100 × qty."""
+    if spread_type == 'iron_condor':
+        width  = abs(float(order['put_short_strike']) - float(order['put_long_strike']))
+        credit = abs(float(limit_px))
+        return max(0.0, width - credit) * 100 * qty
+    return float(order['spread_mid']) * 100 * qty
+
+
+def _portfolio_admits(order_max_loss: float, direction: str, equity: float,
+                      cur_count: int, cur_risk: float, dir_counts: dict,
+                      max_positions: int = None, risk_pct: float = None,
+                      max_per_dir: int = None) -> tuple:
+    """PURE gate decision -> (ok, reason). The caller maintains the running
+    tallies so several orders in one run respect the CUMULATIVE budget."""
+    max_positions = MAX_CONCURRENT_POSITIONS if max_positions is None else max_positions
+    risk_pct      = PORTFOLIO_RISK_PCT       if risk_pct      is None else risk_pct
+    max_per_dir   = MAX_PER_DIRECTION        if max_per_dir   is None else max_per_dir
+    budget = risk_pct * equity
+    if cur_count >= max_positions:
+        return False, f'position-count cap ({cur_count}/{max_positions})'
+    if cur_risk + order_max_loss > budget:
+        return False, (f'portfolio-risk cap (${cur_risk + order_max_loss:,.0f} > '
+                       f'${budget:,.0f} = {risk_pct:.0%} of ${equity:,.0f})')
+    if dir_counts.get(direction, 0) >= max_per_dir:
+        return False, (f'direction-concentration cap '
+                       f'({direction}: {dir_counts.get(direction, 0)}/{max_per_dir})')
+    return True, ''
+
+
+def _cross_system_allows(symbol: str, direction: str, order_max_loss: float,
+                         ledger_path: Path = Path("/home/ubuntu/shared/active_portfolio_ledger.json")) -> tuple:
+    """Check if the proposed order is allowed under cross-system risk and correlation limits."""
+    try:
+        import subprocess
+        # Freshness Hook: Re-run updater to sync live positions on server
+        subprocess.run(["python3", "/home/ubuntu/shared/update_portfolio_ledger.py"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception as e:
+        print(f"[WARN] Failed to auto-update portfolio ledger: {e}")
+
+    if not ledger_path.exists():
+        return True, ""
+
+    try:
+        positions = json.loads(ledger_path.read_text())
+    except Exception as e:
+        print(f"[WARN] Failed to load active portfolio ledger: {e}")
+        return True, ""
+
+    # 1. Cross-System Risk Limit: Combined risk cap
+    cross_risk_cap = float(os.environ.get("CROSS_SYSTEM_RISK_CAP", "5000.0"))
+    existing_risk = sum(float(p.get("max_risk_usd", 0.0)) for p in positions)
+    if existing_risk + order_max_loss > cross_risk_cap:
+        return False, f"cross-system risk cap (${existing_risk + order_max_loss:,.0f} > ${cross_risk_cap:,.0f})"
+
+    # 2. Correlation Filter: Avoid stacking correlated risk on SPY/QQQ/IWM
+    correlated_indices = {"SPY", "QQQ", "IWM"}
+    for p in positions:
+        if p.get("system") == "openclaw":
+            continue
+
+        p_symbol = p.get("symbol", "")
+        p_dir = p.get("direction", "unknown")
+        if p_dir == "unknown" or p_dir != direction:
+            continue
+
+        if symbol in correlated_indices and p_symbol in correlated_indices:
+            return False, f"cross-system index correlation ({symbol} and {p_symbol} both {direction})"
+        
+        if symbol == p_symbol:
+            return False, f"cross-system position concentration ({symbol} already {direction} in {p.get('system')})"
+
+    return True, ""
+
+
+def _initial_portfolio_state(equity: float) -> dict:
+    """Starting tally from LIVE Alpaca positions + the reconciled risk ledger.
+    Unledgered open positions (e.g. a spread opened before this ledger existed)
+    are counted and charged a conservative fair-share of the budget so the risk
+    cap never under-counts."""
+    open_unders = _open_option_underlyings()
+    ledger = _reconcile_ledger(_load_risk_ledger(), open_unders)
+    _save_risk_ledger(ledger)
+    fair_share = PORTFOLIO_RISK_PCT * equity / max(1, MAX_CONCURRENT_POSITIONS)
+    risk = 0.0
+    dir_counts: dict = {}
+    for u in open_unders:
+        e = ledger.get(u)
+        d = (e or {}).get('direction', 'unknown')
+        risk += float((e or {}).get('max_loss', fair_share))
+        dir_counts[d] = dir_counts.get(d, 0) + 1
+    return {'open_unders': open_unders, 'ledger': ledger,
+            'count': len(open_unders), 'risk': risk, 'dir_counts': dir_counts}
+
+
 def _build_ic_payload(order: dict, qty: int) -> dict:
     """
     Build 4-leg Iron Condor mleg payload for Alpaca.
@@ -235,7 +423,14 @@ def _build_ic_payload(order: dict, qty: int) -> dict:
     call_long_occ  = build_occ(symbol, expiry, 'call', float(order['call_long_strike']))
 
     net_credit = float(order['spread_mid'])   # scanner stores net credit as spread_mid for IC
-    limit_px   = round(max(net_credit * 0.95, 0.01), 2)
+    # Alpaca mleg sign convention: net DEBIT = positive limit_price, net CREDIT
+    # = negative. An Iron Condor opens for a net credit, so submit a NEGATIVE
+    # limit_price — the order only fills if the actual net credit is >= 95% of
+    # expected (i.e. actual price <= -limit_floor). A positive value here would
+    # be non-binding (any credit fill is "<=" a positive number), letting the
+    # IC fill at an arbitrarily worse credit than intended.
+    limit_floor = round(max(net_credit * 0.95, 0.01), 2)
+    limit_px    = -limit_floor
 
     return {
         'order_class':   'mleg',
@@ -276,15 +471,52 @@ def _check_candidates_freshness():
 
 # ─── Auto-executor ────────────────────────────────────────────────────────────
 
+def _check_gates(order: dict, cooling_off: dict, today: str) -> tuple[str | None, bool]:
+    """
+    Evaluate safety gates for a single order.
+
+    Returns (skip_reason, notify):
+      - skip_reason is None if the order passes all gates, else a string
+        describing why it should be skipped.
+      - notify indicates whether a Telegram alert should be sent for the skip.
+
+    IMPORTANT: Gate 1 (cooling-off) and Gate 3 (conviction) apply to ALL
+    orders, including those explicitly marked 'approved' by Hermes.
+    Hermes' `approval_manager.mark_approved()` only resolves Gate 2
+    (events_status -> 'clear'); it does not re-check cooling-off or
+    conviction. Bypassing those gates for 'approved' orders would let an
+    order that never met the conviction threshold (or that hit a recent
+    stop loss) execute purely because Hermes cleared an unrelated earnings
+    check.
+    """
+    status = order['status']
+    symbol = order['symbol']
+
+    # ── Gate 1: Cooling-off period — always enforced ──────────────────────────
+    if symbol in cooling_off and cooling_off[symbol] >= today:
+        return f'Cooling-off until {cooling_off[symbol]} (recent stop loss)', False
+
+    # ── Gate 2: Events not clear — bypassed only for explicitly 'approved' ────
+    ev = order.get('events_status', 'uncertain')
+    if status != 'approved' and ev != 'clear':
+        return f'Events {ev.upper()} — verify calendar before executing', True
+
+    # ── Gate 3: Conviction — always enforced, even for 'approved' orders ──────
+    if not order.get('conviction_pass', False):
+        return f'Conviction {order.get("conviction_score","?")} below threshold', False
+
+    return None, False
+
+
 def auto_execute_orders() -> dict:
     """
     Read pending_orders.json and auto-execute all orders that pass all gates.
     Gates (in order):
       ✅ Paper/live mode verified
       ✅ No existing open options positions (max 1 spread)
-      ✅ Ticker not in cooling-off period
-      ✅ events_status == 'clear'
-      ✅ conviction_pass == True
+      ✅ Ticker not in cooling-off period (always enforced, even if 'approved')
+      ✅ events_status == 'clear' (bypassed for explicitly 'approved' orders)
+      ✅ conviction_pass == True (always enforced, even if 'approved')
       ✅ Iron Condor: all 4 strike fields present
     Sends individual Telegram per action. Returns summary dict.
     """
@@ -296,9 +528,18 @@ def auto_execute_orders() -> dict:
     if not _check_paper_mode():
         return {'executed': [], 'skipped': [], 'errors': []}
 
-    # ── Safety gate: existing positions ──────────────────────────────────────
-    if _has_open_options():
-        return {'executed': [], 'skipped': [], 'errors': []}
+    # ── Portfolio state: live Alpaca positions + reconciled risk ledger ──────
+    # (Replaces the old binary "max 1 spread" gate. Per-order checks below
+    #  enforce the count / risk-budget / direction caps cumulatively.)
+    equity     = _get_equity()
+    pf         = _initial_portfolio_state(equity)
+    run_count  = pf['count']
+    run_risk   = pf['risk']
+    dir_counts = dict(pf['dir_counts'])
+    ledger     = pf['ledger']
+    print(f'  📊 Portfolio: {run_count}/{MAX_CONCURRENT_POSITIONS} positions, '
+          f'${run_risk:,.0f}/${PORTFOLIO_RISK_PCT * equity:,.0f} risk budget used '
+          f'(equity ${equity:,.0f})')
 
     pending_file = VAULT_DIR / 'OpenClaw/pending_orders.json'
     if not pending_file.exists():
@@ -330,42 +571,27 @@ def auto_execute_orders() -> dict:
 
         print(f'\n  Processing [{tid}] {symbol} {tl} (status: {status})…')
 
-        # ── Gate 1: Cooling-off period ────────────────────────────────────────
-        if status != 'approved' and symbol in cooling_off and cooling_off[symbol] >= today:
-            reason = f'Cooling-off until {cooling_off[symbol]} (recent stop loss)'
-            order.update({'status': 'skipped', 'skip_reason': reason, 'skipped_at': now})
-            skipped.append(order)
-            print(f'  ⏸ Skipped: {reason}')
-            continue
-
-        # ── Gate 2: Events not clear ──────────────────────────────────────────
-        ev = order.get('events_status', 'uncertain')
-        if status != 'approved' and ev != 'clear':
-            if ev == 'uncertain':
+        # ── Safety gates (cooling-off / events / conviction) ───────────────────
+        skip_reason, notify = _check_gates(order, cooling_off, today)
+        if skip_reason:
+            ev = order.get('events_status', 'uncertain')
+            if skip_reason.startswith('Events') and ev == 'uncertain':
                 print(f"⚠️  WARNING: Order [{tid}] {symbol} is still marked 'uncertain' after the 21:10 Hermes resolver window!")
-            reason = f'Events {ev.upper()} — verify calendar before executing'
-            order.update({'status': 'skipped', 'skip_reason': reason, 'skipped_at': now})
+            order.update({'status': 'skipped', 'skip_reason': skip_reason, 'skipped_at': now})
             skipped.append(order)
-            send_telegram(
-                f'⏸ *[{tid}] {symbol} {tl} — SKIPPED*\n'
-                f'Events status: *{ev.upper()}*\n'
-                f'Conviction: {order.get("conviction_score","?")}\/100 ✅\n'
-                f'_Check IBKR calendar, then manually execute if clear._'
-            )
-            print(f'  ⏸ Skipped: events {ev}')
-            continue
-
-        # ── Gate 3: Conviction (safety net — scanner should have filtered) ────
-        if status != 'approved' and not order.get('conviction_pass', False):
-            reason = f'Conviction {order.get("conviction_score","?")} below threshold'
-            order.update({'status': 'skipped', 'skip_reason': reason, 'skipped_at': now})
-            skipped.append(order)
-            print(f'  ⏸ Skipped: {reason}')
+            if notify:
+                send_telegram(
+                    f'⏸ *[{tid}] {symbol} {tl} — SKIPPED*\n'
+                    f'Events status: *{ev.upper()}*\n'
+                    f'Conviction: {order.get("conviction_score","?")}/100 ✅\n'
+                    f'_Check IBKR calendar, then manually execute if clear._'
+                )
+            print(f'  ⏸ Skipped: {skip_reason}')
             continue
 
         # ── Build OCC symbols and payload ─────────────────────────────────────
         try:
-            qty = _calc_qty(order['spread_mid'])
+            qty = _calc_qty(order['spread_mid'], order.get('conviction_score', 75))
 
             if spread_type == 'iron_condor':
                 # Validate all 4 IC strike fields are present
@@ -397,12 +623,32 @@ def auto_execute_orders() -> dict:
                 print(f'  Buy : {long_occ}')
                 print(f'  Sell: {short_occ}')
 
-            print(f'  Qty : {qty} contracts | Limit: ${limit_px}')
+            limit_desc = f'${-limit_px:.2f} credit' if limit_px < 0 else f'${limit_px:.2f} debit'
+            print(f'  Qty : {qty} contracts | Limit: {limit_desc} (raw: {limit_px})')
 
         except Exception as e:
             errors.append({'order': order, 'error': str(e)})
             send_telegram(f'❌ *[{tid}] {symbol} — BUILD ERROR*\n`{e}`')
             print(f'  ❌ Build error: {e}')
+            continue
+
+        # ── Portfolio gate: count / risk-budget / direction concentration ──────
+        direction = _DIRECTION.get(spread_type, 'neutral')
+        order_ml  = _order_max_loss(spread_type, order, qty, limit_px)
+        ok, why   = _portfolio_admits(order_ml, direction, equity,
+                                      run_count, run_risk, dir_counts)
+        if ok:
+            # Phase 2: Cross-system portfolio risk auditor check
+            ok, why = _cross_system_allows(symbol, direction, order_ml)
+
+        if not ok:
+            order.update({'status': 'skipped', 'skip_reason': why, 'skipped_at': now})
+            skipped.append(order)
+            send_telegram(
+                f'⏸ *[{tid}] {symbol} {tl} — SKIPPED*\n'
+                f'{why}\n_Portfolio budget protects the account; will retry when room frees up._'
+            )
+            print(f'  ⏸ Skipped (portfolio): {why}')
             continue
 
         # ── Submit to Alpaca ──────────────────────────────────────────────────
@@ -433,6 +679,14 @@ def auto_execute_orders() -> dict:
             })
             executed.append(order)
 
+            # ── Update portfolio tallies + persist the reconciled risk ledger ──
+            run_count += 1
+            run_risk  += order_ml
+            dir_counts[direction] = dir_counts.get(direction, 0) + 1
+            ledger[symbol] = {'direction': direction, 'max_loss': round(order_ml, 2),
+                              'trade_id': tid, 'opened_at': now}
+            _save_risk_ledger(ledger)
+
             # Append to execution log
             log_file  = VAULT_DIR / 'OpenClaw/10_Execution_Log.md'
             log_entry = (
@@ -457,7 +711,7 @@ def auto_execute_orders() -> dict:
                 f'Strikes: ${order["long_strike"]} / ${order["short_strike"]} | '
                 f'Expiry: {order["expiry"]} ({order["dte"]}d)\n'
                 f'Debit: ${order["spread_mid"]} × {qty} contracts = *${cost:.0f} risk*\n'
-                f'Limit: ${limit_px} | R:R: {order["rr"]}x\n'
+                f'Limit: {limit_desc} | R:R: {order["rr"]}x\n'
                 f'Conviction: {order["conviction_score"]}/100\n'
                 f'Alpaca ID: `{alpaca_id}`'
             )
@@ -782,7 +1036,7 @@ ACTIVE POSITIONS: None (check Alpaca for latest)
 KNOWN_HOLDS (do not score until recheck date):
 - PR: recheck Jun 17, 2026
 
-SERVER: ubuntu@43.160.222.7
+SERVER: ubuntu@43.156.9.185
 
 Confirm context loaded. Standing by."""
 

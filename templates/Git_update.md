@@ -1,5 +1,5 @@
 # On Mac — after updating any vault file:
-cd /Users/SkonP/AI_Prompt
+cd /Users/SkonP/AI_Prompt/Obsidient/SkonVault
 git add .
 git commit -m "Update: [what changed]"
 git push
@@ -9,7 +9,7 @@ cd ~/openclaw-vault
 git pull
 
 # Run anytime to load context: 
-ssh ubuntu@43.160.222.7 '~/trading-bot/load_context.sh'
+ssh ubuntu@43.156.9.185 '~/trading-bot/load_context.sh'
 
 ##  Server owns these files - server version wins on conflict 
 OpenClaw/07_Macro_Context.md merge=ours 

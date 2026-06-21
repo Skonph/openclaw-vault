@@ -64,6 +64,6 @@ ACTIVE POSITIONS: None (check Alpaca for latest)
 KNOWN_HOLDS (do not score until recheck date):
 - PR: recheck Jun 17, 2026
 
-SERVER: ubuntu@43.160.222.7
+SERVER: ubuntu@43.156.9.185
 
 Confirm context loaded. Standing by.

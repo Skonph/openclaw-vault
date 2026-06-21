@@ -1,0 +1,166 @@
+{
+  "10%": {
+    "n_trades": 133,
+    "wins": 103,
+    "win_rate": 77.44,
+    "total_pnl": 561.78,
+    "avg_pnl_per_trade": 4.22,
+    "avg_credit": 0.35,
+    "final_equity": 16561.78,
+    "return_pct": 3.51,
+    "max_drawdown": 183.94,
+    "by_symbol": {
+      "QQQ": {
+        "n": 47,
+        "win_rate": 78.72,
+        "pnl": 261.69
+      },
+      "IWM": {
+        "n": 39,
+        "win_rate": 69.23,
+        "pnl": 75.78
+      },
+      "SPY": {
+        "n": 47,
+        "win_rate": 82.98,
+        "pnl": 224.31
+      }
+    },
+    "by_strategy": {
+      "bull_put_spread": {
+        "n": 133,
+        "win_rate": 77.44,
+        "pnl": 561.78
+      }
+    },
+    "by_exit_reason": {
+      "stop_loss": 12,
+      "recycle_gate": 30,
+      "profit_lock": 68,
+      "profit_target": 23
+    }
+  },
+  "15%": {
+    "n_trades": 133,
+    "wins": 103,
+    "win_rate": 77.44,
+    "total_pnl": 561.78,
+    "avg_pnl_per_trade": 4.22,
+    "avg_credit": 0.35,
+    "final_equity": 16561.78,
+    "return_pct": 3.51,
+    "max_drawdown": 183.94,
+    "by_symbol": {
+      "QQQ": {
+        "n": 47,
+        "win_rate": 78.72,
+        "pnl": 261.69
+      },
+      "IWM": {
+        "n": 39,
+        "win_rate": 69.23,
+        "pnl": 75.78
+      },
+      "SPY": {
+        "n": 47,
+        "win_rate": 82.98,
+        "pnl": 224.31
+      }
+    },
+    "by_strategy": {
+      "bull_put_spread": {
+        "n": 133,
+        "win_rate": 77.44,
+        "pnl": 561.78
+      }
+    },
+    "by_exit_reason": {
+      "stop_loss": 12,
+      "recycle_gate": 30,
+      "profit_lock": 68,
+      "profit_target": 23
+    }
+  },
+  "20%": {
+    "n_trades": 133,
+    "wins": 103,
+    "win_rate": 77.44,
+    "total_pnl": 561.78,
+    "avg_pnl_per_trade": 4.22,
+    "avg_credit": 0.35,
+    "final_equity": 16561.78,
+    "return_pct": 3.51,
+    "max_drawdown": 183.94,
+    "by_symbol": {
+      "QQQ": {
+        "n": 47,
+        "win_rate": 78.72,
+        "pnl": 261.69
+      },
+      "IWM": {
+        "n": 39,
+        "win_rate": 69.23,
+        "pnl": 75.78
+      },
+      "SPY": {
+        "n": 47,
+        "win_rate": 82.98,
+        "pnl": 224.31
+      }
+    },
+    "by_strategy": {
+      "bull_put_spread": {
+        "n": 133,
+        "win_rate": 77.44,
+        "pnl": 561.78
+      }
+    },
+    "by_exit_reason": {
+      "stop_loss": 12,
+      "recycle_gate": 30,
+      "profit_lock": 68,
+      "profit_target": 23
+    }
+  },
+  "25%": {
+    "n_trades": 133,
+    "wins": 103,
+    "win_rate": 77.44,
+    "total_pnl": 561.78,
+    "avg_pnl_per_trade": 4.22,
+    "avg_credit": 0.35,
+    "final_equity": 16561.78,
+    "return_pct": 3.51,
+    "max_drawdown": 183.94,
+    "by_symbol": {
+      "QQQ": {
+        "n": 47,
+        "win_rate": 78.72,
+        "pnl": 261.69
+      },
+      "IWM": {
+        "n": 39,
+        "win_rate": 69.23,
+        "pnl": 75.78
+      },
+      "SPY": {
+        "n": 47,
+        "win_rate": 82.98,
+        "pnl": 224.31
+      }
+    },
+    "by_strategy": {
+      "bull_put_spread": {
+        "n": 133,
+        "win_rate": 77.44,
+        "pnl": 561.78
+      }
+    },
+    "by_exit_reason": {
+      "stop_loss": 12,
+      "recycle_gate": 30,
+      "profit_lock": 68,
+      "profit_target": 23
+    }
+  }
+}

@@ -3,7 +3,7 @@
 ## Files to scp to server
 
 ```bash
-SERVER=ubuntu@43.160.222.7
+SERVER=ubuntu@43.156.9.185
 REMOTE=~/trading-bot/
 
 scp trading-bot/events_checker.py     $SERVER:$REMOTE
@@ -18,7 +18,7 @@ scp trading-bot/vault_updater.py      $SERVER:$REMOTE
 ## Updated crontab (server)
 
 ```bash
-ssh ubuntu@43.160.222.7
+ssh ubuntu@43.156.9.185
 crontab -e
 ```
 
@@ -39,7 +39,7 @@ Replace existing OpenClaw lines with:
 ## Verify .env has required keys
 
 ```bash
-ssh ubuntu@43.160.222.7 'grep -E "TRADIER|ALPACA|ANTHROPIC" ~/trading-bot/.env'
+ssh ubuntu@43.156.9.185 'grep -E "TRADIER|ALPACA|ANTHROPIC" ~/trading-bot/.env'
 ```
 
 Expected output:
@@ -54,7 +54,7 @@ ANTHROPIC_API_KEY=...      ← optional (upgrades conviction scorer to Claude Ha
 ## Test each module standalone
 
 ```bash
-ssh ubuntu@43.160.222.7
+ssh ubuntu@43.156.9.185
 
 # Test events checker (Tradier fundamentals endpoint)
 python3 ~/trading-bot/events_checker.py NCLH CCL AAL VALE

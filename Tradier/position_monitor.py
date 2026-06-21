@@ -9,6 +9,11 @@ Exit rules (Phase 1 & 2):
   🛑 2× loss     → BTC at market  (hard stop — cap the damage)
   ⏰ 2 DTE       → BTC at market  (time stop  — avoid expiration gamma)
   🍁 Partial Exit→ BTC single wing (Iron Condors: close threatened wing, let unthreatened run)
+  🔒 Profit lock → BTC at limit   (≥25% of credit captured AND DTE ≤ 21 —
+                                    bank partial wins before gamma risk ramps
+                                    up near expiry, even if short of the 50%
+                                    target. Standard 2-leg spreads and
+                                    Iron Condors with both wings still open.)
 
 Cron (CRON_TZ=America/New_York):
   30 10,13,15 * * 1-5  /home/ubuntu/trading-bot/venv/bin/python3 /home/ubuntu/trading-bot/position_monitor.py >> /home/ubuntu/trading-bot/logs/monitor.log 2>&1
@@ -41,12 +46,28 @@ ACCOUNT_ID      = os.getenv("TRADIER_SANDBOX_ACCOUNT","")
 BOT_TOKEN       = os.getenv("TELEGRAM_BOT_TOKEN",    "")
 CHAT_ID         = os.getenv("TELEGRAM_CHAT_ID",      "")
 
+ALPACA_KEY     = os.getenv("ALPACA_API_KEY",        "")
+ALPACA_SECRET  = os.getenv("ALPACA_SECRET_KEY",     "")
+ALPACA_BASE    = os.getenv("ALPACA_BASE_URL",       "https://paper-api.alpaca.markets/v2")
+
 PROD_HEADERS    = {"Authorization": f"Bearer {PROD_TOKEN}",    "Accept": "application/json"}
 SANDBOX_HEADERS = {"Authorization": f"Bearer {SANDBOX_TOKEN}", "Accept": "application/json"}
+ALPACA_HEADERS = {
+    "APCA-API-KEY-ID":     ALPACA_KEY,
+    "APCA-API-SECRET-KEY": ALPACA_SECRET,
+    "Content-Type":        "application/json",
+}
 
 ACTIVE_TRADES   = SCRIPT_DIR / "active_trades.json"
 TRADE_LOG       = SCRIPT_DIR / "trade_log.jsonl"
 HEARTBEAT_FILE  = SCRIPT_DIR / "last_heartbeat.json"
+
+# Profit-lock (Phase 2): once DTE drops to this level, bank decent partial
+# profits instead of holding for the full 50% target — gamma risk ramps up
+# fast in the final weeks, and capital is better redeployed into a fresh
+# higher-DTE setup.
+PROFIT_LOCK_DTE         = 21
+PROFIT_LOCK_MIN_CAPTURE = 0.25  # require >=25% of entry credit captured first
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -93,8 +114,27 @@ def send_heartbeat():
 def load_active():
     if not ACTIVE_TRADES.exists():
         return []
-    with open(ACTIVE_TRADES) as f:
-        return json.load(f)
+    try:
+        with open(ACTIVE_TRADES) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        # FAIL LOUD — never silently report "no active trades" when the file is
+        # unreadable, because real open positions would then ride UNMANAGED
+        # (no stop, no profit target). Alert and abort so the operator notices.
+        msg = (f"🚨 position_monitor: active_trades.json is unreadable "
+               f"({type(e).__name__}: {e}). Open positions are NOT being "
+               f"monitored — fix the file immediately.")
+        print(f"  {msg}")
+        try:
+            send_telegram(msg)
+        except Exception:
+            pass
+        raise SystemExit(1)
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+    return data
 
 def save_active(trades):
     if TEST_MODE:
@@ -102,6 +142,105 @@ def save_active(trades):
         return
     with open(ACTIVE_TRADES, "w") as f:
         json.dump(trades, f, indent=2)
+
+def _check_alpaca_paper_account():
+    """Safety guard: enforce that we are trading on a paper account only."""
+    if TEST_MODE:
+        return
+    # 1. Base URL check
+    if "paper-api" not in ALPACA_BASE.lower():
+        if os.getenv("LIVE_TRADING", "").lower() != "true":
+            print(f"\n  🚫 LIVE TRADING BLOCKED — ALPACA_BASE_URL points to live API: {ALPACA_BASE}")
+            print("  To override this for real money trading, set LIVE_TRADING=true in .env\n")
+            sys.exit(1)
+        else:
+            print("\n  ⚠️ WARNING: LIVE TRADING IS ENABLED! Real money is at risk!\n")
+            return
+
+    # 2. Query /v2/account to confirm
+    try:
+        url = f"{ALPACA_BASE}/account"
+        r = requests.get(url, headers=ALPACA_HEADERS, timeout=10)
+        r.raise_for_status()
+        acc_data = r.json()
+        acc_num = acc_data.get("account_number", "")
+        is_paper_acc = acc_num.startswith("PA") or acc_num.startswith("DU") or acc_num.startswith("DF")
+        if not is_paper_acc:
+            if os.getenv("LIVE_TRADING", "").lower() != "true":
+                print(f"\n  🚫 LIVE TRADING BLOCKED — Account number {acc_num} does not appear to be a paper account.")
+                print("  To override this, set LIVE_TRADING=true in .env\n")
+                sys.exit(1)
+            else:
+                print(f"\n  ⚠️ WARNING: LIVE TRADING ACTIVE on account {acc_num}!\n")
+    except Exception as e:
+        print(f"\n  ⚠️ WARNING: Could not verify account paper status via API: {e}")
+        if "paper-api" not in ALPACA_BASE.lower() and os.getenv("LIVE_TRADING", "").lower() != "true":
+            print("  🚫 Base URL is not paper and API verification failed. Live trading blocked.")
+            sys.exit(1)
+
+def reconcile(trades):
+    """
+    Cross-check local active trades against actual open positions on Alpaca.
+    If a trade in active_trades.json is no longer open on Alpaca, remove it.
+    Also removes expired trades (DTE < 0).
+    """
+    if TEST_MODE:
+        return trades
+
+    # Ensure paper check
+    _check_alpaca_paper_account()
+
+    try:
+        r = requests.get(f"{ALPACA_BASE}/positions", headers=ALPACA_HEADERS, timeout=10)
+        r.raise_for_status()
+        positions = r.json()
+    except Exception as e:
+        print(f"  ⚠️  [reconcile] Failed to fetch Alpaca positions: {e}")
+        return trades
+
+    # Extract all open option symbols from Alpaca positions
+    open_symbols = set()
+    for p in positions:
+        if p.get("asset_class") == "us_option":
+            open_symbols.add(p.get("symbol"))
+
+    reconciled = []
+    removed_count = 0
+    today = date.today()
+
+    for t in trades:
+        # Check if expired
+        try:
+            exp_date = datetime.strptime(t["expiration"], "%Y-%m-%d").date()
+            if exp_date < today:
+                print(f"  🗑  [reconcile] Removing expired trade: {t['symbol']} (exp {t['expiration']})")
+                removed_count += 1
+                continue
+        except Exception:
+            pass
+
+        # Check if the option legs of the trade are still open on Alpaca
+        if t["strategy"] == "Iron Condor":
+            legs = [t.get("put_short_symbol"), t.get("put_long_symbol"),
+                    t.get("call_short_symbol"), t.get("call_long_symbol")]
+        else:
+            legs = [t.get("short_symbol"), t.get("long_symbol")]
+
+        # Filter out empty legs
+        legs = [l for l in legs if l]
+
+        any_leg_open = any(l in open_symbols for l in legs)
+
+        if any_leg_open:
+            reconciled.append(t)
+        else:
+            print(f"  🗑  [reconcile] Removing closed trade from active_trades.json: {t['symbol']} (no legs found in Alpaca positions)")
+            removed_count += 1
+
+    if removed_count > 0:
+        save_active(reconciled)
+
+    return reconciled
 
 def days_to_expiry(exp_str):
     return (datetime.strptime(exp_str, "%Y-%m-%d").date() - date.today()).days
@@ -189,62 +328,59 @@ def log_exit(trade, reason, close_debit, pnl, order_result):
 
 def submit_btc(trade, close_type="limit", debit=0.0, wings_to_close=None) -> dict:
     """
-    Submit Buy-to-Close (BTC) order — reverses open legs of the original entry.
+    Submit Buy-to-Close (BTC) order to Alpaca — reverses open legs of the original entry.
     close_type: "limit" for profit target, "market" for stop/time exits.
     """
     strategy = trade["strategy"]
     symbol   = trade["symbol"]
-    url      = f"{SANDBOX_URL}/accounts/{ACCOUNT_ID}/orders"
     qty      = str(trade.get("quantity", 1))
 
     if TEST_MODE:
         print(f"  🧪 [TEST_MODE] Mock submitting BTC {close_type} order (qty: {qty}) for {symbol}")
         return {"success": True, "order_id": "TEST-BTC-123", "status": "filled"}
 
+    _check_alpaca_paper_account()
+
+    legs_payload = []
     if strategy == "Iron Condor":
-        legs = []
         if wings_to_close is None:
             # Close whatever wings are still open
             if not trade.get("put_wing_closed", False):
-                legs.append((trade["put_short_symbol"], "buy_to_close"))
-                legs.append((trade["put_long_symbol"], "sell_to_close"))
+                legs_payload.append({"symbol": trade["put_short_symbol"], "ratio_qty": 1, "side": "buy",  "position_effect": "close"})
+                legs_payload.append({"symbol": trade["put_long_symbol"],  "ratio_qty": 1, "side": "sell", "position_effect": "close"})
             if not trade.get("call_wing_closed", False):
-                legs.append((trade["call_short_symbol"], "buy_to_close"))
-                legs.append((trade["call_long_symbol"], "sell_to_close"))
+                legs_payload.append({"symbol": trade["call_short_symbol"], "ratio_qty": 1, "side": "buy",  "position_effect": "close"})
+                legs_payload.append({"symbol": trade["call_long_symbol"],  "ratio_qty": 1, "side": "sell", "position_effect": "close"})
         else:
             if "put" in wings_to_close:
-                legs.append((trade["put_short_symbol"], "buy_to_close"))
-                legs.append((trade["put_long_symbol"], "sell_to_close"))
+                legs_payload.append({"symbol": trade["put_short_symbol"], "ratio_qty": 1, "side": "buy",  "position_effect": "close"})
+                legs_payload.append({"symbol": trade["put_long_symbol"],  "ratio_qty": 1, "side": "sell", "position_effect": "close"})
             if "call" in wings_to_close:
-                legs.append((trade["call_short_symbol"], "buy_to_close"))
-                legs.append((trade["call_long_symbol"], "sell_to_close"))
+                legs_payload.append({"symbol": trade["call_short_symbol"], "ratio_qty": 1, "side": "buy",  "position_effect": "close"})
+                legs_payload.append({"symbol": trade["call_long_symbol"],  "ratio_qty": 1, "side": "sell", "position_effect": "close"})
 
-        if not legs:
+        if not legs_payload:
             return {"success": False, "error": "No wings to close"}
-
-        payload = {
-            "class": "multileg",
-            "symbol": symbol,
-            "type": "debit" if close_type == "limit" else close_type,
-            "duration": "day",
-        }
-        for idx, (opt_sym, side) in enumerate(legs):
-            payload[f"option_symbol[{idx}]"] = opt_sym
-            payload[f"side[{idx}]"] = side
-            payload[f"quantity[{idx}]"] = qty
     else:
-        payload = {
-            "class": "multileg", "symbol": symbol,
-            "type": "debit" if close_type == "limit" else close_type, "duration": "day",
-            "option_symbol[0]": trade["short_symbol"], "side[0]": "buy_to_close",  "quantity[0]": qty,
-            "option_symbol[1]": trade["long_symbol"],  "side[1]": "sell_to_close", "quantity[1]": qty,
-        }
+        legs_payload = [
+            {"symbol": trade["short_symbol"], "ratio_qty": 1, "side": "buy",  "position_effect": "close"},
+            {"symbol": trade["long_symbol"],  "ratio_qty": 1, "side": "sell", "position_effect": "close"}
+        ]
+
+    payload = {
+        "order_class":   "mleg",
+        "type":          close_type,
+        "time_in_force": "day",
+        "qty":           qty,
+        "legs":          legs_payload,
+    }
 
     if close_type == "limit":
-        payload["price"] = f"{debit:.2f}"
+        payload["limit_price"] = f"{debit:.2f}"
 
+    url = f"{ALPACA_BASE}/orders"
     try:
-        r = requests.post(url, headers=SANDBOX_HEADERS, data=payload, timeout=15)
+        r = requests.post(url, headers=ALPACA_HEADERS, json=payload, timeout=15)
         try:
             resp = r.json()
         except ValueError as je:
@@ -255,16 +391,15 @@ def submit_btc(trade, close_type="limit", debit=0.0, wings_to_close=None) -> dic
         print(f"  [btc error] {e}")
         return {"success": False, "error": str(e)}
 
-    order_id = resp.get("order", {}).get("id", "unknown")
-    status   = resp.get("order", {}).get("status", "unknown")
+    order_id = resp.get("id", "unknown")
+    status   = resp.get("status", "unknown")
 
-    if r.status_code in (200, 201) and status in ("ok", "pending", "open", "filled"):
-        print(f"  ✅ BTC order submitted: {order_id} ({status})")
+    if r.status_code in (200, 201) and status in ("accepted", "pending_new", "accepted_for_bidding", "partially_filled", "filled", "new"):
+        print(f"  ✅ BTC order submitted to Alpaca: {order_id} ({status})")
         return {"success": True, "order_id": str(order_id), "status": status}
     else:
-        err = resp.get("errors", resp)
-        print(f"  ❌ BTC order rejected: {err}")
-        return {"success": False, "error": str(err)[:200]}
+        print(f"  ❌ BTC order rejected by Alpaca (HTTP {r.status_code}): {resp}")
+        return {"success": False, "error": str(resp)[:200]}
 
 # ─── EXIT LOGIC ───────────────────────────────────────────────────────────────
 
@@ -305,16 +440,34 @@ def evaluate_trade(trade, quotes) -> bool:
     print(f"  Entry ${entry_credit:.2f}  →  Current ${current:.2f}  |  P&L ${pnl:+.2f} ({pnl_pct:+.1f}%)")
     print(f"  Targets:  profit ≤${profit_tgt:.2f}  |  stop ≥${stop_loss:.2f}")
 
-    # ── Evaluate rules (priority: time > stop > profit) ──────────────────
+    # ── Evaluate rules (priority: time > stop > profit > profit-lock) ────
     exit_reason  = None
     close_type   = "limit"
     close_debit  = current
     wings_to_close = None
 
+    entered_at_str = trade.get("entered_at")
+    elapsed_days = 0
+    if entered_at_str:
+        try:
+            dt_entered = datetime.fromisoformat(entered_at_str)
+            if dt_entered.tzinfo is not None:
+                dt_entered = dt_entered.replace(tzinfo=None)
+            elapsed_days = (datetime.now() - dt_entered).days
+        except Exception as e:
+            print(f"  ⚠️  [date parse error] {e}")
+
+    # Print age info
+    print(f"  Age: {elapsed_days} days (Entered: {entered_at_str})")
+
     if dte <= 2:
         exit_reason = "time_stop"
         close_type  = "market"
         print(f"  ⏰ TIME STOP — {dte} DTE ≤ 2, closing remaining wings at market")
+    elif elapsed_days >= 14:
+        exit_reason = "recycle_gate"
+        close_type  = "market"
+        print(f"  ♻️ RECYCLE GATE — Position open for {elapsed_days} days >= 14 days, force closing at market")
     elif strategy == "Iron Condor":
         put_credit = float(trade.get("put_credit", entry_credit / 2.0))
         call_credit = float(trade.get("call_credit", entry_credit / 2.0))
@@ -337,6 +490,11 @@ def evaluate_trade(trade, quotes) -> bool:
                 exit_reason = "profit_target"
                 close_debit = profit_tgt
                 print(f"  ✅ PROFIT TARGET (COMBINED) — current ${current:.2f} <= target ${profit_tgt:.2f}")
+            elif dte <= PROFIT_LOCK_DTE and current <= entry_credit * (1 - PROFIT_LOCK_MIN_CAPTURE):
+                exit_reason = "profit_lock_dte"
+                close_debit = current
+                lock_thresh = entry_credit * (1 - PROFIT_LOCK_MIN_CAPTURE)
+                print(f"  🔒 PROFIT LOCK (COMBINED, {dte} DTE ≤ {PROFIT_LOCK_DTE}) — current ${current:.2f} <= ${lock_thresh:.2f} ({PROFIT_LOCK_MIN_CAPTURE:.0%}+ of credit captured)")
         elif not put_closed:  # Only Put wing is open
             if put_cost >= 2.0 * put_credit:
                 exit_reason = "stop_loss"
@@ -367,6 +525,11 @@ def evaluate_trade(trade, quotes) -> bool:
             exit_reason = "profit_target"
             close_debit = profit_tgt
             print(f"  ✅ PROFIT TARGET — current ${current:.2f} <= target ${profit_tgt:.2f}")
+        elif dte <= PROFIT_LOCK_DTE and current <= entry_credit * (1 - PROFIT_LOCK_MIN_CAPTURE):
+            exit_reason = "profit_lock_dte"
+            close_debit = current
+            lock_thresh = entry_credit * (1 - PROFIT_LOCK_MIN_CAPTURE)
+            print(f"  🔒 PROFIT LOCK — {dte} DTE ≤ {PROFIT_LOCK_DTE} and current ${current:.2f} <= ${lock_thresh:.2f} ({PROFIT_LOCK_MIN_CAPTURE:.0%}+ of credit captured)")
 
     if not exit_reason:
         print(f"  → Holding. No exit rule triggered.")
@@ -400,13 +563,16 @@ def evaluate_trade(trade, quotes) -> bool:
 
     log_exit(trade, exit_reason, close_debit, actual_pnl, result)
 
-    icons   = {"profit_target": "✅", "stop_loss": "🛑", "time_stop": "⏰", 
-               "partial_stop_loss_put": "🛑", "partial_stop_loss_call": "🛑"}
-    labels  = {"profit_target": "Profit Target Hit 🎯", 
-               "stop_loss": "Stop Loss Hit", 
+    icons   = {"profit_target": "✅", "stop_loss": "🛑", "time_stop": "⏰",
+               "partial_stop_loss_put": "🛑", "partial_stop_loss_call": "🛑",
+               "profit_lock_dte": "🔒", "recycle_gate": "♻️"}
+    labels  = {"profit_target": "Profit Target Hit 🎯",
+               "stop_loss": "Stop Loss Hit",
                "time_stop": "Time Stop (2 DTE)",
                "partial_stop_loss_put": "Partial Stop Loss (Put Wing Closed)",
-               "partial_stop_loss_call": "Partial Stop Loss (Call Wing Closed)"}
+               "partial_stop_loss_call": "Partial Stop Loss (Call Wing Closed)",
+               "profit_lock_dte": f"Profit Lock ({PROFIT_LOCK_DTE} DTE)",
+               "recycle_gate": "Recycle Gate (14-day hold limit)"}
     
     icon    = icons.get(exit_reason, "📋")
     label   = labels.get(exit_reason, exit_reason)
@@ -488,6 +654,71 @@ def run_test_suite():
             "call_short_symbol": "SPY_CALL_SHORT",
             "call_long_symbol": "SPY_CALL_LONG",
             "quantity": 1
+        },
+        {
+            "trade_id": "TEST_005",
+            "strategy": "Bull Put Spread",
+            "symbol": "SPY",
+            "expiration": (date.today() + timedelta(days=15)).isoformat(),  # DTE = 15 (<= 21)
+            "entry_credit": 0.50,
+            "profit_target_debit": 0.25,
+            "stop_loss_debit": 1.00,
+            "short_symbol": "SPY_SHORT_PUT",
+            "long_symbol": "SPY_LONG_PUT",
+            "quantity": 1
+        },
+        {
+            "trade_id": "TEST_006",
+            "strategy": "Bull Put Spread",
+            "symbol": "SPY",
+            "expiration": (date.today() + timedelta(days=15)).isoformat(),  # DTE = 15 (<= 21)
+            "entry_credit": 0.50,
+            "profit_target_debit": 0.25,
+            "stop_loss_debit": 1.00,
+            "short_symbol": "SPY_SHORT_PUT",
+            "long_symbol": "SPY_LONG_PUT",
+            "quantity": 1
+        },
+        {
+            "trade_id": "TEST_007",
+            "strategy": "Bull Put Spread",
+            "symbol": "SPY",
+            "expiration": (date.today() + timedelta(days=25)).isoformat(),  # DTE = 25 (> 21)
+            "entry_credit": 0.50,
+            "profit_target_debit": 0.25,
+            "stop_loss_debit": 1.00,
+            "short_symbol": "SPY_SHORT_PUT",
+            "long_symbol": "SPY_LONG_PUT",
+            "quantity": 1
+        },
+        {
+            "trade_id": "TEST_008",
+            "strategy": "Iron Condor",
+            "symbol": "SPY",
+            "expiration": (date.today() + timedelta(days=18)).isoformat(),  # DTE = 18 (<= 21)
+            "entry_credit": 1.00,
+            "put_credit": 0.50,
+            "call_credit": 0.50,
+            "profit_target_debit": 0.50,
+            "stop_loss_debit": 2.00,
+            "put_short_symbol": "SPY_PUT_SHORT",
+            "put_long_symbol": "SPY_PUT_LONG",
+            "call_short_symbol": "SPY_CALL_SHORT",
+            "call_long_symbol": "SPY_CALL_LONG",
+            "quantity": 1
+        },
+        {
+            "trade_id": "TEST_009",
+            "strategy": "Bull Put Spread",
+            "symbol": "SPY",
+            "expiration": (date.today() + timedelta(days=20)).isoformat(),
+            "entry_credit": 0.50,
+            "profit_target_debit": 0.25,
+            "stop_loss_debit": 1.00,
+            "short_symbol": "SPY_SHORT_PUT",
+            "long_symbol": "SPY_LONG_PUT",
+            "quantity": 1,
+            "entered_at": (datetime.now() - timedelta(days=15)).isoformat()
         }
     ]
 
@@ -561,6 +792,57 @@ def run_test_suite():
     print("▶️ TEST 6: Iron Condor — Remaining Call Wing Profit Target Hit")
     closed = evaluate_trade(ic_trade, quotes_ic_remaining_profit)
     print(f"Result: Closed = {closed} (Expected: True)")
+
+    # Quotes Scenario 7: Profit Lock — 25%+ captured, DTE <= 21, below 50% target
+    # cost to close = 0.40 - 0.05 = 0.35 (entry 0.50 * 0.75 = 0.375 -> 0.35 <= 0.375, > profit_tgt 0.25)
+    quotes_profit_lock = {
+        "SPY_SHORT_PUT": {"ask": 0.40},
+        "SPY_LONG_PUT": {"bid": 0.05}
+    }
+    print("─" * 50)
+    print("▶️ TEST 7: Bull Put Spread (15 DTE) — Profit Lock Triggered (25%+ captured)")
+    closed = evaluate_trade(test_trades[4], quotes_profit_lock)
+    print(f"Result: Closed = {closed} (Expected: True)")
+
+    # Quotes Scenario 8: DTE <= 21 but only ~10% captured -> below lock threshold, holds
+    # cost to close = 0.50 - 0.05 = 0.45 (entry 0.50 * 0.75 = 0.375 -> 0.45 > 0.375)
+    quotes_profit_lock_below_threshold = {
+        "SPY_SHORT_PUT": {"ask": 0.50},
+        "SPY_LONG_PUT": {"bid": 0.05}
+    }
+    print("─" * 50)
+    print("▶️ TEST 8: Bull Put Spread (15 DTE) — Below Profit Lock Threshold, Holding")
+    closed = evaluate_trade(test_trades[5], quotes_profit_lock_below_threshold)
+    print(f"Result: Closed = {closed} (Expected: False)")
+
+    # Quotes Scenario 9: 25%+ captured but DTE > 21 -> profit lock does NOT fire, holds
+    # cost to close = 0.35 - 0.05 = 0.30 (entry 0.50 * 0.75 = 0.375 -> 0.30 <= 0.375, but DTE 25 > 21)
+    quotes_profit_lock_dte_too_high = {
+        "SPY_SHORT_PUT": {"ask": 0.35},
+        "SPY_LONG_PUT": {"bid": 0.05}
+    }
+    print("─" * 50)
+    print("▶️ TEST 9: Bull Put Spread (25 DTE) — Captured 25%+ but DTE > 21, Holding")
+    closed = evaluate_trade(test_trades[6], quotes_profit_lock_dte_too_high)
+    print(f"Result: Closed = {closed} (Expected: False)")
+
+    # Quotes Scenario 10: Iron Condor — Combined Profit Lock at 18 DTE
+    # put_cost = 0.40 - 0.05 = 0.35, call_cost = 0.40 - 0.05 = 0.35, combined = 0.70
+    # entry 1.00 * 0.75 = 0.75 -> 0.70 <= 0.75, > profit_tgt 0.50
+    quotes_ic_profit_lock = {
+        "SPY_PUT_SHORT": {"ask": 0.40},
+        "SPY_PUT_LONG": {"bid": 0.05},
+        "SPY_CALL_SHORT": {"ask": 0.40},
+        "SPY_CALL_LONG": {"bid": 0.05}
+    }
+    print("─" * 50)
+    print("▶️ TEST 10: Iron Condor (18 DTE) — Combined Profit Lock Triggered")
+    closed = evaluate_trade(test_trades[7], quotes_ic_profit_lock)
+    print(f"Result: Closed = {closed} (Expected: True)")
+    print("─" * 50)
+    print("▶️ TEST 11: Bull Put Spread (15 days old) — Recycle Gate Triggered")
+    closed = evaluate_trade(test_trades[8], quotes_normal)
+    print(f"Result: Closed = {closed} (Expected: True)")
     print("─" * 50)
     print("\n✅ Position monitor test diagnostics complete.")
 
@@ -586,11 +868,14 @@ def main():
         return
 
     trades = load_active()
+    if trades:
+        trades = reconcile(trades)
+
     if not trades:
         print("  No active trades to monitor.")
         return
 
-    print(f"  {len(trades)} active trade(s) to check")
+    print(f"  {len(trades)} active trade(s) to check (reconciled)")
 
     # Collect all option symbols for one batch quote call
     symbols = []

@@ -85,6 +85,8 @@ def get_today_records():
                     if t.get("date") == today:
                         if t.get("type") == "exit":
                             exits.append(t)
+                        elif t.get("type") == "scan":
+                            pass  # no-trade heartbeat — not an entry or exit
                         else:
                             entries.append(t)
                 except Exception:
@@ -104,7 +106,7 @@ def get_performance_stats():
                 t = json.loads(line.strip())
                 if t.get("type") == "exit" and t.get("success"):
                     exits.append(t)
-                elif t.get("type") != "exit" and t.get("success"):
+                elif t.get("type") not in ("exit", "scan") and t.get("success"):
                     total_entries += 1
             except Exception:
                 pass

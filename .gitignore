@@ -19,3 +19,20 @@ __pycache__/
 .idea/
 *.swp
 *.swo
+
+# Large installers and binaries
+options_guardrail/ibgateway-stable-standalone-linux-x64.sh
+options_guardrail/IBCLinux-3.23.0.zip
+*.zip
+*.tar.gz
+*.tgz
+
+# Local environments, databases, and virtualenvs
+**/venv/
+**/.venv/
+**/logs/
+**/data/
+.env
+.env.local
+**/.env
+**/.env.local

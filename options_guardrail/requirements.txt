@@ -1,0 +1,5 @@
+# Core guardrail + tests need only the standard library.
+pytest>=7.0          # tests
+
+# Only required for live paper execution (run_paper.py --live-paper):
+ib_async>=1.0        # maintained successor to ib_insync; talks to IB Gateway/TWS

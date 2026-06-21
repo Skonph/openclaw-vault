@@ -11,7 +11,7 @@
 | Tradier | Tradier sandbox | $2,000 | Bull put / bear call credit spreads, Iron Condor | Live autonomous, first exit unverified |
 | IBKR Guardrail | IBKR paper (`DUQ548647`) | TBD (`STARTING_CAPITAL`) | Debit spreads (Level 2 code-ready); credit/IC/calendar gated behind `OPTIONS_LEVEL=3` | Shadow-only — **but you now have account-level Options Level 4**, which removes the blocker |
 
-All three run on the same box (`ubuntu@43.160.222.7`, ICT/UTC+7) with overlapping evening cron windows.
+All three run on the same box (`ubuntu@43.156.9.185`, ICT/UTC+7) with overlapping evening cron windows.
 
 ---
 

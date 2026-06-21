@@ -1,10 +1,10 @@
 # System Architecture — OpenClaw
 
 ## Server Details
-- Host: ubuntu@43.160.222.7
+- Host: ubuntu@43.156.9.185
 - Bot directory: ~/openclaw
 - Env file: /home/ubuntu/openclaw/.env
-- SSH: ssh ubuntu@43.160.222.7
+- SSH: ssh ubuntu@43.156.9.185
 
 ## Environment Variables (.env)
 - ALPACA_API_KEY
@@ -62,7 +62,7 @@ Same as above but:
 
 ## SSH Execution Template (Bash)
 \`\`\`bash
-ssh ubuntu@43.160.222.7 << 'ENDSSH'
+ssh ubuntu@43.156.9.185 << 'ENDSSH'
 cd ~/openclaw
 python3 - << 'EOF'
 [python code here]

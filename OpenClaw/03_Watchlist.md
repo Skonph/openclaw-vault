@@ -153,7 +153,7 @@ Save as: "OpenClaw Bear Put"
 After running IBKR MultiSort and reviewing candidates, update the server scanner:
 
 ```bash
-ssh ubuntu@43.160.222.7 'cat > ~/trading-bot/candidates.txt << '"'"'EOF'"'"'
+ssh ubuntu@43.156.9.185 'cat > ~/trading-bot/candidates.txt << '"'"'EOF'"'"'
 # OpenClaw Candidates
 # Updated: YYYY-MM-DD
 # [note active positions or none]

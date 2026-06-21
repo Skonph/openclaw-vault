@@ -61,7 +61,7 @@ Run IBKR MultiSort screener "OpenClaw Bull Call" → note tickers → add to ser
 bash
 
 ```bash
-ssh ubuntu@43.160.222.7
+ssh ubuntu@43.156.9.185
 nano ~/trading-bot/candidates.txt
 ```
 
@@ -75,7 +75,7 @@ Add tickers one per line. Scanner evaluates via Tradier at 9:00 PM. Remove ticke
 | ---------------------------------------------- | ----------------------------------------- |
 | `ocpull`                                       | Pull latest vault from GitHub             |
 | `ocprompt`                                     | Display Nova session prompt ready to copy |
-| `ssh ubuntu@43.160.222.7`                      | Connect to trading server                 |
+| `ssh ubuntu@43.156.9.185`                      | Connect to trading server                 |
 | `python3 ~/trading-bot/openclaw_scanner.py`    | Run scanner manually                      |
 | `tail -50 ~/trading-bot/logs/cron_scanner.log` | Check scanner log                         |
 | `tail -50 ~/trading-bot/logs/cron_vault.log`   | Check vault updater log                   |

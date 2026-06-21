@@ -1,0 +1,20 @@
+[Unit]
+Description=Guardrail Session manager (open approved plans + run exit monitor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=guardrail
+WorkingDirectory=/home/ubuntu/guardrail
+EnvironmentFile=/home/ubuntu/guardrail/.env
+ExecStart=/home/ubuntu/guardrail/venv/bin/python /home/ubuntu/guardrail/run_ops_session.py
+# The process exits on its own when the book is flat (run_forever returns).
+# If it dies unexpectedly mid-session, restart so positions keep being managed.
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/ubuntu/guardrail/logs/session.log
+StandardError=append:/home/ubuntu/guardrail/logs/session.log
+
+[Install]
+WantedBy=multi-user.target

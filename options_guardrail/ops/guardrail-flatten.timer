@@ -1,0 +1,12 @@
+[Unit]
+Description=Flatten open positions ~10 min before the US close
+
+[Timer]
+# 19:50 UTC ~ 15:50 ET (EDT summer close 20:00 UTC). In EST winter the close is
+# 21:00 UTC -> use 20:50. Keep ahead of the close so closing combos still fill.
+# Safety net: closes anything the exit monitor didn't, so nothing carries overnight.
+OnCalendar=Mon-Fri *-*-* 19:50:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

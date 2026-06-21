@@ -1,0 +1,10 @@
+{
+  "equity": 99900.0,
+  "day_anchor_equity": 100000.0,
+  "week_anchor_equity": 99900.0,
+  "day_key": "2026-06-19",
+  "week_key": "2026-W25",
+  "open_positions": 0,
+  "deployed_usd": 0.0,
+  "unrealized_pnl": 0
+}

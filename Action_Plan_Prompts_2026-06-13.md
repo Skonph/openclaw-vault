@@ -1,6 +1,6 @@
 # Action Plan — Ready-to-Execute Prompts
 **Based on:** `Trading_Systems_Review_2026-06-13.md` (§8 update)
-**Target executor:** Hermes (terminal access on `ubuntu@43.160.222.7`) via Telegram, or a fresh Claude/Cowork session with SSH access to the server. Each prompt is self-contained — paste as-is.
+**Target executor:** Hermes (terminal access on `ubuntu@43.156.9.185`) via Telegram, or a fresh Claude/Cowork session with SSH access to the server. Each prompt is self-contained — paste as-is.
 
 Order matches the updated priority list. Do them roughly in order; #1-2 (IBKR) are now the most consequential since that system is live-paper with real orders firing.
 
@@ -14,7 +14,7 @@ Order matches the updated priority list. Do them roughly in order; #1-2 (IBKR) a
 You're working on the options_guardrail IBKR autotrader (options strategist +
 risk guardrail), now in LIVE-PAPER phase on IBKR paper account DUQ548647 with
 OPTIONS_LEVEL=3 (credit spreads / IC / debit spreads all allowed). Live copy is
-on ubuntu@43.160.222.7 at /home/ubuntu/guardrail. Read HERMES.md and the project
+on ubuntu@43.156.9.185 at /home/ubuntu/guardrail. Read HERMES.md and the project
 context first for full conventions.
 
 Three P1 fixes needed, in this order:
@@ -61,7 +61,7 @@ open position.
 
 ```
 Continuing on options_guardrail (live-paper, IBKR DUQ548647, OPTIONS_LEVEL=3,
-/home/ubuntu/guardrail on ubuntu@43.160.222.7).
+/home/ubuntu/guardrail on ubuntu@43.156.9.185).
 
 Add an optional marked-equity kill-switch:
 
@@ -93,7 +93,7 @@ Report via Telegram: summary of the change, new config flag, and test results.
 **Why now:** This is the last major "don't trust the P&L" item across all three systems.
 
 ```
-On ubuntu@43.160.222.7, ~/trading-bot/ (Tradier autonomous credit-spread bot,
+On ubuntu@43.156.9.185, ~/trading-bot/ (Tradier autonomous credit-spread bot,
 sandbox account). This is the #1 unresolved verification item: confirm
 position_monitor.py correctly detects an open position in active_trades.json
 and submits a BTC (buy-to-close) order when an exit trigger fires (profit
@@ -128,7 +128,7 @@ Steps:
 **Why now:** IBKR is fully LLM-driven; OpenClaw's conviction scorer still falls back to offline/rule-based scoring. This is the cheapest remaining "intelligence" upgrade.
 
 ```
-On ubuntu@43.160.222.7, /home/ubuntu/openclaw/ (OpenClaw autonomous spread
+On ubuntu@43.156.9.185, /home/ubuntu/openclaw/ (OpenClaw autonomous spread
 trader, Alpaca paper). Enable the LLM-based conviction scorer:
 
 1. Check /home/ubuntu/openclaw/.env (chmod 600 — preserve permissions) for
@@ -157,7 +157,7 @@ side-by-side comparison results, and any recommendation on CONVICTION_MIN.
 **Why now:** IBKR's `guardrail-session` (live execution, 21:15 ICT) now overlaps with Tradier's scan (21:15 Tue-Thu) and OpenClaw's Hermes/vault_updater window (21:10-21:20), and runs alongside a headless IB Gateway under Xvfb/Java — this used to be a "shadow mode" overlap, now it's live money (paper) on IBKR.
 
 ```
-On ubuntu@43.160.222.7, all three autonomous trading systems (OpenClaw, Tradier,
+On ubuntu@43.156.9.185, all three autonomous trading systems (OpenClaw, Tradier,
 IBKR guardrail) have cron/systemd timers firing within the 21:05-21:30 ICT
 window. IBKR's guardrail-session (21:15 ICT) is now LIVE execution (not shadow),
 running alongside a headless IB Gateway under Xvfb + Zulu OpenJDK.

@@ -1,0 +1,23 @@
+# Alternative to systemd timers: plain crontab (crontab -e as the guardrail user).
+# Set the server clock to UTC (timedatectl set-timezone UTC) so these are stable.
+# US RTH open = 13:30 UTC (EDT, summer) / 14:30 UTC (EST, winter). Adjust seasonally.
+
+# Load env for cron (cron has a bare environment): run.sh (shipped) sources .env
+# and execs the script in the venv. Usage: run.sh <script.py> [args]
+# Make it executable once: chmod +x /opt/guardrail/run.sh
+
+# Evening context build (BEFORE the strategist):
+25 8  * * 1-5  /opt/guardrail/run.sh context_builder.py --watchlist SPY,QQQ,IWM >> /opt/guardrail/logs/strategist.log 2>&1
+
+# Evening strategist run (~5h before open, clear of IBKR Gateway restart):
+30 8  * * 1-5  /opt/guardrail/run.sh strategist_run.py --context data/context.json >> /opt/guardrail/logs/strategist.log 2>&1
+
+# Session manager at the open (self-terminates when flat; runs fully autonomous):
+35 13 * * 1-5  /opt/guardrail/run.sh run_ops_session.py >> /opt/guardrail/logs/session.log 2>&1
+
+# Daily trade-log report to Telegram at 08:30 ICT = 01:30 UTC, Tue-Sat (covers Mon-Fri US):
+30 1  * * 2-6  /opt/guardrail/run.sh daily_report.py >> /opt/guardrail/logs/report.log 2>&1
+
+# Safety net: flatten any still-open positions ~10 min before the US close
+# (19:50 UTC ~ 15:50 ET EDT; use 20:50 in EST winter):
+50 19 * * 1-5  /opt/guardrail/run.sh flatten_all.py >> /opt/guardrail/logs/session.log 2>&1

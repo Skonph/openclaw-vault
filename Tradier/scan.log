@@ -1,0 +1,528 @@
+Traceback (most recent call last):
+  File "/home/ubuntu/trading-bot/morning_scan.py", line 108, in <module>
+    run_morning_scan()
+  File "/home/ubuntu/trading-bot/morning_scan.py", line 102, in run_morning_scan
+    analysis = analyze_with_claude(data_summary)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/trading-bot/morning_scan.py", line 72, in analyze_with_claude
+    return response.json()['choices'][0]['message']['content']
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'choices'
+Starting scan at 00:00 Bangkok
+Market scan 2026-04-28 00:00 Bangkok
+
+PLUG: $2.98
+NIO: $6.25
+F: $12.46
+MARA: $11.16
+HOOD: $83.37 - EXCLUDED (price over $30 limit)
+VALE: $17.13
+GRAB: $3.87
+BARK: $8.81
+
+Prices retrieved: 7/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Analysis
+**Date:** 2026-04-28 | **Account:** $3,000 | **Max Risk:** $60
+
+---
+
+## SCAN RESULTS
+
+**NO QUALIFYING TRADES TODAY**
+
+---
+
+## Analysis Notes:
+
+**PLUG** ($2.98) - Low conviction ~45/100. Hydrogen sector facing headwinds, price too volatile for disciplined entry.
+
+**NIO** ($6.25) - Conviction ~55/100. Chinese EV sector uncertain, likely elevated IV above 50% threshold.
+
+**F** ($12.46) - Conviction ~60/100. Below conviction threshold. Sideways consolidation, no clear bullish catalyst.
+
+**MARA** ($11.16) - Conviction ~50/100. Bitcoin proxy with typically high IV, lacks independent bullish setup.
+
+**VALE** ($17.13) - Conviction ~58/100. Commodity play, no strong directional bias currently.
+
+**GRAB** ($3.87) - Conviction ~52/100. Southeast Asia growth story but insufficient technical setup.
+
+**BARK** ($8.81) - Conviction ~48/100. Pet sector stable but no compelling entry point.
+
+---
+
+**Status:** Standing aside. No setups meet minimum 65/100 conviction threshold with favorable IV conditions for bull call spreads. Discipline preserved.
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-04-28 08:00 Bangkok
+
+RIVN: $16.71
+NIO: $6.25
+F: $12.5
+MARA: $11.18
+GRAB: $3.89
+BARK: $9.58
+VALE: $17.07
+AAL: $11.67
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-04-28 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Scan Results
+
+**RIVN** | $16.71 | 62/100 | MONITOR
+Reason: EV sector momentum building but needs IV rank confirmation below 50%
+
+**NIO** | $6.25 | 58/100 | PASS
+Reason: Price attractive but Chinese EV headwinds reduce conviction threshold
+
+**F** | $12.50 | 55/100 | PASS
+Reason: Stable but lacking catalyst for bull spread setup currently
+
+**MARA** | $11.18 | 48/100 | PASS
+Reason: Bitcoin proxy too volatile; likely elevated IV above threshold
+
+**GRAB** | $3.89 | 52/100 | PASS
+Reason: Southeast Asia growth story but liquidity concerns on options chain
+
+**BARK** | $9.58 | 45/100 | PASS
+Reason: Pet sector stable but no compelling directional edge identified
+
+**VALE** | $17.07 | 60/100 | MONITOR
+Reason: Commodity exposure interesting but needs iron ore price confirmation
+
+**AAL** | $11.67 | 63/100 | MONITOR
+Reason: Travel demand strong but airline margins compressed; borderline conviction
+
+---
+
+## Summary
+**NO QUALIFYING TRADES TODAY**
+
+All tickers fall below 65/100 conviction threshold. RIVN, VALE, and AAL warrant manual IV rank verification if conviction improves with options chain data.
+
+**Action Required:** Pull live IV rank data for monitored tickers before market open.
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-04-29 08:00 Bangkok
+
+RIVN: $16.15
+NIO: $6.33
+F: $12.4
+MARA: $10.97
+GRAB: $3.87
+BARK: $9.42
+VALE: $16.93
+AAL: $11.65
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-04-29 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**RIVN** | $16.15 | 58/100 | MONITOR
+Reason: EV sector momentum but IV likely elevated, needs chain confirmation.
+
+**NIO** | $6.33 | 52/100 | PASS
+Reason: Chinese EV headwinds, low price risks high volatility spreads.
+
+**F** | $12.40 | 61/100 | MONITOR
+Reason: Traditional auto stabilizing but needs IV rank verification below 50%.
+
+**MARA** | $10.97 | 48/100 | PASS
+Reason: Bitcoin proxy volatility typically exceeds IV rank threshold.
+
+**GRAB** | $3.87 | 45/100 | PASS
+Reason: Southeast Asia exposure interesting but price too low for spreads.
+
+**BARK** | $9.42 | 42/100 | PASS
+Reason: Pet sector stable but limited catalyst visibility for directional play.
+
+**VALE** | $16.93 | 55/100 | PASS
+Reason: Commodity exposure uncertain, needs stronger technical setup confirmation.
+
+**AAL** | $11.65 | 63/100 | MONITOR
+Reason: Airline recovery play but seasonal volatility may push IV high.
+
+---
+
+## Conclusion
+
+**NO QUALIFYING TRADES TODAY**
+
+*All tickers fall below 65/100 conviction threshold. RIVN, F, and AAL warrant manual options chain review if IV rank confirms <50%.*
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-04-30 08:00 Bangkok
+
+RIVN: $16.07
+NIO: $6.39
+F: $12.26
+MARA: $10.73
+GRAB: $3.82
+BARK: $9.07
+VALE: $15.84
+AAL: $11.31
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-04-30 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Scan Results
+
+**RIVN** | $16.07 | 62/100 | MONITOR
+Reason: EV sector momentum building but needs IV rank confirmation below 50%
+
+**NIO** | $6.39 | 58/100 | PASS
+Reason: Price attractive but Chinese EV headwinds reduce conviction threshold
+
+**F** | $12.26 | 55/100 | PASS
+Reason: Traditional auto transition slow, lacking catalyst for bull spread
+
+**MARA** | $10.73 | 60/100 | PASS
+Reason: Bitcoin proxy volatile, likely elevated IV above target range
+
+**GRAB** | $3.82 | 48/100 | PASS
+Reason: Southeast Asia growth story but insufficient technical setup strength
+
+**BARK** | $9.07 | 52/100 | PASS
+Reason: Pet sector stable but no clear directional edge currently
+
+**VALE** | $15.84 | 64/100 | MONITOR
+Reason: Commodity exposure interesting but needs IV verification for entry
+
+**AAL** | $11.31 | 59/100 | PASS
+Reason: Airlines seasonally strong but sector volatility typically too high
+
+---
+
+## Summary
+**NO QUALIFYING TRADES TODAY**
+
+*All tickers require manual IV rank verification via Alpaca options chain. RIVN and VALE flagged for priority review if IV rank confirms <50%.*
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-05-01 08:00 Bangkok
+
+RIVN: $16.39
+NIO: $6.39
+F: $12.07
+MARA: $11.99
+GRAB: $3.83
+BARK: $9.51
+VALE: $16.36
+AAL: $11.7
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-05-01 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**F | $12.07 | 72/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Automotive sector momentum, price consolidation suggests bullish breakout potential near term.
+
+**MARA | $11.99 | 68/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Bitcoin proxy play, volatility compression indicates potential upside move incoming soon.
+
+**AAL | $11.70 | 66/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Travel sector strength, seasonal tailwinds support bullish thesis into summer months.
+
+---
+
+## Flagged for Manual Options Chain Review
+All three tickers above meet conviction threshold (≥65/100). **Action required:** Pull actual IV rank and options chain data from Alpaca to confirm:
+- IV rank <50%
+- Bull call spread availability
+- R:R ratio ≥1.5:1
+
+**Rejected tickers:** RIVN, NIO (high volatility risk), GRAB, BARK (low liquidity concerns), VALE (neutral technical setup)
+
+---
+*Awaiting options data for final trade recommendations.*
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-05-04 08:00 Bangkok
+
+RIVN: $15.03
+NIO: $5.92
+F: $11.88
+MARA: $11.45
+GRAB: $3.67
+BARK: $9.62
+VALE: $16.18
+AAL: $11.85
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-05-04 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**RIVN** | $15.03 | 58/100 | MONITOR
+Reason: EV sector momentum but needs IV rank confirmation below 50%.
+
+**NIO** | $5.92 | 52/100 | PASS
+Reason: Price attractive but Chinese EV headwinds reduce conviction threshold.
+
+**F** | $11.88 | 48/100 | PASS
+Reason: Traditional auto lacks catalyst; sideways consolidation pattern expected.
+
+**MARA** | $11.45 | 62/100 | MONITOR
+Reason: Bitcoin correlation volatile; needs manual IV verification before entry.
+
+**GRAB** | $3.67 | 45/100 | PASS
+Reason: Southeast Asia exposure but liquidity concerns on options chain.
+
+**BARK** | $9.62 | 38/100 | PASS
+Reason: Pet sector stable but no technical setup for directional play.
+
+**VALE** | $16.18 | 55/100 | MONITOR
+Reason: Commodity exposure interesting but requires iron ore price trend confirmation.
+
+**AAL** | $11.85 | 51/100 | PASS
+Reason: Airlines sector mixed signals; fuel costs pressuring margins currently.
+
+---
+
+## Summary
+**NO QUALIFYING TRADES TODAY**
+
+*All tickers require manual IV rank verification from Alpaca options chain. RIVN and MARA closest to threshold - prioritize for detailed options analysis if IV rank <50%.*
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-05-05 08:00 Bangkok
+
+RIVN: $14.51
+NIO: $6.08
+F: $11.49
+MARA: $11.84
+GRAB: $3.63
+BARK: $9.38
+VALE: $15.85
+AAL: $11.82
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-05-05 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**F | $11.49 | 68/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Automotive recovery momentum, price consolidation suggests bullish breakout setup.
+
+**AAL | $11.82 | 66/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Summer travel season approaching, airline sector showing strength post-consolidation.
+
+---
+
+## Rejected Tickers
+
+**RIVN** ($14.51) - 58/100: EV sector volatility elevated, likely IV rank >50%  
+**NIO** ($6.08) - 52/100: Chinese EV headwinds, uncertain catalyst timing  
+**MARA** ($11.84) - 45/100: Crypto correlation too volatile for current strategy  
+**GRAB** ($3.63) - 48/100: Southeast Asia exposure, limited options liquidity concern  
+**BARK** ($9.38) - 42/100: Pet sector softening, no clear bullish catalyst  
+**VALE** ($15.85) - 55/100: Commodity exposure, iron ore price uncertainty  
+
+---
+
+**ACTION REQUIRED:** Manually verify IV rank and options chain for F and AAL before execution.
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-05-06 08:00 Bangkok
+
+RIVN: $14.58
+NIO: $5.91
+F: $11.69
+MARA: $12.15
+GRAB: $3.67
+BARK: $8.96
+VALE: $15.87
+AAL: $12.38
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-05-06 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**RIVN** | $14.58 | 62/100 | MONITOR
+Reason: EV sector volatility elevated, needs IV rank verification before entry.
+
+**NIO** | $5.91 | 58/100 | PASS
+Reason: Chinese EV headwinds, insufficient conviction for capital deployment today.
+
+**F** | $11.69 | 55/100 | PASS
+Reason: Traditional auto transition slow, lacking near-term bullish catalyst.
+
+**MARA** | $12.15 | 68/100 | **FLAG FOR MANUAL REVIEW**
+Reason: Bitcoin correlation strong, potential bull setup pending IV confirmation.
+
+**GRAB** | $3.67 | 52/100 | PASS
+Reason: Southeast Asia growth priced in, no immediate technical setup.
+
+**BARK** | $8.96 | 48/100 | PASS
+Reason: Pet sector stable but lacking momentum for spread entry.
+
+**VALE** | $15.87 | 60/100 | MONITOR
+Reason: Commodity exposure interesting but needs iron ore price confirmation.
+
+**AAL** | $12.38 | 64/100 | MONITOR
+Reason: Travel demand solid, just below conviction threshold for entry.
+
+---
+
+## Summary
+**NO QUALIFYING TRADES TODAY**
+
+One ticker (MARA) flagged for manual IV rank verification. If IV rank <50% and options chain shows favorable spread pricing with 1.5:1+ R:R, consider bull call spread. Recommend checking 30-45 DTE strikes.
+
+*Discipline maintained. Waiting for optimal setups.*
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-05-07 08:00 Bangkok
+
+RIVN: $14.48
+NIO: $5.91
+F: $12.16
+MARA: $13.03
+GRAB: $3.77
+BARK: $8.96
+VALE: $16.49
+AAL: $12.94
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-05-07 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**RIVN** | $14.48 | 62/100 | MONITOR
+Reason: EV sector consolidating, but needs IV rank confirmation before entry.
+
+**NIO** | $5.91 | 58/100 | PASS
+Reason: Price too weak, lacks technical setup for bullish spread.
+
+**F** | $12.16 | 55/100 | PASS
+Reason: Range-bound action, insufficient directional conviction for bull spread.
+
+**MARA** | $13.03 | 68/100 | **FLAG FOR MANUAL REVIEW**
+Reason: Bitcoin correlation strong, technical setup favorable if IV cooperative.
+
+**GRAB** | $3.77 | 52/100 | PASS
+Reason: Low price lacks option liquidity for efficient spread execution.
+
+**BARK** | $8.96 | 48/100 | PASS
+Reason: Meme stock volatility unpredictable, insufficient edge for disciplined entry.
+
+**VALE** | $16.49 | 60/100 | MONITOR
+Reason: Commodity play showing strength but needs IV verification.
+
+**AAL** | $12.94 | 64/100 | MONITOR
+Reason: Travel sector momentum building, one point below conviction threshold.
+
+---
+
+## Summary
+**NO QUALIFYING TRADES TODAY**
+
+One ticker (MARA) flagged for manual options chain review. Conviction at 68/100 pending IV rank confirmation under 50%. Recommend pulling live IV data before execution.
+Scan complete - report sent to Telegram
+Starting scan at 08:00 Bangkok
+Market scan 2026-05-08 08:00 Bangkok
+
+RIVN: $14.19
+NIO: $5.88
+F: $12.18
+MARA: $12.7
+GRAB: $3.77
+BARK: $9.22
+VALE: $16.19
+AAL: $13.19
+
+Prices retrieved: 8/8
+Note: Options chain data requires manual pull from Alpaca.
+Use knowledge-based IV estimates. Flag for manual review if conviction above 65.
+Calling Claude...
+Analysis: # NOVA Market Scan Report
+**Date:** 2026-05-08 08:00 Bangkok  
+**Account:** $3,000 | **Max Risk:** $60 | **Max Price:** $30
+
+---
+
+## Analysis Results
+
+**F | $12.18 | 68/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Automotive recovery momentum, price consolidation suggests bullish breakout setup.
+
+**AAL | $13.19 | 66/100 | FLAG FOR MANUAL REVIEW**  
+Reason: Summer travel season approaching, airline sector showing strength post-consolidation.
+
+---
+
+## Rejected Tickers
+
+**RIVN** ($14.19) - 58/100: EV sector volatility typically high IV, needs chain verification  
+**NIO** ($5.88) - 52/100: Chinese EV uncertainty, prefer domestic exposure  
+**MARA** ($12.7) - 45/100: Crypto correlation too volatile for current strategy  
+**GRAB** ($3.77) - 42/100: Southeast Asia exposure, liquidity concerns  
+**BARK** ($9.22) - 38/100: Small cap, likely wide spreads  
+**VALE** ($16.19) - 55/100: Commodity play, IV likely elevated  
+
+---
+
+**ACTION REQUIRED:** Pull options chains for F and AAL to verify IV rank <50% and confirm bull call spread pricing meets 1.5:1 R:R minimum.
+Scan complete - report sent to Telegram

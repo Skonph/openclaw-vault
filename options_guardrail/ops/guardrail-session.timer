@@ -1,0 +1,12 @@
+[Unit]
+Description=Launch the Guardrail Session manager at the US open
+
+[Timer]
+# 14:15 UTC ~ 45 mins after RTH open during DST, or 15 mins before open during EST.
+# Aligned to start after the intraday strategist run (14:10 UTC).
+# The session process self-terminates when flat.
+OnCalendar=Mon-Fri *-*-* 14:15:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

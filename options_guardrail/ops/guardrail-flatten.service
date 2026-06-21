@@ -1,0 +1,13 @@
+[Unit]
+Description=Guardrail flatten-all (force-close open positions before US close)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=guardrail
+WorkingDirectory=/home/ubuntu/guardrail
+EnvironmentFile=/home/ubuntu/guardrail/.env
+ExecStart=/home/ubuntu/guardrail/venv/bin/python /home/ubuntu/guardrail/flatten_all.py
+StandardOutput=append:/home/ubuntu/guardrail/logs/session.log
+StandardError=append:/home/ubuntu/guardrail/logs/session.log

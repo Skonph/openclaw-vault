@@ -1,0 +1,14 @@
+[Unit]
+Description=Guardrail Strategist run (Opus -> session plan JSON)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/guardrail
+EnvironmentFile=/home/ubuntu/guardrail/.env
+ExecStart=/home/ubuntu/guardrail/run.sh strategist_run.py --context /home/ubuntu/guardrail/data/context.json
+StandardOutput=append:/home/ubuntu/guardrail/logs/strategist.log
+StandardError=append:/home/ubuntu/guardrail/logs/strategist.log
+ExecStartPre=-/home/ubuntu/guardrail/run.sh context_builder.py --watchlist SPY,QQQ,IWM

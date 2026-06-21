@@ -1,0 +1,12 @@
+{
+  "_README": "Copy this to data/manual_calendar.json and update WEEKLY from IBKR. Keys are session dates (YYYY-MM-DD, US calendar). A date present (even []) is authoritative for that day; a date you omit falls back to FRED automatically. impact: low|medium|high. Times are free text (e.g. '08:30 ET').",
+  "2026-06-06": [
+    {"time": "08:30 ET", "event": "Nonfarm Payrolls", "impact": "high", "estimate": 175000, "previous": 177000},
+    {"time": "08:30 ET", "event": "Unemployment Rate", "impact": "high", "estimate": 4.2, "previous": 4.2}
+  ],
+  "2026-06-09": [],
+  "2026-06-11": [
+    {"time": "08:30 ET", "event": "CPI MoM", "impact": "high", "estimate": 0.3, "previous": 0.2},
+    {"time": "14:00 ET", "event": "FOMC Rate Decision", "impact": "high"}
+  ]
+}

@@ -7,13 +7,17 @@
 
 ## 1. System Overview
 
-A fully autonomous paper options trading bot running on an Ubuntu server (`ubuntu@43.160.222.7`).
+A fully autonomous paper options trading bot running on an Ubuntu server (`ubuntu@43.156.9.185`).
 It scans the market each morning, selects the best-fit credit spread strategy,
 auto-executes the trade on Tradier's sandbox API, monitors positions intraday
 for exit triggers, and reports everything to Telegram.
 
 **Goal:** Grow a $2,000 benchmark capital through defined-risk credit spread strategies.  
-**Status:** Live and scanning. Risk size limit cut to 5% ($100 max risk per trade) in `daily_scan.py` to accelerate metrics convergence. End-to-end exit test remains open.
+**Status:** Live and scanning. Risk size limit cut to 5% ($100 max risk per trade) in `daily_scan.py` to accelerate metrics convergence. `position_monitor.py --test` exit-rule diagnostics (6/6 scenarios) verified 2026-06-13. `active_trades.json` cleared of stale `TEST-AUTO-001` dev placeholders (confirmed via sandbox `/positions` -> null — no real open positions). Stale `pending_trade.json` (root cause of the prior `r.json()` crash) removed and error-handling hardened. Next real entry from `daily_scan.py` (Tue–Thu 21:15 ICT) + the following `position_monitor.py` cycle is the true end-to-end exit-test verification — still the open item.
+
+**Zero-real-fills diagnosis + observability fix (2026-06-18):** Confirmed `order_status:"simulated"` is **purely the `--test` argv flag** (`TEST_MODE = "--test" in sys.argv`), NOT a stuck live/sim toggle — there is no live flag to flip. The live cron (`run_scan.sh`, no args) runs live; every `simulated`/`TEST-AUTO-001` row in `trade_log.jsonl` is a leftover from manual `--test` dev runs (May 31–Jun 6). No `executed_*.json` has ever been created (the success path that archives `pending_trade.json` → `executed_*.json` has never fired). Root cause of the "11+ cycles, no fill" appearance: **no-trade outcomes logged nothing**, so a healthy "declined today" run looked identical to a silent crash. (The proxy `403 Forbidden` in trade_log lines 6–7 was an environmental artifact from a proxy-locked sandbox, NOT the production box.) **Fix:** added `log_scan_heartbeat()` — every *live* run now appends one `{"type":"scan","result":"no_trade","reason":...}` line (reason ∈ calendar_skip | position_limit | cash | pass | no_qualifying_spread) with regime/SPY/VIX; suppressed in `--test`. `daily_summary.py` patched to ignore `type=="scan"` records (won't inflate entry counts). Verified by `test_scan_heartbeat.py` (10/10). **The next Tue–Thu cron (Jun 23–25) is now self-verifying:** it leaves either a real fill (`executed_*.json` + entry) or a logged decline reason. ✅ **VERIFIED LIVE 2026-06-18 night:** the 21:15 cron printed `📡 Shared market_context applied (regime moderate, VIX 17.14, SPY 0.77%)`, routed to Bull Put Spread, found no qualifying spread, and wrote a heartbeat (`{"type":"scan","date":"2026-06-18","reason":"no_qualifying_spread",...}`). Shared-context consumer + heartbeat both confirmed working end-to-end in the real cron.
+
+**Server diagnostic findings + live-position fix (2026-06-18 PM):** Live server check confirmed the cron runs LIVE (real data, exit 0; the Jun-17 blank was a correct `CALENDAR SKIP` for FOMC), sandbox reachable (HTTP 200), crontab clean (no `--test`). **Discovered a real open position:** 3× SPY 695/700 bull put spread (exp 2026-06-26, short 700P/long 695P), unrealized **−$213**, origin manual/legacy (no `executed_*.json`, no trade_log record) — so a real multileg fill DID work, just was never archived. **Two bugs fixed:** (1) `active_trades.json` on the server was **malformed** (unquoted keys, from a hand-reconcile) → `position_monitor.py` crashed on `json.load()`, leaving the live position **UNMANAGED**. Rewrote it as valid JSON (values preserved). (2) Hardened `load_active()` to **fail loud** (Telegram alert + `SystemExit`) on unreadable JSON instead of crashing or silently reporting "no active trades". Verified the monitor now HOLDS the position (`$0.75 cost-to-close < $2.50 stop`, no false trigger) — `test_load_active_safety.py` (4/4). ⚠️ **Risk note:** this position's max loss ≈ $1,488 (3× $5-wide) vs the `MAX_RISK=$100` policy — it did NOT come from `daily_scan` (which only builds $1-wide). It's deep OTM / 8 DTE / likely to expire worthless, and now monitor-managed (stop $2.50, time-stop ≤2 DTE), but the operator should decide whether to let it ride or manually trim the oversized risk. `entry_credit:0.04` is nominal (cosmetic P&L only; no exit trigger depends on it).
 
 ---
 
@@ -21,7 +25,7 @@ for exit triggers, and reports everything to Telegram.
 
 | Component | Detail |
 |---|---|
-| Ubuntu server | `ubuntu@43.160.222.7` |
+| Ubuntu server | `ubuntu@43.156.9.185` |
 | Working directory | `~/trading-bot/` |
 | Python venv | `~/trading-bot/venv/bin/python3` |
 | systemd service | `tradier-bot.service` (runs `telegram_bot.py` always-on) |
@@ -126,11 +130,19 @@ Schedules are configured in ICT (Bangkok Time, UTC+7), which corresponds to New 
 | Exit Rule | Trigger | Order type |
 |---|---|---|
 | Combined Profit Target | Cost to close combined spreads ≤ 50% of entry credit | Limit |
+| Profit Lock (21 DTE) | DTE ≤ 21 AND cost to close ≤ 75% of entry credit (≥25% captured), but above the 50% target | Limit |
 | Threatened IC Wing Stop | Individual wing cost to close ≥ 2× entry wing credit | Market (Partial exit, unthreatened wing remains open) |
 | Standard Stop Loss | Cost to close spread ≥ 2× entry credit | Market |
 | Time Stop | DTE ≤ 2 | Market |
 
 *Evaluator handles single-wing scenarios when one wing has already been stopped out.*
+
+*Priority order: Time Stop > Stop Loss > Profit Target > Profit Lock. The 21 DTE
+profit lock only fires for standard 2-leg spreads and Iron Condors with both
+wings still open — it banks a decent partial win (≥25% of credit) before gamma
+risk accelerates in the final weeks, even if the trade hasn't hit the full 50%
+target yet. Tunable via `PROFIT_LOCK_DTE` (21) and `PROFIT_LOCK_MIN_CAPTURE`
+(0.25) at the top of `position_monitor.py`.*
 
 ---
 
@@ -168,16 +180,27 @@ Schedules are configured in ICT (Bangkok Time, UTC+7), which corresponds to New 
 - [x] Resolved multileg order type parameter mismatch (using credit/debit instead of limit)
 - [x] Implemented robust JSON parse error handling for API endpoints
 - [x] Reduced risk size limit (`MAX_RISK = 100`) in `daily_scan.py` to target 5% risk per trade on $2k capital.
+- [x] Profit-lock exit rule at 21 DTE (≥25% of credit captured) — `position_monitor.py`, local `--test` suite now 10/10 (2026-06-13)
+- [x] No-trade scan heartbeat — `log_scan_heartbeat()` in `daily_scan.py` makes every live cron run observable in `trade_log.jsonl`; `daily_summary.py` filters `type=="scan"`; `test_scan_heartbeat.py` 10/10 (2026-06-18)
 
 ---
 
 ## 9. Pending Improvements (Priority Order)
 
 ### 🔴 Verify before next trade
-1. **End-to-end exit test** — Once first trade is live, verify position_monitor.py correctly detects it in active_trades.json and submits BTC on exit trigger. Run `python3 position_monitor.py --test` to diagnostic check.
+1. **End-to-end exit test** — `python3 position_monitor.py --test` diagnostics pass (6/6 scenarios, 2026-06-13). `active_trades.json` cleared to `[]` (was holding 2 stale `TEST-AUTO-001` dev entries; sandbox `/positions` confirmed null). Remaining: once `daily_scan.py`'s next Tue–Thu run produces a real fill in `active_trades.json`, confirm `position_monitor.py` detects it on its next 21:30/00:00/02:30 ICT cycle and submits a real BTC on exit trigger.
+   - **Verification mechanism (2026-06-18):** the scan heartbeat now records every live decline, so the diagnostic is: after a Tue–Thu cron, check `trade_log.jsonl` for either (a) a real entry + `executed_*.json` (→ proceed to monitor/exit verification), or (b) a `{"type":"scan",...}` line giving the decline reason (→ system healthy, just no setup). Before trusting any of this, run the server diagnostic once to confirm recent dated logs end in `PASS today` rather than a traceback/HTTP error on the order POST. Deploy: `scp daily_scan.py daily_summary.py test_scan_heartbeat.py ubuntu@43.156.9.185:~/trading-bot/` then run `test_scan_heartbeat.py` on the box.
 
 ### 🟠 Phase 2 — implement after first profitable trade
-2. **Profit lock at 21 DTE** — If a trade entered at 28 DTE reaches 50% profit before 14 DTE, close it and look for a fresh entry at current IV.
+2. ~~**Profit lock at 21 DTE**~~ — ✅ Done 2026-06-13. Added a new `profit_lock_dte`
+   exit rule: at DTE ≤ 21, if the position has captured ≥25% of entry credit but
+   hasn't yet hit the full 50% profit target, close it at limit and free capital
+   for redeployment rather than holding through the high-gamma final weeks.
+   (Note: the original wording — "50% profit before 14 DTE" — already overlaps
+   with the existing always-on Combined Profit Target rule, which fires at any
+   DTE. The real gap was *partial* profits near 21 DTE that fell short of 50%;
+   that's what this new rule covers.) Local `--test` suite expanded from 6 to
+   10 scenarios (all passing) — see §8.
 
 ### 🟡 Phase 2 — operational improvements
 3. **Email backup notification** — If Telegram fails to send, fall back to Gmail via SMTP. Add `GMAIL_USER` and `GMAIL_APP_PASSWORD` to `.env`.
@@ -188,7 +211,34 @@ Schedules are configured in ICT (Bangkok Time, UTC+7), which corresponds to New 
 ### 🟢 Phase 3 — strategy expansion
 7. **Cash-secured put wheel** — After a bull put spread expires worthless, sell a naked OTM put at the same strike for the next expiry. Graduate to this once 10 spreads completed.
 8. **Calendar spread on earnings** — Sell front-month ATM call, buy next-month same strike. Run on SPY around FOMC weeks when term structure is inverted.
-9. **Backtesting module** — Replay daily_scan.py against historical data to measure expected win rate and optimal credit floor threshold.
+9. **Backtesting module** — ✅ **DONE (2026-06-13)**. `Tradier/backtest.py` replays `daily_scan.py`'s entry filters (day-of-week, SMA20 trend, VIX-regime routing via a realized-vol proxy, 10–28 DTE, delta 0.10–0.35, widths $1–$10, MAX_RISK=$100, MAX_POSITIONS=2) and `position_monitor.py`'s exit rules (50% PT, 21-DTE profit lock, 2x stop, time stop, IC wing stop) against ~2 years of real SPY/QQQ/IWM daily closes (Black-Scholes pricing, IV = 20-day realized vol × 1.2). Results in `Tradier/backtest_results.json`.
+
+   **Headline results (501 trading days, 2024-06-13 → 2026-06-12, $2,000 start):**
+   - 126 trades, **73.0% win rate**, **+$405.75 P&L (+20.3%)**, max drawdown **$173.88 (8.7%)**.
+   - By strategy: Bull Put Spread 84.2% WR / +$409 (82 trades, the workhorse). Iron Condor 44.0% WR / +$57 (25 trades, high variance — 14/25 hit the threatened-wing stop). Bear Call Spread 63.2% WR / **-$60** (19 trades, net losing despite a positive win rate — losses run larger than wins).
+   - Exit mix: profit_lock 77, stop_loss 17, ic_wing_stop 14, profit_target 13, time_stop 3.
+
+   **Credit-floor sweep (10% / 15% / 20% / 25% of width) — RESULT: IDENTICAL across all four thresholds.**
+   Cause: under MAX_RISK=$100, every selected spread came back **$1-wide** (100% of 126 trades) — wider spreads almost always blow past the $100 max-loss cap. For a $1-wide spread, `max(0.30, width*pct%)` = **$0.30 for every pct in 10–25%** (since even 25% of $1 = $0.25 < $0.30). The absolute $0.30 floor dominates and the relative percentage never binds. **No threshold change is needed/possible without also raising MAX_RISK** (to allow $2+ wide spreads, where the relative floor would start to matter) or removing the $0.30 absolute floor.
+
+   **Secondary finding (dynamic 2-contract sizing):** the "VIX>20 & score>0.30 → qty=2" rule in `construct_*_spread()` never fired in the backtest — $1-wide spread scores (credit/max_loss) cap out around 0.005–0.015, far below the 0.30 threshold. As written, this sizing rule was effectively dead code for the current $1-wide regime.
+
+10. **Dynamic 2-contract sizing threshold fix** — ✅ **DONE (2026-06-13), deployed to server.** Replaced the dead `score > 0.30` / `combined_score > 0.30` checks in `construct_bull_put_spread`, `construct_bear_call_spread`, and `construct_iron_condor` with two new module-level constants:
+    - `DYNAMIC_SIZING_SCORE_THRESHOLD = 0.010` (bull put / bear call)
+    - `DYNAMIC_SIZING_SCORE_THRESHOLD_IC = 0.020` (iron condor, sum of put+call leg scores)
+
+    The rule now fires on above-average-credit days (≈≥$0.50 net credit on a $1-wide spread, where `max_loss ≈ $50` and the existing `2×max_loss ≤ MAX_RISK` risk cap can still pass) when VIX > 20 — both the VIX gate and the risk-cap gate remain enforced exactly as before. Local test `Tradier/test_dynamic_sizing.py` (10/10 passing) covers: regression (old threshold never fires), new threshold firing/not-firing, VIX gate, and risk-cap gate. Deployed via `scp daily_scan.py ubuntu@43.156.9.185:~/trading-bot/daily_scan.py`; `--test --construct` smoke-tested clean on the server post-deploy.
+
+   **Caveats:** IV is a 20-day realized-vol proxy (×1.2), not live VIX/chain IV (VIX history unavailable from the data feed); each of SPY/QQQ/IWM routes off its own momentum/SMA/vol rather than SPY driving all three as in production; Iron Condor "threatened wing" closes the whole position rather than partial-exiting one side. Treat absolute P&L as directional, not exact — the win-rate/exit-mix patterns and the credit-floor finding are the actionable takeaways.
+
+11. **Tier-3 "high conviction" sizing (Improvement #5)** — ✅ **DONE (2026-06-13).** Added a qty=3 tier on top of the existing qty=2 rule in `construct_bull_put_spread`, `construct_bear_call_spread`, and `construct_iron_condor`:
+    - `DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3 = 0.018` (bull put / bear call) — fires when VIX>20 and `3 * max_loss <= MAX_RISK_TIER3`.
+    - `DYNAMIC_SIZING_SCORE_THRESHOLD_IC_TIER3 = 0.032` (iron condor, sum of put+call leg scores).
+    - `MAX_RISK_TIER3 = 150` — a raised risk ceiling used **only** for the tier-3 check (vs. `MAX_RISK = 100` for tier-2's `2*max_loss` check). Without this, 3x the standard $50 max_loss cap (=$150) would be unreachable under the old $100 ceiling.
+
+    Score 0.018 corresponds to roughly $0.63 net credit on a $1-wide spread (max_loss≈$37) — an exceptionally rich-credit day, well above the tier-2 bar (0.010 ≈ $0.50 credit). The evaluation order is tier-3 → tier-2 → tier-1 (qty=1 default), so all three gates (VIX, score, risk cap) remain enforced at each tier. Local test `Tradier/test_dynamic_sizing.py` expanded to 19/19 passing (adds tier-3 firing/not-firing, VIX gate, and risk-cap-gate cases for both single-leg and IC). `--test --construct` smoke-tested clean post-edit.
+
+    **Note:** in the Improvement #4 backtest, no $1-wide trade reached score≥0.018 (max observed was ~0.0122), so tier-3 is expected to fire rarely — by design, it's reserved for unusually high-IV/high-credit days.
 
 ---
 
@@ -202,11 +252,11 @@ scp ~/AI_Prompt/Obsidient/SkonVault/Tradier/daily_scan.py \
     ~/AI_Prompt/Obsidient/SkonVault/Tradier/telegram_bot.py \
     ~/AI_Prompt/Obsidient/SkonVault/Tradier/position_monitor.py \
     ~/AI_Prompt/Obsidient/SkonVault/Tradier/daily_summary.py \
-    ubuntu@43.160.222.7:~/trading-bot/
+    ubuntu@43.156.9.185:~/trading-bot/
 
 # Restart bot after telegram_bot.py changes
-ssh ubuntu@43.160.222.7 'sudo systemctl restart tradier-bot'
-ssh ubuntu@43.160.222.7 'python3 ~/trading-bot/position_monitor.py --test'
+ssh ubuntu@43.156.9.185 'sudo systemctl restart tradier-bot'
+ssh ubuntu@43.156.9.185 'python3 ~/trading-bot/position_monitor.py --test'
 ```
 
 ---
@@ -230,22 +280,22 @@ ssh ubuntu@43.160.222.7 'python3 ~/trading-bot/position_monitor.py --test'
 
 ```bash
 # Check what's running
-ssh ubuntu@43.160.222.7 'sudo systemctl status tradier-bot --no-pager'
+ssh ubuntu@43.156.9.185 'sudo systemctl status tradier-bot --no-pager'
 
 # View today's scan
-ssh ubuntu@43.160.222.7 "cat ~/trading-bot/logs/$(date +%Y-%m-%d).log"
+ssh ubuntu@43.156.9.185 "cat ~/trading-bot/logs/$(date +%Y-%m-%d).log"
 
 # Check active trades
-ssh ubuntu@43.160.222.7 'cat ~/trading-bot/active_trades.json'
+ssh ubuntu@43.156.9.185 'cat ~/trading-bot/active_trades.json'
 
 # View trade history
-ssh ubuntu@43.160.222.7 'cat ~/trading-bot/trade_log.jsonl'
+ssh ubuntu@43.156.9.185 'cat ~/trading-bot/trade_log.jsonl'
 
 # Tail monitor log
-ssh ubuntu@43.160.222.7 'tail -30 ~/trading-bot/logs/monitor.log'
+ssh ubuntu@43.156.9.185 'tail -30 ~/trading-bot/logs/monitor.log'
 
 # Run exit diagnostics test
-ssh ubuntu@43.160.222.7 'python3 ~/trading-bot/position_monitor.py --test'
+ssh ubuntu@43.156.9.185 'python3 ~/trading-bot/position_monitor.py --test'
 ```
 
 ---
@@ -259,4 +309,6 @@ ssh ubuntu@43.160.222.7 'python3 ~/trading-bot/position_monitor.py --test'
 
 ---
 
-*Last updated: June 13, 2026 | Built with Claude & Gemini via Cowork*
+**2026-06-19 — $15k PRIMARY-ACCOUNT SCALING (graduation: Tradier = lead live platform).** Risk sizing scaled from the $2k design to a $15k account at **2% per-trade**: `MAX_RISK $200→$300` (2% of $15k; allows $2–3-wide spreads), `MAX_RISK_TIER3 $150→$450` (qty-3 ceiling = 1.5× MAX_RISK — also fixes the earlier bug where TIER3 $150 < MAX_RISK $200 made qty-3 unreachable), `MAX_POSITIONS 2→5`, `STARTING_CAPITAL →$15000`. Portfolio risk is bounded by construction: 5 positions × $450 = **$2,250 = 15% of $15k** (no separate summation gate needed). Tests: `test_tradier_scaling.py` 7/7; `test_dynamic_sizing.py` updated to new constants 19/19. **⚠️ RE-VALIDATE THE BACKTEST:** the +20.3%/73%-WR backtest was run at `MAX_RISK=100`/all-$1-wide; at $300 the scanner can now pick $2–3-wide spreads (different credit-floor + score regime), so those numbers DO NOT carry over — re-run `backtest.py` at the new settings before trusting. **Server:** also set `STARTING_CAPITAL=15000` in `~/trading-bot/.env` (code default is 15000 but `.env` overrides). Deploy: `scp daily_scan.py test_tradier_scaling.py test_dynamic_sizing.py → ~/trading-bot/`. Graduation scorecard already points its primary capital at Tradier ($15k); OpenClaw/guardrail remain secondary/paper.
+
+*Last updated: June 19, 2026 (heartbeat + position-monitor hardening + shared-context consumer, all deployed & verified live 2026-06-18 night; $15k/2% primary-account scaling 2026-06-19) | Built with Claude & Gemini via Cowork*

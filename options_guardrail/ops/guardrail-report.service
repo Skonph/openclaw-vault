@@ -1,0 +1,13 @@
+[Unit]
+Description=Guardrail daily report (trade log -> Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/guardrail
+EnvironmentFile=/home/ubuntu/guardrail/.env
+ExecStart=/home/ubuntu/guardrail/run.sh daily_report.py
+StandardOutput=append:/home/ubuntu/guardrail/logs/report.log
+StandardError=append:/home/ubuntu/guardrail/logs/report.log

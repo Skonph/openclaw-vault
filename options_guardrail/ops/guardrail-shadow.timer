@@ -1,0 +1,12 @@
+[Unit]
+Description=Shadow report shortly after the strategist runs (interim, pre-IBKR)
+
+[Timer]
+# A few minutes after the strategist (08:30 UTC). Posts the market snapshot +
+# what the system WOULD trade. Retire this once the live session manager is on.
+OnCalendar=Mon-Fri *-*-* 08:45:00 UTC
+OnCalendar=Mon-Fri *-*-* 14:15:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

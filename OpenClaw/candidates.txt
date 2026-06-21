@@ -6,6 +6,12 @@
 # Hard filtering handled by scanner: Price $10-40, IV Last ≤45%, OI ≥500,
 #          Bid-ask ≤$0.10, Events ±14d ban, Conviction ≥75
 #
+# ⚠ POSITION LIMIT GATE (as of 2026-06-13): OpenClaw has 1 open position
+#   (TOST Iron Condor, exp 2026-07-17, unrealized -$44 — see 04_Trade_Journal.md
+#   Trade 5 / OPENCLAW_CONTEXT.md §10). Per 02_Ruleset_v4.md "Max Positions: 1
+#   at a time", DO NOT enter any new trade from this list until TOST closes
+#   (expiry or stop). Re-enable scanning once TOST position is closed.
+#
 # ── From bull call screen (Price/EMA positive, IV Rank low) ───────────────────
 SIRI
 CZR
@@ -24,7 +30,8 @@ CHWY
 CMG
 CPNG
 S
-TOST
+# TOST — removed 2026-06-13: currently an OPEN position (IC, exp 2026-07-17,
+#        unrealized -$44). Do not re-enter; see position-limit gate above.
 #
 # ── From previous screen (all strategies, scanner determines direction) ────────
 XPEV
@@ -52,6 +59,14 @@ DKNG
 # NCLH  — IV too high, same thesis as CCL
 # AAL   — IV too high, recheck when IV rank drops
 # PR    — KNOWN_HOLD until Jun 17 (dividend Jun 16)
+#
+# ── 2026-06-13 IBKR screen hits — fail IV_LAST_MAX=45%, recheck when IV drops ──
+# PINS  ~$20.28  IV 48.9%, mkt cap $12.0B, -5.67% today — closest to threshold
+# RIG   ~$6.05   IV 49.5%, mkt cap $6.7B — also below $10 price floor
+# U     ~$27.16  IV 66.2%, mkt cap $11.7B — well above IV cap
+# LYFT  ~$13.52  IV 50.1%, mkt cap $5.2B
+# IBRX  ~$7.10   IV 90.4%, mkt cap $7.5B — also below $10 price floor
+# PTON  ~$5.55   IV 55.4%, mkt cap $2.4B — also below $10 price floor
 #
 # ── 2026-06-06 Refresh notes ──────────────────────────────────────────────────
 # CLF   ~$14  steel, GM supplier award (bullish), decent option liquidity
