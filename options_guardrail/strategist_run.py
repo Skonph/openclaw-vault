@@ -64,7 +64,39 @@ def _openrouter_caller(api_key: str) -> ModelCaller:
     return call
 
 
+def _tokenhub_caller(api_key: str) -> ModelCaller:
+    """OpenAI-compatible completions via Tencent Cloud TokenHub."""
+    import urllib.request
+    
+    def call(system_prompt: str, user_content: str, model: str) -> str:
+        active_model = model or "deepseek-v4-flash"
+        body = json.dumps({
+            "model": active_model,
+            "max_tokens": 4000,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            "temperature": 0.1
+        }).encode()
+        req = urllib.request.Request(
+            "https://tokenhub.tencentmaas.com/v1/chat/completions", data=body,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=120) as r:
+            resp = json.loads(r.read().decode())
+        return resp["choices"][0]["message"]["content"]
+    return call
+
+
 def caller_from_config(cfg: Config) -> ModelCaller:
+    if cfg.strategist_provider == "tokenhub":
+        if not cfg.tokenhub_api_key:
+            raise RuntimeError("TOKENHUB_API_KEY not set")
+        return _tokenhub_caller(cfg.tokenhub_api_key)
     if cfg.strategist_provider == "openrouter":
         if not cfg.openrouter_api_key:
             raise RuntimeError("OPENROUTER_API_KEY not set")

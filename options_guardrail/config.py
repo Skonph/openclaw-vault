@@ -23,7 +23,7 @@ def _get(name: str, default: str | None = None, required: bool = False) -> str |
 @dataclass
 class Config:
     # --- strategist model access ---
-    strategist_provider: str            # "openrouter" or "anthropic"
+    strategist_provider: str            # "openrouter", "anthropic" or "tokenhub"
     anthropic_api_key: str | None
     openrouter_api_key: str | None
     strategist_model: str
@@ -55,6 +55,7 @@ class Config:
     equity: float
     data_dir: Path
     market_data_provider: str = "ibkr"
+    tokenhub_api_key: str | None = None
 
     @staticmethod
     def load() -> "Config":
@@ -62,12 +63,16 @@ class Config:
         data_dir = Path(_get("GUARDRAIL_DATA_DIR", str(here / "data")))
         data_dir.mkdir(parents=True, exist_ok=True)
 
+        tokenhub_key = _get("TOKENHUB_API_KEY")
         openrouter_key = _get("OPENROUTER_API_KEY")
         anthropic_key = _get("ANTHROPIC_API_KEY")
-        # auto-detect provider unless explicitly set; prefer OpenRouter if present
+        # auto-detect provider unless explicitly set; prefer TokenHub, then OpenRouter
         provider = _get("STRATEGIST_PROVIDER",
-                        "openrouter" if openrouter_key else "anthropic").lower()
-        default_model = ("anthropic/claude-haiku-4.5" if provider == "openrouter"
+                        "tokenhub" if tokenhub_key
+                        else "openrouter" if openrouter_key
+                        else "anthropic").lower()
+        default_model = ("deepseek-v4-flash" if provider == "tokenhub"
+                         else "anthropic/claude-haiku-4.5" if provider == "openrouter"
                          else "claude-haiku-4-5")
         # equity: GUARDRAIL_EQUITY wins, else fall back to STARTING_CAPITAL
         equity = float(_get("GUARDRAIL_EQUITY") or _get("STARTING_CAPITAL", "100000"))
@@ -86,6 +91,7 @@ class Config:
             anthropic_api_key=anthropic_key,
             openrouter_api_key=openrouter_key,
             strategist_model=_get("STRATEGIST_MODEL", default_model),
+            tokenhub_api_key=tokenhub_key,
             strategist_prompt_path=Path(
                 _get("STRATEGIST_PROMPT_PATH", str(here / "strategist_prompt.md"))),
             telegram_token=_get("TELEGRAM_BOT_TOKEN"),

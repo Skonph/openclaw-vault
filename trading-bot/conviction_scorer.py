@@ -290,12 +290,100 @@ Respond ONLY with this JSON:
         return None
 
 
+def _score_tokenhub(alert: dict, macro: dict) -> dict | None:
+    """
+    Call Tencent Cloud TokenHub (OpenAI compatible) for conviction scoring.
+    """
+    api_key = os.environ.get('TOKENHUB_API_KEY', '')
+    if not api_key:
+        return None
+
+    model = os.environ.get('TOKENHUB_MODEL', 'deepseek-v4-flash')
+
+    try:
+        import urllib.request
+        import json
+
+        spread_type = alert.get('spread_type', 'bull_call')
+        type_label  = 'Bull Call' if spread_type == 'bull_call' else 'Bear Put'
+        vix  = (macro.get('VIX') or {}).get('price', 'N/A')
+        spy  = (macro.get('SPY') or {}).get('change_pct', 'N/A')
+
+        prompt = f"""You are the OpenClaw conviction scorer. Score this options spread 0-100.
+Respond with ONLY a JSON object. No explanation outside JSON.
+
+SPREAD:
+- Symbol: {alert['symbol']} ({type_label})
+- Strikes: ${alert['long_strike']} / ${alert['short_strike']}
+- Expiry: {alert.get('expiry', 'N/A')} ({alert['dte']} DTE)
+- Net Debit/Credit: ${alert['spread_mid']} | Max Profit: ${alert['max_profit']} | R:R: {alert['rr']}:1
+- IV (long/short): {alert['long_iv']}% / {alert['short_iv']}%
+- Stock Price: ${alert.get('price', 'N/A')}
+- ETF above EMA20: {alert.get('etf_above_ema20', 'unknown')}
+
+MACRO:
+- VIX: {vix}
+- SPY change: {spy}%
+
+RULES ALREADY PASSED:
+- IV Rank ≤40%, IV Last ≤45%, OI ≥500 both legs, DTE 25-40, bid-ask ≤$0.10/leg
+- Events calendar clear ±14 days, no known holds
+
+SCORING CRITERIA:
+Evaluate the following four standard factors (0-25 points each, total 100):
+1. credit_floor: Premium collected relative to spread width / floor
+2. delta: Safety margin of short strikes (conservative delta)
+3. dte: Proximity to DTE sweet-spot (28-35 days)
+4. macro_alignment: Volatility regime (VIX) and trend (EMA20) alignment
+
+Respond ONLY with this JSON:
+{{"score": 85, "pass": true, "reasoning": "one concise sentence", "factors": {{"credit_floor": 22, "delta": 23, "dte": 20, "macro_alignment": 20}}}}"""
+
+        body = json.dumps({
+            "model": model,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 200,
+            "temperature": 0.1
+        }).encode()
+
+        req = urllib.request.Request(
+            "https://tokenhub.tencentmaas.com/v1/chat/completions",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+        )
+
+        with urllib.request.urlopen(req, timeout=30) as r:
+            resp = json.loads(r.read().decode())
+
+        raw_text = resp["choices"][0]["message"]["content"].strip()
+        if raw_text.startswith('```'):
+            raw_text = raw_text.split('```')[1].lstrip('json').strip()
+
+        result = json.loads(raw_text)
+        return {
+            'symbol':    alert.get('symbol', '?'),
+            'score':     int(result.get('score', 0)),
+            'pass':      bool(result.get('pass', False)),
+            'mode':      'api_tokenhub',
+            'factors':   result.get('factors', {}),
+            'reasoning': result.get('reasoning', ''),
+        }
+    except Exception as e:
+        print(f'  ⚠️  TokenHub API scorer error: {e} — falling back')
+        return None
+
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def score_conviction(alert: dict, macro: dict) -> dict:
     """
     Score a spread alert.
-    Tries Anthropic API first if key is present; falls back to offline scorer.
+    Tries TokenHub first if TOKENHUB_API_KEY is present; falls back to Anthropic API; falls back to offline.
 
     alert: one qualifying spread dict from the scanner
     macro: macro dict from the scan snapshot
@@ -305,11 +393,16 @@ def score_conviction(alert: dict, macro: dict) -> dict:
       'symbol':    'NCLH',
       'score':     78,
       'pass':      True,
-      'mode':      'offline' | 'api',
+      'mode':      'offline' | 'api' | 'api_tokenhub',
       'factors':   {...},
       'reasoning': '...',
     }
     """
+    if os.environ.get('TOKENHUB_API_KEY'):
+        api_result = _score_tokenhub(alert, macro)
+        if api_result is not None:
+            return api_result
+
     if os.environ.get('ANTHROPIC_API_KEY'):
         api_result = _score_anthropic(alert, macro)
         if api_result is not None:
