@@ -251,6 +251,7 @@ def _score_tokenhub(alert: dict, macro: dict) -> dict | None:
         return None
 
     model = os.environ.get('TOKENHUB_MODEL', 'deepseek-v4-flash')
+    api_url = os.environ.get('TOKENHUB_API_URL', 'https://tokenhub-intl.tencentcloudmaas.com/v1/chat/completions')
 
     try:
         import urllib.request
@@ -301,7 +302,7 @@ Respond ONLY with this JSON:
         }).encode()
 
         req = urllib.request.Request(
-            "https://tokenhub.tencentmaas.com/v1/chat/completions",
+            api_url,
             data=body,
             headers={
                 "Authorization": f"Bearer {api_key}",

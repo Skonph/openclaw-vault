@@ -56,6 +56,7 @@ class Config:
     data_dir: Path
     market_data_provider: str = "ibkr"
     tokenhub_api_key: str | None = None
+    tokenhub_api_url: str = "https://tokenhub-intl.tencentcloudmaas.com/v1/chat/completions"
 
     @staticmethod
     def load() -> "Config":
@@ -64,6 +65,7 @@ class Config:
         data_dir.mkdir(parents=True, exist_ok=True)
 
         tokenhub_key = _get("TOKENHUB_API_KEY")
+        tokenhub_url = _get("TOKENHUB_API_URL", "https://tokenhub-intl.tencentcloudmaas.com/v1/chat/completions")
         openrouter_key = _get("OPENROUTER_API_KEY")
         anthropic_key = _get("ANTHROPIC_API_KEY")
         # auto-detect provider unless explicitly set; prefer TokenHub, then OpenRouter
@@ -92,6 +94,7 @@ class Config:
             openrouter_api_key=openrouter_key,
             strategist_model=_get("STRATEGIST_MODEL", default_model),
             tokenhub_api_key=tokenhub_key,
+            tokenhub_api_url=tokenhub_url,
             strategist_prompt_path=Path(
                 _get("STRATEGIST_PROMPT_PATH", str(here / "strategist_prompt.md"))),
             telegram_token=_get("TELEGRAM_BOT_TOKEN"),

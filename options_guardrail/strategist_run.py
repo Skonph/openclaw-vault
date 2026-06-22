@@ -64,7 +64,7 @@ def _openrouter_caller(api_key: str) -> ModelCaller:
     return call
 
 
-def _tokenhub_caller(api_key: str) -> ModelCaller:
+def _tokenhub_caller(api_key: str, api_url: str) -> ModelCaller:
     """OpenAI-compatible completions via Tencent Cloud TokenHub."""
     import urllib.request
     
@@ -80,7 +80,7 @@ def _tokenhub_caller(api_key: str) -> ModelCaller:
             "temperature": 0.1
         }).encode()
         req = urllib.request.Request(
-            "https://tokenhub.tencentmaas.com/v1/chat/completions", data=body,
+            api_url, data=body,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
@@ -96,7 +96,7 @@ def caller_from_config(cfg: Config) -> ModelCaller:
     if cfg.strategist_provider == "tokenhub":
         if not cfg.tokenhub_api_key:
             raise RuntimeError("TOKENHUB_API_KEY not set")
-        return _tokenhub_caller(cfg.tokenhub_api_key)
+        return _tokenhub_caller(cfg.tokenhub_api_key, cfg.tokenhub_api_url)
     if cfg.strategist_provider == "openrouter":
         if not cfg.openrouter_api_key:
             raise RuntimeError("OPENROUTER_API_KEY not set")
