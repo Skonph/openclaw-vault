@@ -1552,7 +1552,7 @@
     },
     {
       "trade_id": "08B784D3",
-      "status": "pending",
+      "status": "expired",
       "created": "2026-06-19 21:08",
       "expires": "2026-06-20 03:08",
       "symbol": "PBR",
@@ -1597,7 +1597,7 @@
     },
     {
       "trade_id": "D249C99C",
-      "status": "pending",
+      "status": "expired",
       "created": "2026-06-19 21:08",
       "expires": "2026-06-20 03:08",
       "symbol": "GME",
@@ -1641,6 +1641,20 @@
       "alpaca_order_id": null
     }
   ],
-  "last_scan_time": "2026-06-19 21:20",
-  "updated": "2026-06-19 21:08"
+  "last_scan_time": "2026-06-22 21:20",
+  "updated": "2026-06-22 21:05",
+  "pnl_history": [
+    {
+      "timestamp": "2026-06-21 16:56",
+      "symbol": "TOST",
+      "expiry": "2026-07-17",
+      "spread_type": "unknown",
+      "pnl": -15.0,
+      "reason": "Stop loss 80%",
+      "trade_id": "DD5B11B6"
+    }
+  ],
+  "cooling_off": {
+    "TOST": "2026-06-26"
+  }
 }

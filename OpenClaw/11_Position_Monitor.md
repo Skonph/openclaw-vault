@@ -1,29 +1,21 @@
 # Position Monitor
-**Last run:** 2026-06-19 21:20 | Mode: 🤖 Auto-exit v3
+**Last run:** 2026-06-22 21:20 | Mode: 🤖 Auto-exit v3
 
 ---
 
 ## Account
-- Equity: $2,882.96
-- Buying Power: $10,975.84
+- Equity: $2,879.88
+- Buying Power: $11,519.52
 
-## Open Positions (1 spread(s))
+## Positions
+No open options positions.
 
-### TOST — 2026-07-17 (27 DTE) [unknown]
-- Market Value: $-61.00 | 🔴 Unrealised: $-15.00
-  - SHORT CALL $27.0 × -1 @ $0.79 → $0.63
-  - LONG CALL $29.0 × 1 @ $0.46 → $0.22
-  - LONG PUT $20.0 × 1 @ $0.35 → $0.16
-  - SHORT PUT $21.0 × -1 @ $0.48 → $0.36
-
-## Exit Actions
-
-**TOST_2026-07-17** — 🔴 Stop loss close | P&L: $-15.00 | Executed: ❌
 
 ## Exit Rules
 1. Profit target  : ≥50% of max profit → auto-close
 2. Stop loss      : value ≤20% of debit → auto-close
 3. Expiry gate    : DTE ≤7 → auto-close (gamma risk)
+3.5 Recycle gate  : elapsed days ≥ 14 days → auto-close
 4. Dead trade     : DTE ≤21 + loss >25% of debit → auto-close
 5. Trend reversal : regime contradicts spread direction → Telegram alert
 
