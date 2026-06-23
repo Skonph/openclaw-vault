@@ -1,4 +1,24 @@
 
+## 2026-06-23 21:20 — Autonomous Run
+
+Regime: `bear` | Mode: 🤖 Autonomous
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (10)
+- TOST: position open (executor governs concurrency)
+- USFD: no qualifying expiry
+- ZION: no qualifying expiry
+- WBS: no qualifying expiry
+- ZWS: no qualifying expiry
+- HRL: no qualifying spread
+- URBN: no qualifying spread
+- ALLY: no qualifying expiry
+- PRMB: no qualifying expiry
+- SON: no qualifying expiry
+
+---
+
 ## 2026-06-23 00:20 — Autonomous Run
 
 Regime: `flat_low` | Mode: 🤖 Autonomous

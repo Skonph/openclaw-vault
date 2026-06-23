@@ -1,11 +1,11 @@
 # Position Monitor
-**Last run:** 2026-06-23 00:20 | Mode: 🤖 Auto-exit v3
+**Last run:** 2026-06-23 21:20 | Mode: 🤖 Auto-exit v3
 
 ---
 
 ## Account
-- Equity: $2,879.88
-- Buying Power: $11,519.52
+- Equity: $2,879.75
+- Buying Power: $11,519.00
 
 ## Positions
 No open options positions.
