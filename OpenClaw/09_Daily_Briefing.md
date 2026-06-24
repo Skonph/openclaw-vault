@@ -1,5 +1,5 @@
 # OpenClaw Daily Briefing
-**Generated:** 2026-06-24 21:20 Bangkok | Mode: 🤖 Autonomous
+**Generated:** 2026-06-25 00:20 Bangkok | Mode: 🤖 Autonomous
 
 ---
 
@@ -9,8 +9,8 @@
 
 ## Market
 - Condition: ✅ OK
-- Regime: `bull`
-- VIX: 18.81 | SPY: 0.52% | XLE: -1.49%
+- Regime: `flat_elevated`
+- VIX: 18.89 | SPY: 0.31% | XLE: -1.93%
 
 ## Tonight's Results
 - Auto-executed: 0
