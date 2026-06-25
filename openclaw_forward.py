@@ -49,6 +49,8 @@ EARNINGS_BAN_DAYS = 14          # ruleset: no trades within +/-14 days of earnin
 REVISION_LOOKBACK_DAYS = 30     # window for counting rating actions
 NEWS_LOOKBACK_DAYS = 7          # sentiment aggregation window
 NEWS_MAX_ARTICLES = 50
+NEWS_MIN_RELEVANCE = 0.10       # drop AV mentions below this relevance score
+SURPRISE_CAP_PCT = 100.0        # |EPS surprise %| above this is flagged as outlier
 AV_BASE = "https://www.alphavantage.co/query"
 FH_BASE = "https://finnhub.io/api/v1"
 MAX_RETRIES = 3
@@ -207,7 +209,12 @@ class ForwardExtractor:
                                         "symbol": f.symbol, "apikey": self.av_key})
         if data and data.get("quarterlyEarnings"):
             q = data["quarterlyEarnings"][0]
-            f.last_eps_surprise_pct = _f(q.get("surprisePercentage"))
+            sp = _f(q.get("surprisePercentage"))
+            f.last_eps_surprise_pct = sp
+            if sp is not None and abs(sp) > SURPRISE_CAP_PCT:
+                f.notes.append(
+                    f"last EPS surprise {sp:.0f}% is an outlier (likely one-off/charge) "
+                    f"— discount as PEAD signal")
 
         # next date via shared CSV calendar (cached for the batch)
         if f.next_earnings_date is None:
@@ -284,22 +291,37 @@ class ForwardExtractor:
             "sort": "LATEST", "apikey": self.av_key})
         if not data or not data.get("feed"):
             return
-        scores = []
+        # AV returns multi-ticker articles; each carries a per-ticker relevance
+        # and sentiment. Filter to our ticker, DROP low-relevance mentions, and
+        # weight the average by relevance so a story barely about the name
+        # doesn't count as much as a name-centric one.
+        weighted_sum = 0.0
+        weight_total = 0.0
+        kept = 0
         for art in data["feed"]:
             for ts in art.get("ticker_sentiment", []):
-                if ts.get("ticker") == f.symbol:
-                    sc = _f(ts.get("ticker_sentiment_score"))
-                    if sc is not None:
-                        scores.append(sc)
-        if scores:
-            f.news_count_7d = len(scores)
-            f.news_sentiment_mean = sum(scores) / len(scores)
+                if ts.get("ticker") != f.symbol:
+                    continue
+                rel = _f(ts.get("relevance_score"))
+                sc = _f(ts.get("ticker_sentiment_score"))
+                if rel is None or sc is None:
+                    continue
+                if rel < NEWS_MIN_RELEVANCE:        # skip marginal mentions
+                    continue
+                weighted_sum += sc * rel
+                weight_total += rel
+                kept += 1
+        if kept and weight_total > 0:
+            f.news_count_7d = kept                  # count of RELEVANT articles
+            f.news_sentiment_mean = weighted_sum / weight_total
             if f.news_sentiment_mean > 0.15:
                 f.news_sentiment_state = "bullish"
             elif f.news_sentiment_mean < -0.15:
                 f.news_sentiment_state = "bearish"
             else:
                 f.news_sentiment_state = "neutral"
+            if kept < 3:
+                f.notes.append(f"thin news coverage ({kept} relevant articles) — low-confidence sentiment")
 
     # ---- orchestration --------------------------------------------------- #
 
