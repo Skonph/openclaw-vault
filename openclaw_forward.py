@@ -135,6 +135,8 @@ class ForwardSignals:
     days_to_earnings: Optional[int] = None
     earnings_ban_active: Optional[bool] = None      # within +/-14d -> True
     last_eps_surprise_pct: Optional[float] = None    # PEAD context
+    eps_beat_streak: Optional[int] = None            # consecutive beats (>0) / misses (<0)
+    eps_surprise_direction: Optional[str] = None     # beat / miss / inline
 
     # --- analyst rating revisions (the documented drift anomaly) ---
     rec_strong_buy: Optional[int] = None
@@ -215,6 +217,37 @@ class ForwardExtractor:
                 f.notes.append(
                     f"last EPS surprise {sp:.0f}% is an outlier (likely one-off/charge) "
                     f"— discount as PEAD signal")
+            # direction of most recent quarter
+            if sp is not None:
+                if sp > 2.0:
+                    f.eps_surprise_direction = "beat"
+                elif sp < -2.0:
+                    f.eps_surprise_direction = "miss"
+                else:
+                    f.eps_surprise_direction = "inline"
+            # consecutive beat/miss streak across recent quarters (PEAD persistence)
+            streak = 0
+            for qe in data["quarterlyEarnings"][:4]:
+                s = _f(qe.get("surprisePercentage"))
+                if s is None:
+                    break
+                if s > 2.0:
+                    if streak >= 0:
+                        streak += 1
+                    else:
+                        break
+                elif s < -2.0:
+                    if streak <= 0:
+                        streak -= 1
+                    else:
+                        break
+                else:
+                    break
+            f.eps_beat_streak = streak if streak != 0 else None
+            if streak >= 3:
+                f.notes.append(f"{streak} consecutive EPS beats — positive PEAD persistence")
+            elif streak <= -2:
+                f.notes.append(f"{abs(streak)} consecutive EPS misses — negative drift risk")
 
         # next date via shared CSV calendar (cached for the batch)
         if f.next_earnings_date is None:
@@ -266,16 +299,25 @@ class ForwardExtractor:
             return score
 
         f.rec_net_score = net(cur)
-        if len(data) > 1 and f.rec_net_score is not None:
-            prior = net(data[1])
-            if prior is not None:
-                f.rec_trend_delta = f.rec_net_score - prior
+        # Analyst rating COUNTS are sticky month-to-month (a rating sits until
+        # changed), so adjacent-month deltas are usually ~0 and miss real drift.
+        # Compare current vs the OLDEST available snapshot (typically 3mo back)
+        # to capture genuine consensus migration. Fall back to prior month if
+        # only two snapshots exist.
+        baseline_idx = len(data) - 1 if len(data) > 1 else 0
+        if baseline_idx > 0 and f.rec_net_score is not None:
+            base = net(data[baseline_idx])
+            if base is not None:
+                f.rec_trend_delta = f.rec_net_score - base
+                months_span = baseline_idx
                 if f.rec_trend_delta > 0.05:
                     f.rec_trend_state = "improving"
-                    f.notes.append("analyst consensus improving MoM — revision tailwind")
+                    f.notes.append(
+                        f"analyst consensus improving over {months_span}mo — revision tailwind")
                 elif f.rec_trend_delta < -0.05:
                     f.rec_trend_state = "deteriorating"
-                    f.notes.append("analyst consensus deteriorating MoM — revision headwind")
+                    f.notes.append(
+                        f"analyst consensus deteriorating over {months_span}mo — revision headwind")
                 else:
                     f.rec_trend_state = "stable"
 
