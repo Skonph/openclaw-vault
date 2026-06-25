@@ -130,12 +130,23 @@ def merge_ticker(symbol: str, vol_block: Optional[dict], fwd_block: Optional[dic
 # --------------------------------------------------------------------------- #
 
 def build_signals(symbols, vol_extractor=None, fwd_extractor=None) -> dict:
-    """Run both extractors over the watchlist and merge per ticker."""
+    """Run both extractors over the watchlist and merge per ticker.
+
+    vol_extractor may be either the IBKR FeatureExtractor or the Tradier
+    TradierVolExtractor — both expose a compatible run_batch via their module.
+    We dispatch on which module provides run_batch to stay backend-agnostic.
+    """
     fwd_extractor = fwd_extractor or fwd.ForwardExtractor()
 
     vol_blocks = {}
     if vol_extractor is not None:
-        vol_blocks = feat.run_batch(symbols, vol_extractor)
+        # pick the run_batch matching the extractor's module
+        mod = type(vol_extractor).__module__
+        if mod == "openclaw_tradier_vol":
+            import openclaw_tradier_vol as _tv
+            vol_blocks = _tv.run_batch(symbols, vol_extractor)
+        elif _HAVE_FEATURES:
+            vol_blocks = feat.run_batch(symbols, vol_extractor)
     fwd_blocks = fwd.run_batch(symbols, fwd_extractor)
 
     out = {
@@ -169,27 +180,20 @@ def write_atomic(path: str, data: dict) -> None:
 
 
 def _build_vol_extractor():
-    """Wire the IBKR MCP callables for items 1-3.
+    """Wire the vol/positioning backend for items 1-3.
 
-    In the cron/server environment, replace the body with imports of your real
-    IBKR client wrappers, e.g.:
-        from openclaw_ibkr import (search_contracts, get_price_snapshot,
-                                   get_option_parameters, get_option_data)
-        return feat.FeatureExtractor(search_contracts, get_price_snapshot,
-                                     get_option_parameters, get_option_data)
-    Return None to run forward-only (item 4) until IBKR wrappers are wired.
+    Uses the Tradier backend (openclaw_tradier_vol) since that's the API the
+    server authenticates to. Returns an object exposing .extract(symbol) and a
+    matching run_batch, or None to run forward-only.
     """
-    if not _HAVE_FEATURES:
-        return None
     try:
-        from openclaw_ibkr import (  # type: ignore
-            search_contracts, get_price_snapshot,
-            get_option_parameters, get_option_data)
-        return feat.FeatureExtractor(search_contracts, get_price_snapshot,
-                                     get_option_parameters, get_option_data)
-    except Exception:  # noqa: BLE001
-        print("[signals] IBKR wrappers not found — running forward-only (item 4). "
-              "Wire openclaw_ibkr to enable items 1-3.")
+        import openclaw_tradier_vol as tv  # type: ignore
+        ex = tv.build_tradier_extractor()
+        if ex is None:
+            return None
+        return ex
+    except Exception as e:  # noqa: BLE001
+        print(f"[signals] Tradier vol backend unavailable ({e}) — forward-only.")
         return None
 
 
