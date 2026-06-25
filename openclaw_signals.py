@@ -129,25 +129,44 @@ def merge_ticker(symbol: str, vol_block: Optional[dict], fwd_block: Optional[dic
 # Orchestration
 # --------------------------------------------------------------------------- #
 
-def build_signals(symbols, vol_extractor=None, fwd_extractor=None) -> dict:
+def build_signals(symbols, vol_extractor=None, fwd_extractor=None,
+                  av_limit: int = 12) -> dict:
     """Run both extractors over the watchlist and merge per ticker.
 
     vol_extractor may be either the IBKR FeatureExtractor or the Tradier
     TradierVolExtractor — both expose a compatible run_batch via their module.
     We dispatch on which module provides run_batch to stay backend-agnostic.
+
+    av_limit caps how many tickers get Alpha Vantage calls (news sentiment +
+    surprise history), since AV free tier is 25 calls/day. Tradier (vol) and
+    Finnhub (ratings/earnings) run on ALL tickers — only AV is rationed.
     """
     fwd_extractor = fwd_extractor or fwd.ForwardExtractor()
+    symbols = list(symbols)
 
     vol_blocks = {}
     if vol_extractor is not None:
-        # pick the run_batch matching the extractor's module
         mod = type(vol_extractor).__module__
         if mod == "openclaw_tradier_vol":
             import openclaw_tradier_vol as _tv
             vol_blocks = _tv.run_batch(symbols, vol_extractor)
         elif _HAVE_FEATURES:
             vol_blocks = feat.run_batch(symbols, vol_extractor)
-    fwd_blocks = fwd.run_batch(symbols, fwd_extractor)
+
+    # Forward signals: full (incl. AV news) for the first av_limit names;
+    # Finnhub-only for the remainder (temporarily blank the AV key).
+    fwd_blocks = {}
+    av_names = symbols[:av_limit]
+    finnhub_only = symbols[av_limit:]
+    if av_names:
+        fwd_blocks.update(fwd.run_batch(av_names, fwd_extractor))
+    if finnhub_only:
+        saved = fwd_extractor.av_key
+        fwd_extractor.av_key = None          # disable AV for the overflow
+        try:
+            fwd_blocks.update(fwd.run_batch(finnhub_only, fwd_extractor))
+        finally:
+            fwd_extractor.av_key = saved
 
     out = {
         "_meta": {
@@ -179,6 +198,38 @@ def write_atomic(path: str, data: dict) -> None:
             os.remove(tmp)
 
 
+def load_candidate_symbols(candidates_path: Optional[str] = None) -> list[str]:
+    """Resolve the watchlist. Prefer the scanner's OWN load_candidates() so the
+    forecast set is identical to the scan set (same comment/blank handling AND
+    same cooling-off filter). Fall back to a local parser only if the scanner
+    module can't be imported.
+    """
+    # Path A: reuse the scanner's function — single source of truth, no drift.
+    try:
+        import openclaw_scanner as scanner  # type: ignore
+        syms = scanner.load_candidates()
+        if syms:
+            return [s.strip().upper() for s in syms if s.strip()]
+    except Exception as e:  # noqa: BLE001
+        print(f"[signals] could not import scanner.load_candidates ({e}); "
+              f"falling back to local parse")
+
+    # Path B: local parse of candidates.txt (mirrors scanner format, no
+    # cooling-off filter since that data lives in the scanner).
+    path = candidates_path or "/home/ubuntu/openclaw/candidates.txt"
+    out: list[str] = []
+    try:
+        with open(path) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                out.append(line.upper())
+    except FileNotFoundError:
+        print(f"[signals] {path} not found — no symbols to scan")
+    return out
+
+
 def _build_vol_extractor():
     """Wire the vol/positioning backend for items 1-3.
 
@@ -200,14 +251,31 @@ def _build_vol_extractor():
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser(description="OpenClaw unified forecast signals")
-    p.add_argument("symbols", nargs="*", default=["F"])
+    p.add_argument("symbols", nargs="*",
+                   help="explicit tickers; if omitted, read --candidates")
+    p.add_argument("--candidates", default=None,
+                   help="path to candidates.txt (uses scanner's load_candidates filter)")
     p.add_argument("--out", default=None,
                    help="write merged JSON here (atomic). If omitted, prints to stdout.")
+    p.add_argument("--av-limit", type=int, default=12,
+                   help="cap tickers getting Alpha Vantage calls (free tier = 25/day)")
     args = p.parse_args()
-    syms = args.symbols or ["F"]
+
+    # resolve watchlist: explicit args win, else candidates.txt
+    syms = [s.upper() for s in args.symbols] if args.symbols \
+        else load_candidate_symbols(args.candidates)
+    if not syms:
+        print("[signals] no symbols to process — exiting")
+        sys.exit(0)
+
+    # AV free tier is 25 calls/day (~2 per ticker). Guard against blowing it.
+    if len(syms) > args.av_limit:
+        print(f"[signals] {len(syms)} candidates exceeds AV cap ({args.av_limit}); "
+              f"Tradier+Finnhub run on all, Alpha Vantage news limited to first "
+              f"{args.av_limit}. Raise --av-limit only if your AV plan allows.")
 
     vol_ex = _build_vol_extractor()
-    result = build_signals(syms, vol_extractor=vol_ex)
+    result = build_signals(syms, vol_extractor=vol_ex, av_limit=args.av_limit)
 
     if args.out:
         write_atomic(args.out, result)
