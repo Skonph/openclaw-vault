@@ -171,15 +171,23 @@ class ForwardSignals:
 
 class ForwardExtractor:
     def __init__(self, av_key: Optional[str] = None, fh_key: Optional[str] = None,
-                 today: Optional[dt.date] = None):
+                 today: Optional[dt.date] = None, enable_av: Optional[bool] = None):
         self.av_key = av_key or os.environ.get("ALPHAVANTAGE_API_KEY")
         self.fh_key = fh_key or os.environ.get("FINNHUB_API_KEY")
         self.today = today or dt.date.today()
         self._earnings_cal_cache: Optional[list[dict]] = None
-        if not self.av_key:
-            print("[forward] WARNING: ALPHAVANTAGE_API_KEY not set — AV features skipped")
+        # AV is OFF by default — its free tier (25 req/day) is too tight for a
+        # nightly multi-ticker run, and its unique contribution (news sentiment)
+        # is the lowest-value forward signal. Finnhub carries earnings + ratings
+        # for all tickers with no quota concern. Enable AV explicitly only when
+        # under quota: ForwardExtractor(enable_av=True) or OPENCLAW_ENABLE_AV=1.
+        if enable_av is None:
+            enable_av = os.environ.get("OPENCLAW_ENABLE_AV", "0") == "1"
+        self.enable_av = enable_av and bool(self.av_key)
         if not self.fh_key:
             print("[forward] WARNING: FINNHUB_API_KEY not set — rating features skipped")
+        if self.enable_av:
+            print("[forward] Alpha Vantage news sentiment ENABLED (watch 25/day quota)")
 
     # ---- earnings (Finnhub primary, AV fallback) ------------------------ #
 
@@ -203,8 +211,8 @@ class ForwardExtractor:
         return False
 
     def _earnings_av(self, f: ForwardSignals) -> None:
-        """Fallback / surprise history via Alpha Vantage."""
-        if not self.av_key:
+        """Fallback / surprise history via Alpha Vantage. Only when AV enabled."""
+        if not self.enable_av:
             return
         # surprise history (JSON)
         data = _http_get_json(AV_BASE, {"function": "EARNINGS",
@@ -324,7 +332,7 @@ class ForwardExtractor:
     # ---- news sentiment (Alpha Vantage NEWS_SENTIMENT) ------------------ #
 
     def news_features(self, f: ForwardSignals) -> None:
-        if not self.av_key:
+        if not self.enable_av:
             return
         time_from = (self.today - dt.timedelta(days=NEWS_LOOKBACK_DAYS)).strftime("%Y%m%dT0000")
         data = _http_get_json(AV_BASE, {
