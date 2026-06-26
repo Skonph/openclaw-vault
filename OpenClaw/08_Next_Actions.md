@@ -1,4 +1,17 @@
 
+## 2026-06-26 21:20 — Autonomous Run
+
+Regime: `bear` | Mode: 🤖 Autonomous
+
+### ⏸ SKIPPED (1)
+- [F0E76B09] TLT (Bear Put) — Events UNCERTAIN — verify calendar before executing
+
+### Holds / Rejects (2)
+- TOST: position open (executor governs concurrency)
+- SLV: no qualifying spread
+
+---
+
 ## 2026-06-26 00:20 — Autonomous Run
 
 Regime: `flat_elevated` | Mode: 🤖 Autonomous

@@ -1,5 +1,5 @@
 # Nova Session Prompt
-**Generated:** 2026-06-26 00:20
+**Generated:** 2026-06-26 21:20
 
 ---
 
@@ -7,7 +7,7 @@ NOVA — new session starting. Load complete context.
 
 PROJECT: OpenClaw Autonomous Options System v4
 ACCOUNT: Alpaca Paper Trading
-CAPITAL: ~$2,880 | DATE: 2026-06-26 00:20
+CAPITAL: ~$2,880 | DATE: 2026-06-26 21:20
 
 RULESET v4.0:
 - Conviction ≥75/100 | IV Rank ≤40% | IV Last ≤45% | Premium $0.30-$0.60
@@ -31,7 +31,8 @@ NOVA ROLE:
 - Strategy review and next-step planning
 - No independent market data generation
 
-No trades tonight. Standing by.
+⏸ SKIPPED TONIGHT (1):
+[F0E76B09] TLT — Events UNCERTAIN — verify calendar before executing
 
 WATCHLIST:
 1. PR ~$19.91 | KNOWN_HOLD — recheck Jun 17 after dividend Jun 16
@@ -41,17 +42,17 @@ WATCHLIST:
 5. VALE ~$16.25 | OI thin | recheck after May 30 earnings
 
 MACRO:
-- VIX: $19.18 (2.96%)
-- SPY: $732.72 (-0.08%)
-- XLE: $53.955 (0.72%)
-- XLY: $113.78 (-1.13%)
-- XLI: $184.07 (2.15%)
-- XLB: $51.92 (1.49%)
-- XLC: $105.69 (-0.8%)
-- XLF: $53.805 (0.16%)
-- XLK: $183.925 (0.48%)
-- XLV: $155.89 (1.66%)
-- Regime: flat_elevated
+- VIX: $20.09 (6.36%)
+- SPY: $729.55 (-0.65%)
+- XLE: $54.07 (-0.04%)
+- XLY: $113.51 (0.15%)
+- XLI: $181.92 (-1.2%)
+- XLB: $51.65 (-0.37%)
+- XLC: $105.66 (0.08%)
+- XLF: $53.395 (-0.11%)
+- XLK: $180.81 (-2.04%)
+- XLV: $159.63 (2.57%)
+- Regime: bear
 
 RECENT TRADES:
 - AAL $12/$13: -$23 (IV breach at entry)
