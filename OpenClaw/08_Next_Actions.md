@@ -1,4 +1,17 @@
 
+## 2026-06-27 00:20 — Autonomous Run
+
+Regime: `flat_elevated` | Mode: 🤖 Autonomous
+
+### No qualifying spreads tonight — standing by
+
+### Holds / Rejects (3)
+- TOST: position open (executor governs concurrency)
+- TLT: no qualifying spread
+- SLV: no qualifying spread
+
+---
+
 ## 2026-06-26 21:20 — Autonomous Run
 
 Regime: `bear` | Mode: 🤖 Autonomous
