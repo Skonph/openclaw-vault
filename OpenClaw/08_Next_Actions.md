@@ -1,4 +1,24 @@
 
+## 2026-06-30 21:20 — Autonomous Run
+
+Regime: `flat_low` | Mode: 🤖 Autonomous
+
+### 🚀 AUTO-EXECUTED (1)
+
+**[F7C623BD] TLT $86.0/84.5 (Bear Put)**
+- Expiry: 2026-07-31 (30 DTE) | Debit: $0.3 × 10 contracts
+- R:R: 4.0:1 | Conviction: 85/100
+- Alpaca ID: `78b753a9-b948-4d33-a4b8-9b0842c54555`
+
+### ⏸ SKIPPED (1)
+- [881FF244] SLV (Bull Call) — portfolio-risk cap ($580 > $432 = 15% of $2,880)
+
+### Holds / Rejects (2)
+- TOST: position open (executor governs concurrency)
+- SLV: conviction 33/100 below 75
+
+---
+
 ## 2026-06-30 00:20 — Autonomous Run
 
 Regime: `bull` | Mode: 🤖 Autonomous
