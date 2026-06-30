@@ -1,4 +1,17 @@
 
+## 2026-07-01 00:20 — Autonomous Run
+
+Regime: `bull` | Mode: 🤖 Autonomous
+
+### ⏸ SKIPPED (1)
+- [75265435] TLT (Bear Put) — position-count cap (2/2)
+
+### Holds / Rejects (2)
+- TOST: position open (executor governs concurrency)
+- SLV: no qualifying spread
+
+---
+
 ## 2026-06-30 21:20 — Autonomous Run
 
 Regime: `flat_low` | Mode: 🤖 Autonomous
