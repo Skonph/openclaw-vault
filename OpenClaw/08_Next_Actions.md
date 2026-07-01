@@ -1,4 +1,18 @@
 
+## 2026-07-01 21:20 — Autonomous Run
+
+Regime: `flat_low` | Mode: 🤖 Autonomous
+
+### ⏸ SKIPPED (2)
+- [24BD7708] TLT (Bear Put) — position-count cap (2/2)
+- [B4F08CEA] SLV (Bull Call) — position-count cap (2/2)
+
+### Holds / Rejects (2)
+- TOST: position open (executor governs concurrency)
+- SLV: conviction 53/100 below 75
+
+---
+
 ## 2026-07-01 00:20 — Autonomous Run
 
 Regime: `bull` | Mode: 🤖 Autonomous

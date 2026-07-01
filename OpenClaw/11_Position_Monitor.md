@@ -1,22 +1,22 @@
 # Position Monitor
-**Last run:** 2026-07-01 00:20 | Mode: 🤖 Auto-exit v3
+**Last run:** 2026-07-01 21:20 | Mode: 🤖 Auto-exit v3
 
 ---
 
 ## Account
-- Equity: $2,804.03
-- Buying Power: $9,936.12
+- Equity: $2,982.98
+- Buying Power: $9,931.92
 
 ## Open Positions (1 spread(s))
 
 ### TLT — 2026-07-31 (29 DTE) [bear_put]
-- Market Value: $320.00 | 🟢 Unrealised: $+20.00
-  - SHORT PUT $84.5 × -10 @ $0.17 → $0.20
-  - LONG PUT $86.0 × 10 @ $0.47 → $0.52
+- Market Value: $500.00 | 🟢 Unrealised: $+200.00
+  - SHORT PUT $84.5 × -10 @ $0.17 → $0.36
+  - LONG PUT $86.0 × 10 @ $0.47 → $0.86
 
 ## Exit Actions
 
-**TLT_2026-07-31** — ⚠️  Trend reversal alert | P&L: $+20.00 | Regime: bull vs bear_put
+**TLT_2026-07-31** — ✅ Holding | P&L: $+200.00
 
 ## Exit Rules
 1. Profit target  : ≥50% of max profit → auto-close
