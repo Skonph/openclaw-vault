@@ -1,4 +1,18 @@
 
+## 2026-07-02 00:20 — Autonomous Run
+
+Regime: `flat_low` | Mode: 🤖 Autonomous
+
+### ⏸ SKIPPED (2)
+- [37BC5D70] TLT (Bear Put) — position-count cap (3/2)
+- [837BA626] SLV (Bull Call) — Liquidity — short leg OI (468) below min (500)
+
+### Holds / Rejects (2)
+- TOST: position open (executor governs concurrency)
+- SLV: conviction 13/100 below 75
+
+---
+
 ## 2026-07-01 21:20 — Autonomous Run
 
 Regime: `flat_low` | Mode: 🤖 Autonomous
