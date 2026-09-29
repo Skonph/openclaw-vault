@@ -588,7 +588,7 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
             last_entry_file.write_text(json.dumps({
                 "timestamp": now_ict,
                 "subject": f"ORDER_RESOLVED_STANDOFF_CLOSED_{aborted_sym}",
-                "message": f"Fallback Stand Down: Zero viable candidates above MAC floor. Portfolio in 100% SGOV cash."
+                "message": f"Fallback Stand Down: Zero viable candidates above MAC floor. Portfolio in 100% settled USD cash reserve."
             }, indent=2), encoding="utf-8")
             if AgentBridge:
                 bridge = AgentBridge("hermes")
@@ -602,7 +602,7 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
             f"💼 Account: {account.upper()}\n"
             f"🚫 Quarantined: {aborted_sym}\n"
             f"ℹ️ Status: All surviving candidates below MAC Floor.\n"
-            f"💵 Action: 100% Capital preserved in SGOV cash floor."
+            f"💵 Action: 100% Capital preserved in USD Cash Reserve (≥35% floor protected)."
         )
         return
 
@@ -796,7 +796,7 @@ def run_stage2_conviction_trigger():
                 f"💼 Account: {acct.upper()}\n"
                 f"📦 Spread: {sym} ${order['short_strike']:.1f}P / ${order['long_strike']:.1f}P\n"
                 f"⚠️ Reason: UOA Sweep #2 showed volume died down (Vol/OI {uoa_ratio:.2f}x).\n"
-                f"🛡️ Action: Order cancelled. Capital 100% preserved in SGOV Treasury cash."
+                f"🛡️ Action: Order cancelled. Capital 100% preserved in settled USD Cash Reserve."
             )
             # RULE-081: Autonomous Fallback Relay (skip if Tradier to maintain satellite isolation)
             if not _is_tradier_order(order):
@@ -930,7 +930,7 @@ def run_stage3_standoff_sweep():
             last_entry_file.write_text(json.dumps({
                 "timestamp": now_ict,
                 "subject": f"ORDER_RESOLVED_STANDOFF_CLOSED_{sym}",
-                "message": f"Stage 3 Standoff: Unfilled order {oid} ({sym}) cancelled at 22:00 ICT. Zero overnight ghosts. Capital 100% safe in SGOV cash."
+                "message": f"Stage 3 Standoff: Unfilled order {oid} ({sym}) cancelled at 22:00 ICT. Zero overnight ghosts. Capital 100% safe in settled USD cash reserve."
             }, indent=2), encoding="utf-8")
             if AgentBridge:
                 bridge = AgentBridge("hermes")
@@ -945,7 +945,7 @@ def run_stage3_standoff_sweep():
             f"💼 Account: {acct.upper()}\n"
             f"📦 Spread: {sym} ${order['short_strike']:.1f}P / ${order['long_strike']:.1f}P\n"
             f"🛑 Action: Working order cancelled before liquidity dries up.\n"
-            f"🛡️ Zero Overnight Ghosts: Capital 100% safe in SGOV Treasury cash."
+            f"🛡️ Zero Overnight Ghosts: Capital 100% safe in settled USD Cash Reserve."
         )
 
     save_pending_orders(orders)
