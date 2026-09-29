@@ -116,9 +116,15 @@ def format_for_telegram(raw: str) -> str:
 
 def execute_pending_trade() -> str:
     """
-    Read pending_trade.json and POST the order to Tradier sandbox.
-    Returns a result message.
+    DEPRECATED / DISABLED (2026-06-24). This was the old manual-approval path that
+    POSTed to the Tradier SANDBOX — a broker the system no longer executes on
+    (execution migrated to Alpaca, and daily_scan.py now auto-executes autonomously).
+    It is intentionally unwired from COMMANDS. The guard below ensures that even if
+    it were re-registered, it can never fire a duplicate order into the wrong broker.
     """
+    return ("⚠️ /approve is deprecated. The system executes autonomously on Alpaca "
+            "via daily_scan.py — there is no manual Tradier-sandbox approval step.")
+    # ── unreachable legacy body retained for reference ───────────────────────────
     if not PENDING_TRADE_FILE.exists():
         return "⚠️ No pending trade found. Run /scan first."
 

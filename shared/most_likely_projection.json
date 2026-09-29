@@ -1,0 +1,140 @@
+{
+  "scenario_name": "Most-Likely Base Case Scenario (85% Win Rate / Real-World Base)",
+  "pion_main_account": {
+    "initial_equity_usd": 14576.71,
+    "projections": [
+      {
+        "month": 1,
+        "starting_equity": 14576.71,
+        "contracts": 7,
+        "trades_per_month": 8,
+        "net_profit_per_trade": 131.25,
+        "monthly_net_profit": 1050.0,
+        "ending_equity": 15626.71,
+        "cum_roi_percent": 7.2
+      },
+      {
+        "month": 2,
+        "starting_equity": 15626.71,
+        "contracts": 7,
+        "trades_per_month": 8,
+        "net_profit_per_trade": 131.25,
+        "monthly_net_profit": 1050.0,
+        "ending_equity": 16676.71,
+        "cum_roi_percent": 14.4
+      },
+      {
+        "month": 3,
+        "starting_equity": 16676.71,
+        "contracts": 7,
+        "trades_per_month": 8,
+        "net_profit_per_trade": 131.25,
+        "monthly_net_profit": 1050.0,
+        "ending_equity": 17726.71,
+        "cum_roi_percent": 21.6
+      },
+      {
+        "month": 4,
+        "starting_equity": 17726.71,
+        "contracts": 8,
+        "trades_per_month": 8,
+        "net_profit_per_trade": 150.0,
+        "monthly_net_profit": 1200.0,
+        "ending_equity": 18926.71,
+        "cum_roi_percent": 29.8
+      },
+      {
+        "month": 5,
+        "starting_equity": 18926.71,
+        "contracts": 8,
+        "trades_per_month": 8,
+        "net_profit_per_trade": 150.0,
+        "monthly_net_profit": 1200.0,
+        "ending_equity": 20126.71,
+        "cum_roi_percent": 38.1
+      },
+      {
+        "month": 6,
+        "starting_equity": 20126.71,
+        "contracts": 9,
+        "trades_per_month": 8,
+        "net_profit_per_trade": 168.75,
+        "monthly_net_profit": 1350.0,
+        "ending_equity": 21476.71,
+        "cum_roi_percent": 47.3
+      }
+    ]
+  },
+  "pion2_sub_account": {
+    "initial_equity_usd": 3141.12,
+    "projections": [
+      {
+        "month": 1,
+        "starting_equity": 3141.12,
+        "contracts": 1,
+        "trades_per_month": 4,
+        "net_profit_per_trade": 82.5,
+        "monthly_net_profit": 330.0,
+        "ending_equity": 3471.12,
+        "cum_roi_percent": 10.5
+      },
+      {
+        "month": 2,
+        "starting_equity": 3471.12,
+        "contracts": 1,
+        "trades_per_month": 4,
+        "net_profit_per_trade": 82.5,
+        "monthly_net_profit": 330.0,
+        "ending_equity": 3801.12,
+        "cum_roi_percent": 21.0
+      },
+      {
+        "month": 3,
+        "starting_equity": 3801.12,
+        "contracts": 1,
+        "trades_per_month": 4,
+        "net_profit_per_trade": 82.5,
+        "monthly_net_profit": 330.0,
+        "ending_equity": 4131.12,
+        "cum_roi_percent": 31.5
+      },
+      {
+        "month": 4,
+        "starting_equity": 4131.12,
+        "contracts": 2,
+        "trades_per_month": 4,
+        "net_profit_per_trade": 165.0,
+        "monthly_net_profit": 660.0,
+        "ending_equity": 4791.12,
+        "cum_roi_percent": 52.5
+      },
+      {
+        "month": 5,
+        "starting_equity": 4791.12,
+        "contracts": 2,
+        "trades_per_month": 4,
+        "net_profit_per_trade": 165.0,
+        "monthly_net_profit": 660.0,
+        "ending_equity": 5451.12,
+        "cum_roi_percent": 73.5
+      },
+      {
+        "month": 6,
+        "starting_equity": 5451.12,
+        "contracts": 2,
+        "trades_per_month": 4,
+        "net_profit_per_trade": 165.0,
+        "monthly_net_profit": 660.0,
+        "ending_equity": 6111.12,
+        "cum_roi_percent": 94.6
+      }
+    ]
+  },
+  "combined_summary": {
+    "initial_combined_equity": 17717.83,
+    "final_combined_equity": 27587.83,
+    "total_net_profit": 9870.0,
+    "cumulative_roi_percent": 55.7
+  },
+  "graduation_milestone_note": "\ud83c\udf93 GRADUATION SYMBOL: Moved from Month 3 to Month 1 (Friday, September 4, 2026) due to Fast-Track Accelerator (10 Trades @ >= 90% Win Rate)."
+}

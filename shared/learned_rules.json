@@ -1,0 +1,610 @@
+{
+  "version": "2.0-PRODUCTION",
+  "updated_at": "2026-09-25 19:21:17 ICT",
+  "master_directives": [
+    {
+      "directive_id": "DIR-01",
+      "title": "Dynamic Regime-Adaptive Tuning & Elastic Margin (RULE-095, RULE-072, RULE-055)",
+      "summary": "Live VIX dictates deployment: Calm (VIX<18) = 65% Margin ($20.9k), 60/40 Sprint/Anchor Barbell; Churn (18<=VIX<24) = 55% Margin, 50/50 mix; Storm (VIX>=24) = 45% Margin, 30/70 mix + Index Condors. Always maintain 35%-55% liquid cash floor.",
+      "consolidates": [
+        "RULE-001",
+        "RULE-009",
+        "RULE-055",
+        "RULE-070",
+        "RULE-072",
+        "RULE-095"
+      ]
+    },
+    {
+      "directive_id": "DIR-02",
+      "title": "Decoupled 8-Sector Universe & Trend Protection (RULE-037, RULE-050, RULE-089)",
+      "summary": "Screen across 8 non-overlapping themes. Mandatory earnings blackout gate between trade date and expiration (ETFs exempt). Strict SMA20 trend filter rejects falling knives (spot < SMA20).",
+      "consolidates": [
+        "RULE-007",
+        "RULE-037",
+        "RULE-037J",
+        "RULE-050",
+        "RULE-089"
+      ]
+    },
+    {
+      "directive_id": "DIR-03",
+      "title": "Merit-First Progressive Scaling & Re-Entry Penalties (RULE-072, RULE-082)",
+      "summary": "Never force rotation into weak, low-scoring candidates. Underlying concentration allows up to 3 tranches with progressive penalties (-15 pts for Tranche 2, -25 pts for Tranche 3). Theme cap = 3 (Index = 4).",
+      "consolidates": [
+        "RULE-071",
+        "RULE-072",
+        "RULE-082"
+      ]
+    },
+    {
+      "directive_id": "DIR-04",
+      "title": "Multi-Factor Scoring, Box Discount & Skew Bonus (RULE-045, RULE-062, RULE-083)",
+      "summary": "Prioritize prior-session box discount (0%-35% PDL range). Harvest elevated 25-delta put skew (+15% credit bonus). Require positive VRP edge floor (IV/HV >= 1.08 low vol, 1.15 standard).",
+      "consolidates": [
+        "RULE-044",
+        "RULE-045",
+        "RULE-062",
+        "RULE-083"
+      ]
+    },
+    {
+      "directive_id": "DIR-05",
+      "title": "Autonomous Execution Timeline & Golden Window (RULE-054, RULE-086)",
+      "summary": "19:35 ICT Universe Screener -> 20:50 ICT Liquidity Radar -> 21:15 ICT Master Golden Hour Entry. 5-minute automated harvest sweeps run continuously during market hours.",
+      "consolidates": [
+        "RULE-008",
+        "RULE-043",
+        "RULE-054",
+        "RULE-075",
+        "RULE-086"
+      ]
+    },
+    {
+      "directive_id": "DIR-06",
+      "title": "Native Atomic MLEG & 90-Second Micro-Walk (RULE-047, RULE-052, RULE-084)",
+      "summary": "All credit spreads placed as native atomic multi-leg (mleg) limit orders. Zero market orders. Dynamic 90-second micro-walk from Natural credit toward Midpoint with penny-pilot calibration and 12.5% ROC floor.",
+      "consolidates": [
+        "RULE-046",
+        "RULE-047",
+        "RULE-049",
+        "RULE-052",
+        "RULE-058",
+        "RULE-084"
+      ]
+    },
+    {
+      "directive_id": "DIR-07",
+      "title": "Dual-Account Real-Money Routing & Cash Velocity (RULE-073, RULE-078, RULE-091)",
+      "summary": "Alpaca Live ($30.1k) executes Primary Hybrid Barbell (up to 6 slots, $2,500/slot). Tradier Live ($2.0k) executes High-Velocity Sprints (2 slots, $600/slot). IBKR ($2.2k) is 100% quarantined.",
+      "consolidates": [
+        "RULE-069",
+        "RULE-073",
+        "RULE-078",
+        "RULE-091"
+      ]
+    },
+    {
+      "directive_id": "DIR-08",
+      "title": "Precision Index Iron Condor Protocol (RULE-094)",
+      "summary": "On broad market indexes (SPY, QQQ, IWM), deploy dual-wing Iron Condors when consolidating (box 35%-65%, VRP >= 1.10). Single-margin collateral efficiency doubles cash yield in rangebound regimes.",
+      "consolidates": [
+        "RULE-094"
+      ]
+    },
+    {
+      "directive_id": "DIR-09",
+      "title": "Adaptive FastHarvest, Terminal Theta, Closing Micro-Walk & Profit Ratchet Policy (RULE-077, RULE-085, RULE-096, RULE-097, RULE-098)",
+      "summary": "Auto-harvest spreads at sliding-scale profit (30%@<=2d, 40%@<=5d, 50% std). Profit High-Water Mark Ratchet (RULE-097) arms a +20% hard profit floor when profit touches >=30%, auto-locking gains on pullbacks. Closing Micro-Walk (RULE-096) nudges limit debits +$0.01 on Penny-Pilot tickers for instant fill. Instant Slot Vacancy (RULE-098) broadcasts to Anna upon fill to unfreeze collateral for immediate same-day rotation. At terminal window (DTE <= 3d): if deeply safe (buffer >= 2.5%) and profit < 90%, let theta burn to 100% expiry; harvest early only if profit >= 90% or if buffer is threatened (< 2.0%).",
+      "consolidates": [
+        "RULE-002",
+        "RULE-042",
+        "RULE-059",
+        "RULE-077",
+        "RULE-085",
+        "RULE-096",
+        "RULE-097",
+        "RULE-098"
+      ]
+    },
+    {
+      "directive_id": "DIR-10",
+      "title": "Proactive Strike-Touch Sentinel & True Strike Defense (RULE-087, RULE-090)",
+      "summary": "Monitor spot vs short strike continuously. Proactive stop-out triggers ONLY when short strike is genuinely threatened (spot touches short strike within 0.50% buffer or breaches ITM, buf <= 0.0), salvaging collateral before maximum loss. Eliminates premature stop-outs from arbitrary DTE-21 gates or micro-credit bid-ask noise.",
+      "consolidates": [
+        "RULE-004",
+        "RULE-087",
+        "RULE-090"
+      ]
+    },
+    {
+      "directive_id": "DIR-11",
+      "title": "Spread-Level Harvest De-duplication & Order Cooldown (RULE-092)",
+      "summary": "Enforce strict cooldown locks on individual closed spread keys (symbol + strikes + expiration) to prevent duplicate closing orders during 5-minute poller sweeps. Ticker-level re-entries remain 100% governed by Merit-First scoring and progressive re-entry penalties (DIR-03).",
+      "consolidates": [
+        "RULE-092"
+      ]
+    },
+    {
+      "directive_id": "DIR-12",
+      "title": "Self-Healing Healer, Zero-Synthetic Truth & Excel Ledger (RULE-051, RULE-053, RULE-088, RULE-093)",
+      "summary": "Zero synthetic or hardcoded prices permitted. T+10s self-healing sweep pairs or liquidates orphaned single legs. Auto-log every fill, harvest, and stopout to 3-sheet SkonVault_Live_Transaction_Journal.xlsx.",
+      "consolidates": [
+        "RULE-005",
+        "RULE-048",
+        "RULE-051",
+        "RULE-053",
+        "RULE-056",
+        "RULE-057",
+        "RULE-060",
+        "RULE-088",
+        "RULE-093"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "RULE-001",
+      "title": "45 DTE Spina Bull Put Standard",
+      "category": "ENTRY",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-01 (RULE-095 Dynamic Regime Barbell 10-14 / 21-28 DTE)"
+    },
+    {
+      "rule_id": "RULE-002",
+      "title": "50% Take Profit Limit Order",
+      "category": "EXIT",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-09 (RULE-077 4-Tier FastHarvest with DTE time decay curves)"
+    },
+    {
+      "rule_id": "RULE-003",
+      "title": "5-Tumbler Combination Lock",
+      "category": "REGIME",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-004",
+      "title": "Gamma Zone Mandatory Defense",
+      "category": "RISK",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-005",
+      "title": "Closed-Loop Escalation Handshake",
+      "category": "PROTOCOL",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Closed-Loop Escalation Handshake"
+    },
+    {
+      "rule_id": "RULE-006",
+      "title": "Macro Blackout Gate (3-Day Window)",
+      "category": "MACRO",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Macro Blackout Calendar Engine"
+    },
+    {
+      "rule_id": "RULE-007",
+      "title": "SPY SMA20 Falling Trend Veto",
+      "category": "REGIME",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-02 (RULE-089 Full SMA20 Falling-Knife Quarantine across all tickers)"
+    },
+    {
+      "rule_id": "RULE-008",
+      "title": "Live Market UOA Timing Rule",
+      "category": "TIMING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-009",
+      "title": "Regime-Adaptive Strategy Pivot",
+      "category": "STRATEGY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-010",
+      "title": "Citadel Factor & Delta Neutrality Limit",
+      "category": "RISK",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-037",
+      "title": "Multi-Theme Decoupled Asset Execution (XLU, CEG, GLD, XLP, JNJ, XLV, LMT, UNH, XLE, JPM, V, XLF)",
+      "category": "STRATEGY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-037J",
+      "title": "Financial Fortress & Payment Rails Anchor (JPM, V, XLF)",
+      "category": "STRATEGY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-038",
+      "title": "Zero-Token OE Loop Protocol",
+      "category": "EFFICIENCY",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Zero-Token OE Loop Architecture"
+    },
+    {
+      "rule_id": "RULE-039",
+      "title": "Adversarial Swarm Debate Protocol",
+      "category": "GOVERNANCE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-040",
+      "title": "Quant-Driven Dynamic Projections (2 Contracts / 24h Express / 60% TP)",
+      "category": "EXECUTION",
+      "status": "SUPERSEDED",
+      "superseded_by": "Retired temporary 30-trade paper milestone acceleration rule"
+    },
+    {
+      "rule_id": "RULE-041",
+      "title": "SQLite WAL Mode & Lock Hardening Protocol",
+      "category": "INFRASTRUCTURE",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: SQLite WAL Mode & Concurrency Lock Hardening"
+    },
+    {
+      "rule_id": "RULE-042",
+      "title": "1.5-Day Snowball Velocity Engine Cadence",
+      "category": "VELOCITY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-043",
+      "title": "03:30 ICT Market Poller Cutoff & Token Optimization",
+      "category": "EFFICIENCY",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: 03:30 ICT Market Poller Cutoff"
+    },
+    {
+      "rule_id": "RULE-044",
+      "title": "Quantitative Forecast Empirical Backtest Validation (>=65%)",
+      "category": "QUANT",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-045",
+      "title": "Strict <= 20% Extreme Box Discount & OTM Delta <= 0.15 Safety Filter (RULE-045B)",
+      "category": "LOCATION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-046",
+      "title": "Zero-Touch Direct-Broker Autonomous Execution Protocol",
+      "category": "INFRASTRUCTURE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-047",
+      "title": "Mandatory Multi-Leg / Buy-First Order Construction for Defined-Risk Spreads",
+      "category": "BROKER_EXECUTION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-048",
+      "title": "Dynamic Option Contract Resolver & Autonomous Universe Waterfall Protocol",
+      "category": "OPERATIONAL_EXCELLENCE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-049",
+      "title": "Active Liquidity Pre-Flight Filter & Closed-Loop Fill Verification Protocol",
+      "category": "BROKER_EXECUTION",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-06 (RULE-052 Mandatory Live Liquidity Gate & Natural Net Credit)"
+    },
+    {
+      "rule_id": "RULE-050",
+      "title": "Adaptive Dynamic NBBO Execution & Zero-Stall 24h Express Compounding Protocol",
+      "category": "EXECUTION_ENGINE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-051",
+      "title": "Mandatory Dual-Sheet Excel Transaction Journal Auto-Logging Protocol",
+      "category": "COMPLIANCE_AND_AUDIT",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-052",
+      "title": "Mandatory Live Liquidity Pre-Flight Gate & Dynamic Spot-Strike Calibration",
+      "category": "LIQUIDITY_AND_PRICING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-053",
+      "title": "Autonomous Self-Healing Spread Pairing & Orphan Elimination Protocol",
+      "category": "SELF_HEALING_EXECUTION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-054",
+      "title": "The 21:15 ICT Institutional Golden Entry Window Protocol",
+      "category": "TIMING_AND_EXECUTION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-055",
+      "title": "Maximum Safe 35% Capital Allocation & Risk Envelope Sizing Engine",
+      "category": "CAPITAL_ALLOCATION",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-01 (RULE-072 65% Acceleration & RULE-095 Elastic Margin Ceiling)"
+    },
+    {
+      "rule_id": "RULE-056",
+      "title": "Spread Netting & Paired Spread Representation Protocol",
+      "category": "REPORTING_AND_ACCOUNTING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-057",
+      "title": "Strict Prohibition of Naked Long Option Cash Drag & Orphan Cleanup",
+      "category": "RISK_AND_EFFICIENCY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-058",
+      "title": "Adaptive 3-Step Ladder Limit Execution & Core-Satellite Allocation Engine",
+      "category": "EXECUTION_AND_OPTIMIZATION",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-06 (RULE-084 Ultra-Adaptive 90-Second Micro-Walk)"
+    },
+    {
+      "rule_id": "RULE-059",
+      "title": "High-Velocity Capital Recycling & FastHarvest 48h Compounding Protocol",
+      "category": "CAPITAL_VELOCITY",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-09 (RULE-077 Adaptive Hybrid Velocity & 4-Tier Harvest)"
+    },
+    {
+      "rule_id": "RULE-060",
+      "title": "Institutional Spread Intelligence & Context-Aware Telemetry Protocol",
+      "category": "REPORTING_AND_INTELLIGENCE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-061",
+      "title": "Monthly Weekend System Optimization, Archival Hygiene & Immutable Core Isolation Protocol",
+      "category": "SYSTEM_MAINTENANCE_AND_OPTIMIZATION",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Monthly Weekend Maintenance & Archival Hygiene"
+    },
+    {
+      "rule_id": "RULE-062",
+      "title": "Adaptive Bayesian Kalman Tuning, 25-Delta Put Skew Arbitrage & FastTheta Acceleration Protocol",
+      "category": "QUANT_ACCURACY_AND_VELOCITY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-063",
+      "title": "Multi-Pass Expiration Iteration, Guaranteed Contract Fallback & Zero-Intervention Autonomous Router Protocol",
+      "category": "ORDER_EXECUTION_AND_ROUTING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-064",
+      "title": "Graduation Sprint 40% Fast-Track Harvest Acceleration & Comprehensive Universe Sweep Protocol",
+      "category": "PROFIT_TAKING_AND_HARVEST_VELOCITY",
+      "status": "SUPERSEDED",
+      "superseded_by": "Retired temporary 30-trade paper milestone acceleration rule"
+    },
+    {
+      "rule_id": "RULE-065",
+      "title": "Pre-Deployment Multi-Suite Compilation & Syntax Regression Prevention Protocol",
+      "category": "SYSTEM_INTEGRITY_AND_VERIFICATION",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Pre-Deployment Multi-Suite Syntax Compilation"
+    },
+    {
+      "rule_id": "RULE-066",
+      "title": "OSI Regex Symbol Extraction, Free Tail-Hedge Preservation & Resilient Exponential Backoff Retry Protocol",
+      "category": "ORDER_EXECUTION_AND_FAULT_TOLERANCE",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: OSI Regex Symbol Extraction & Exponential Backoff"
+    },
+    {
+      "rule_id": "RULE-067",
+      "title": "Telegram 4000-Char Chunking, Standardized Channel Mirroring & Resilient Telemetry Dispatch Protocol",
+      "category": "TELEMETRY_AND_COMMUNICATIONS_FAULT_TOLERANCE",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Telegram 4000-Char Chunking & Formatting"
+    },
+    {
+      "rule_id": "RULE-068",
+      "title": "Excel Transaction Journal Dynamic Math Calculation & Automated Bidirectional Cloud Sync Protocol",
+      "category": "DATA_INTEGRITY_AND_SYNCHRONIZATION",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Excel Transaction Journal Dynamic Math Formulas"
+    },
+    {
+      "rule_id": "RULE-069",
+      "title": "Live Production Auto-Routing, Citadel Risk Envelopes & Strict 5-Tumbler Pre-Flight Circuit Breaker Protocol",
+      "category": "PRODUCTION_SAFETY_AND_EXECUTION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-070",
+      "title": "16-Delta Mark-to-Market Drag Neutralization, Dual-Bucket Parallel Routing & Cash Flow Velocity Rate (CVR) Protocol",
+      "category": "QUANT_PERFORMANCE_AND_CASH_VELOCITY",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by DIR-06 (RULE-084 Beta-Adaptive Delta-Drift Accelerator)"
+    },
+    {
+      "rule_id": "RULE-071",
+      "title": "Uncorrelated Multi-Sector Staggered Laddering, Buying Power Optimization & Zero-Additional-Risk Compounding Protocol",
+      "category": "PORTFOLIO_CONSTRUCTION_AND_CAPITAL_EFFICIENCY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-072",
+      "title": "65% Buying Power Acceleration, 10-12 Delta Probability Expansion & 6-Sector Citadel Risk Floor Protocol",
+      "category": "CAPITAL_VELOCITY_AND_ACCELERATED_COMPOUNDING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-073",
+      "title": "Institutional Tradier Multi-Leg Live Execution, Atomic Limit Midpoint Sizing & Multi-Broker Isolation Protocol",
+      "category": "MULTI_BROKER_LIVE_EXECUTION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-074",
+      "title": "US Exchange Holiday Dual-Layer Calendar & Autonomous Circuit-Breaker Protocol",
+      "category": "PRODUCTION_SAFETY_AND_EXECUTION",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: US Exchange Holiday Calendar Engine"
+    },
+    {
+      "rule_id": "RULE-075",
+      "title": "Autonomous Master Sunday Reset, Self-Healing Daemon & Scheduler Harmonization Protocol",
+      "category": "SYSTEM_MAINTENANCE_AND_OPTIMIZATION",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Autonomous Master Sunday Reset Daemon"
+    },
+    {
+      "rule_id": "RULE-076",
+      "title": "Holiday-Aware T-3 Rollover Deadline Calculator & Trading Day Alignment Protocol",
+      "category": "RISK_AND_POSITION_LIFECYCLE",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Holiday-Aware Rollover Deadline Calculator"
+    },
+    {
+      "rule_id": "RULE-077",
+      "title": "Adaptive Hybrid Velocity, Time-Decayed Express Harvest & Dual-Bucket Sprint Protocol",
+      "category": "CAPITAL_VELOCITY_AND_ACCELERATED_COMPOUNDING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-078",
+      "title": "Dual-Broker (Alpaca + Tradier) Zero-Interest Collateralization & Post-Graduation Full-Capacity Live Deployment Protocol",
+      "category": "PRODUCTION_SCALING_AND_CAPITAL_EFFICIENCY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-079",
+      "title": "Path B True Snowball Compounding & Systematic SGOV Re-Accumulation Protocol",
+      "category": "WEALTH_ACCUMULATION_AND_COMPOUNDING",
+      "status": "SUPERSEDED",
+      "superseded_by": "Superseded by 100% active liquid cash margin policy (SGOV liquidated)"
+    },
+    {
+      "rule_id": "RULE-080",
+      "title": "Adjusted Tri-Pillar Wealth Sweep, Currency Devaluation Shield & TRD Principal Protection Protocol",
+      "category": "WEALTH_PRESERVATION_AND_CAPITAL_ALLOCATION",
+      "status": "INTERNAL_CODE",
+      "internal_note": "Engineering: Weekly Automated Tri-Pillar Wealth Sweep Task"
+    },
+    {
+      "rule_id": "RULE-081",
+      "title": "Autonomous Waterfall Fallback Relay, Session Quarantine & Multi-Factor Opportunity Preservation Protocol",
+      "category": "EXECUTION_RESILIENCE_AND_CAPITAL_ALLOCATION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-082",
+      "title": "8-Theme Multi-Slot Concurrency, 20:50 ICT Liquidity Radar & Dual-Rod OCO Velocity Protocol",
+      "category": "MULTI_SECTOR_VELOCITY_AND_PORTFOLIO_CONCURRENCY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-083",
+      "title": "Theta Drag Hours Pre-Flight Gate, Weekend Theta Warp & Midpoint Sniping Protocol",
+      "category": "CAPITAL_VELOCITY_AND_MICROSTRUCTURE_OPTIMIZATION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-084",
+      "title": "Ultra-Adaptive 90-Second Micro-Walk & Delta-Drift Accelerator Protocol",
+      "category": "MICROSTRUCTURE_AND_ADAPTIVE_FILLS",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-085",
+      "title": "Dynamic Multiverse Harvest Discovery, Ground-Truth Fill Basis & Rapid Collateral Recycling Protocol",
+      "category": "CAPITAL_VELOCITY_AND_POSITION_LIFECYCLE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-086",
+      "title": "Autonomous Market Clock Synchronization, Dual-Bell Gatekeeper & Heartbeat Self-Healing Protocol",
+      "category": "GATEKEEPER_AND_AGENT_HEARTBEAT_SYNCHRONIZATION",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-087",
+      "title": "Autonomous Strike-Touch Stop-Out, 21-DTE Gamma Cliff Defense & Dynamic Collateral Salvage Protocol",
+      "category": "RISK_AND_POSITION_DEFENSE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-088",
+      "title": "Ground-Truth Broker Telemetry Guard & Zero-Value False Positive Suppressor Protocol",
+      "category": "TELEMETRY_AND_REPORTING_INTEGRITY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-089",
+      "title": "SMA20 Trend Regime Filter, Falling-Knife Quarantine & Multi-Cycle Stop-Out Audit Protocol",
+      "category": "RISK_AND_SECTOR_FILTERING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-090",
+      "title": "Strike-Touch Proactive Sentinel & Autonomous Multi-Leg-to-Sequential Fallback Protocol",
+      "category": "RISK_AND_POSITION_DEFENSE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-091",
+      "title": "Dual-Account Concurrent Dispatch & Idle Cash Elimination Protocol",
+      "category": "CAPITAL_VELOCITY_AND_PORTFOLIO_CONCURRENCY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-092",
+      "title": "Persistent Spread-Level Harvest Lockout, 24-Hour Cooldown & Order Lifecycle Closure Protocol",
+      "category": "EXECUTION_LIFECYCLE_AND_DATA_INTEGRITY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-093",
+      "title": "Dynamic Systems & Agile Execution Protocol (Hardcoding Elimination & Live Market Anchoring)",
+      "category": "DYNAMIC_EXECUTION_AND_MARKET_INTELLIGENCE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-094",
+      "title": "Precision Index Iron Condor & Dual-Wing Volatility Harvesting Protocol",
+      "category": "MULTI_LEG_VOLATILITY_HARVESTING",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-095",
+      "title": "Dynamic Regime-Adaptive Tuning, Market-Aware Barbell & Elastic Margin Protocol",
+      "category": "DYNAMIC_REGIME_AND_ELASTIC_MARGIN",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-096",
+      "title": "Closing Micro-Walk & Penny-Pilot Fill Accelerator Protocol",
+      "category": "EXECUTION_LIFECYCLE_AND_DATA_INTEGRITY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-097",
+      "title": "Profit High-Water Mark Ratchet & Velocity Protection Floor Protocol",
+      "category": "CAPITAL_VELOCITY_AND_PORTFOLIO_CONCURRENCY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-098",
+      "title": "Instant Slot Vacancy Broadcast & Immediate Collateral Recycling Protocol",
+      "category": "CAPITAL_VELOCITY_AND_PORTFOLIO_CONCURRENCY",
+      "status": "ACTIVE"
+    }
+  ]
+}

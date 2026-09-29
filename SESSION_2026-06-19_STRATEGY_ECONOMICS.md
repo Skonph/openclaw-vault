@@ -38,9 +38,15 @@ Real cash was sitting idle at ~0%. Parking it in **SGOV** (~3.55% risk-free) whi
 - **$16k is FUTURE** — funded only after the foundation is clear.
 - **Decision: do NOT run the $50/mo paid stack at ~$4,200 scale** (overhead = ~14% drag). Keep validating on free paper systems until $16k is funded AND config locked.
 
-## 4. Live config status (NOT yet the winning config)
+## 4. Live config status — ⚠️ SUPERSEDED, see SESSION_2026-06-24_SYSTEM_STATUS.md
 
-`daily_scan.py` currently has the **$15k/2% sizing** (`MAX_RISK=300`, `MAX_RISK_TIER3=450`, `MAX_POSITIONS=5`, `STARTING_CAPITAL=15000`) — but **still trades IC + bear-call and only SPY/QQQ/IWM**. The winning-config changes (bull-put-only, 13-ETF universe) exist only as backtest env-flags, **NOT applied to the live scanner**. Backtest tooling added: `BT_MAX_RISK/MAX_POSITIONS/CAPITAL/SYMBOLS/NO_IC/NO_BEAR/OUT/DATA_DIR` env flags, `fetch_backtest_data.py` (Tradier history→CSVs), `bt_compare.py`.
+**This section is OUTDATED as of 2026-06-24.** The winning config IS now live:
+`daily_scan.py` runs **$16k/2% sizing** (`MAX_RISK=320`, `MAX_RISK_TIER3=480`,
+`MAX_POSITIONS=5`, `STARTING_CAPITAL=16000`), the **13-ETF universe**, and is
+**bull-put-only** (Bear-Call + Iron Condor cut via the `BULL_PUT_ONLY` flag).
+See `SESSION_2026-06-24_SYSTEM_STATUS.md` for the current, authoritative state.
+Backtest tooling remains: `BT_MAX_RISK/MAX_POSITIONS/CAPITAL/SYMBOLS/NO_IC/NO_BEAR/OUT/DATA_DIR`
+env flags, `fetch_backtest_data.py` (Tradier history→CSVs), `bt_compare.py`.
 
 ## 5. Deferred tasks (when $16k is ready)
 

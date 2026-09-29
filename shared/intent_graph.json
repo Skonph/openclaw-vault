@@ -1,0 +1,476 @@
+{
+  "nodes": [
+    {
+      "intent_id": "INTENT-20260727041015-c84064",
+      "creator": "pion2_scanner",
+      "goal_description": "Pion2 Single-Name Scan (8 candidates)",
+      "hypothesis": "Evaluate top single-name credit spread setups for Pion2 post-FOMC",
+      "action_type": "run_scan",
+      "action_payload": {
+        "account": "Pion2 (PA3C75K8SZ57)",
+        "generated_at_iso": "2026-07-27T04:10:15Z",
+        "scan_source": "IBKR-Model MultiSort Single-Name Scanner",
+        "candidates_count": 8,
+        "candidates": [
+          {
+            "symbol": "AAPL",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "NVDA",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "TSLA",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "AMD",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "AMZN",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "MSFT",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "GOOGL",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          },
+          {
+            "symbol": "META",
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_expiry": "2026-08-31",
+            "width": 5.0,
+            "conviction_score": 75,
+            "tumblers_pass": "4/5",
+            "thesis": "Single-name momentum + VRP edge in MODERATE market environment.",
+            "max_loss": 350.0,
+            "target_credit": 1.5
+          }
+        ]
+      },
+      "expected_metric": {
+        "candidates_found": 8
+      },
+      "created_at": "2026-07-27T04:10:15Z",
+      "trigger_time": null,
+      "cron_task_id": null,
+      "status": "PENDING",
+      "actual_metric": null,
+      "resolved_at": null,
+      "reward_score": 0.0,
+      "resolution_notes": "",
+      "graduation_gap_at_creation": {}
+    },
+    {
+      "intent_id": "INTENT-20260727041243-c87b41",
+      "creator": "anna_pion2_screener",
+      "goal_description": "IBKR MultiSort Pion2 Scan (17 candidates)",
+      "hypothesis": "Low IV Rank (0-25) + Low IV Pct (0-5%) structural premium selling for Pion2",
+      "action_type": "run_scan",
+      "action_payload": {
+        "account": "Pion2 (PA3C75K8SZ57)",
+        "generated_at_iso": "2026-07-27T04:12:43Z",
+        "screener_criteria": {
+          "volume_range": "1M - 10M",
+          "iv_percentile_max": 5.0,
+          "iv_rank_max": 25,
+          "sort_order": "iv_rank_asc"
+        },
+        "candidates_count": 17,
+        "top_candidates": [
+          {
+            "symbol": "AAPL",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "NVDA",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "TSLA",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "AMD",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "AMZN",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          }
+        ]
+      },
+      "expected_metric": {
+        "candidates_found": 17
+      },
+      "created_at": "2026-07-27T04:12:43Z",
+      "trigger_time": null,
+      "cron_task_id": null,
+      "status": "PENDING",
+      "actual_metric": null,
+      "resolved_at": null,
+      "reward_score": 0.0,
+      "resolution_notes": "",
+      "graduation_gap_at_creation": {}
+    },
+    {
+      "intent_id": "INTENT-20260727041808-c9c6f3",
+      "creator": "hermes_cso",
+      "goal_description": "Close all SPY option spreads (743/741P & 737/734P) before FOMC at 20:00 ICT",
+      "hypothesis": "Clear SPY spreads to eliminate binary Fed event risk entering Jul 28-29",
+      "action_type": "close_positions",
+      "action_payload": {
+        "symbols": [
+          "SPY"
+        ],
+        "target_time": "2026-07-27 20:00:00 ICT"
+      },
+      "expected_metric": {
+        "positions_count": 0
+      },
+      "created_at": "2026-07-27T04:18:08Z",
+      "trigger_time": "2026-07-27T20:00:00+07:00",
+      "cron_task_id": null,
+      "status": "PENDING",
+      "actual_metric": null,
+      "resolved_at": null,
+      "reward_score": 0.0,
+      "resolution_notes": "",
+      "graduation_gap_at_creation": {}
+    },
+    {
+      "intent_id": "INTENT-20260727054008-b514b1",
+      "creator": "anna_pion2_screener",
+      "goal_description": "IBKR MultiSort Pion2 Scan (17 candidates)",
+      "hypothesis": "Low IV Rank (0-25) + Low IV Pct (0-5%) structural premium selling for Pion2",
+      "action_type": "run_scan",
+      "action_payload": {
+        "account": "Pion2 (PA3C75K8SZ57)",
+        "generated_at_iso": "2026-07-27T05:40:08Z",
+        "screener_criteria": {
+          "volume_range": "1M - 10M",
+          "iv_percentile_max": 5.0,
+          "iv_rank_max": 25,
+          "sort_order": "iv_rank_asc"
+        },
+        "candidates_count": 17,
+        "top_candidates": [
+          {
+            "symbol": "AAPL",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "NVDA",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "TSLA",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "AMD",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "AMZN",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          }
+        ]
+      },
+      "expected_metric": {
+        "candidates_found": 17
+      },
+      "created_at": "2026-07-27T05:40:08Z",
+      "trigger_time": null,
+      "cron_task_id": null,
+      "status": "PENDING",
+      "actual_metric": null,
+      "resolved_at": null,
+      "reward_score": 0.0,
+      "resolution_notes": "",
+      "graduation_gap_at_creation": {}
+    },
+    {
+      "intent_id": "INTENT-20260727054548-aabd3c",
+      "creator": "anna_pion2_screener",
+      "goal_description": "IBKR MultiSort Pion2 Scan (43 candidates)",
+      "hypothesis": "Low IV Rank (0-25) + Low IV Pct (0-5%) structural premium selling for Pion2",
+      "action_type": "run_scan",
+      "action_payload": {
+        "account": "Pion2 (PA3C75K8SZ57)",
+        "generated_at_iso": "2026-07-27T05:45:48Z",
+        "screener_criteria": {
+          "volume_range": "1M - 10M",
+          "iv_percentile_max": 5.0,
+          "iv_rank_max": 25,
+          "sort_order": "iv_rank_asc"
+        },
+        "candidates_count": 43,
+        "top_candidates": [
+          {
+            "symbol": "TLT",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "IEF",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "GLD",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "SLV",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "XLE",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          }
+        ]
+      },
+      "expected_metric": {
+        "candidates_found": 43
+      },
+      "created_at": "2026-07-27T05:45:48Z",
+      "trigger_time": null,
+      "cron_task_id": null,
+      "status": "PENDING",
+      "actual_metric": null,
+      "resolved_at": null,
+      "reward_score": 0.0,
+      "resolution_notes": "",
+      "graduation_gap_at_creation": {}
+    },
+    {
+      "intent_id": "INTENT-20260727055010-6f0e53",
+      "creator": "fomc_assessment",
+      "goal_description": "Post-FOMC Strategy Deployment for Pion & Pion2",
+      "hypothesis": "Post-FOMC IV crush: Deploy Spina 45 DTE credit spreads in top single names",
+      "action_type": "run_scan",
+      "action_payload": {
+        "evaluated_at_iso": "2026-07-27T05:50:10Z",
+        "fomc_status": "POST_EVENT",
+        "vix_spot": 17.5,
+        "regime": "MODERATE",
+        "pion_action": "Evaluate SPY/QQQ 45 DTE credit spreads if VIX > 18.0",
+        "pion2_action": "Deploy top 3 single-name spreads from MultiSort screener",
+        "pion2_candidates_count": 43,
+        "top_pion2_candidates": [
+          {
+            "symbol": "TLT",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "IEF",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          },
+          {
+            "symbol": "GLD",
+            "avg_volume": 3500000,
+            "iv_percentile": 4.2,
+            "iv_rank_52wk": 18,
+            "strategy": "bull_put_spread",
+            "dte": 35,
+            "target_credit": 1.45,
+            "max_loss": 350.0,
+            "thesis": "IBKR MultiSort: Low IV Rank (18), Low IV Pct (4.2%), Liquid Vol (3,500,000)"
+          }
+        ]
+      },
+      "expected_metric": {
+        "pion2_deploy_count": 3
+      },
+      "created_at": "2026-07-27T05:50:10Z",
+      "trigger_time": null,
+      "cron_task_id": null,
+      "status": "PENDING",
+      "actual_metric": null,
+      "resolved_at": null,
+      "reward_score": 0.0,
+      "resolution_notes": "",
+      "graduation_gap_at_creation": {}
+    }
+  ]
+}

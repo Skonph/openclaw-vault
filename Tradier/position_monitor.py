@@ -311,8 +311,12 @@ def log_exit(trade, reason, close_debit, pnl, order_result):
         "entry_credit": trade["entry_credit"],
         "close_debit":  close_debit,
         "realized_pnl": round(pnl, 2),
-        "order_id":     order_result.get("order_id", "?"),
-        "success":      order_result.get("success", False),
+        # Join key for the conviction accuracy tracker MUST be the ENTRY order id
+        # (carried on the active-trade record), not the new buy-to-close order id —
+        # otherwise conviction↔outcome never matches and the model never graduates.
+        "order_id":       trade.get("order_id", order_result.get("order_id", "?")),
+        "close_order_id": order_result.get("order_id", "?"),
+        "success":        order_result.get("success", False),
     }
     if order_result.get("error"):
         entry["error"] = order_result["error"]
@@ -323,6 +327,18 @@ def log_exit(trade, reason, close_debit, pnl, order_result):
 
     with open(TRADE_LOG, "a") as f:
         f.write(json.dumps(entry) + "\n")
+        
+    if entry.get("success"):
+        try:
+            import subprocess
+            from pathlib import Path
+            workspace = Path(__file__).parent.parent
+            # Trigger self-improving agents in the background
+            subprocess.Popen(["python3", str(workspace / "shared" / "post_mortem_agent.py")])
+            subprocess.Popen(["python3", str(workspace / "shared" / "auto_trade_card.py")])
+            subprocess.Popen(["python3", str(workspace / "shared" / "conviction_accuracy_tracker.py")])
+        except Exception as e:
+            print(f"  ⚠️ [Post-Exit Hook Failed] {e}")
 
 # ─── ORDER SUBMISSION ─────────────────────────────────────────────────────────
 

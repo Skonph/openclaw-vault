@@ -1,0 +1,35 @@
+{
+  "analyzed_at": "2026-08-09T03:15:23.728946+00:00",
+  "symbol": "SPY/QQQ Composite",
+  "current_state": "SIDEWAYS",
+  "persistence_score": 1.0,
+  "is_sticky": true,
+  "next_state_probabilities": {
+    "BULL": 0.0,
+    "SIDEWAYS": 1.0,
+    "BEAR": 0.0
+  },
+  "transition_matrix": {
+    "BULL": {
+      "BULL": 0.3333,
+      "SIDEWAYS": 0.3333,
+      "BEAR": 0.3333
+    },
+    "SIDEWAYS": {
+      "BULL": 0.0,
+      "SIDEWAYS": 1.0,
+      "BEAR": 0.0
+    },
+    "BEAR": {
+      "BULL": 0.3333,
+      "SIDEWAYS": 0.3333,
+      "BEAR": 0.3333
+    }
+  },
+  "strategy_recommendation": {
+    "recommended_strategy": "IRON_CONDOR / SHORT_STRANGLE",
+    "bias": "DELTA_NEUTRAL_THETA",
+    "reasoning": "Market is in a sticky SIDEWAYS regime (100.0% persistence). Theta decay is highly favored.",
+    "options_fit": "Optimal \u2014 45 DTE premium selling with 50% max profit target."
+  }
+}

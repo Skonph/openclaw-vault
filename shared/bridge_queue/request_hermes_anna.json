@@ -1,0 +1,9 @@
+{
+  "from_agent": "hermes",
+  "to_agent": "anna",
+  "channel": "request",
+  "priority": "high",
+  "subject": "Mon Deployment Recs — Skon Request",
+  "body": "Skon wants you to draft Monday deployment recommendations.\n\nContext (Sat Sep 20 snapshot):\n- Grad progress: $14,524.55 / $18,042.37 (80.5%), 5 days to Sep 25 deadline\n- Cash: ~$14,524.55 ($8,000 fresh collateral from LMT/NVDA expiry)\n- Active: XLU $44P/$42P (Oct 2), AMD $490P/$485P (Oct 2)\n- Tail hedge: AVGO $160P (14C, Oct 16)\n\n⚠️ Watch items:\n1. XLF rollover deadline Sep 23 (Tue) — 11 DTE, needs replacement\n2. $8K fresh collateral — 1-2 new Bull Put entries needed\n3. AMD $0.55 fill vs $0.62 target (minor slippage)\n4. AVGO tail hedge $283/mo premium drag\n\nPlease draft entry targets, collateral allocation, XLF replacement recs.",
+  "timestamp": "2026-09-20T16:30:00+07:00"
+}

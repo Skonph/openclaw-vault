@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-09-27T02:31:53Z",
+  "updated_at_ict": "2026-09-27 09:31 ICT",
+  "mode": "OPTION_A_PURE_LIVE",
+  "live_production_progress": {
+    "total_liquid_cash": 32094.01,
+    "current_combined_equity": 32036.01,
+    "monthly_target_net_cash": 5766.0,
+    "monthly_target_pct": "18%+ Target (>=12% Floor)",
+    "monthly_floor_net_cash": 3844.0,
+    "weekly_velocity_target": 1441.5,
+    "weekly_velocity_floor": 961.0,
+    "cash_defense_floor": 11249.0,
+    "max_margin_envelope": 20891.0,
+    "quarantined_accounts": {
+      "ibkr": {
+        "account_number": "U25439978",
+        "equity": 2200.0,
+        "status": "QUARANTINED_UNTOUCHED"
+      }
+    },
+    "status": "LIVE_PRODUCTION_ACTIVE"
+  },
+  "accounts": {
+    "alpaca_live": {
+      "equity": 30028.88,
+      "cash": 30071.88,
+      "positions_count": 2,
+      "open_positions": [
+        "XLE261016P00058000",
+        "XLE261016P00060000"
+      ]
+    },
+    "tradier_live": {
+      "equity": 2007.13,
+      "cash": 2022.13,
+      "positions_count": 2,
+      "open_positions": [
+        "XLF261016P00053000",
+        "XLF261016P00054000"
+      ]
+    },
+    "standby_paper": {
+      "pion_main_cash": 4701.72,
+      "pion2_sub_cash": 3335.87,
+      "status": "PASSIVE_STANDBY"
+    }
+  }
+}

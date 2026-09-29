@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-08-23 08:09:45 ICT",
+  "combined_equity": 17688.6,
+  "projected_target": 17608.77,
+  "graduation_target": 18042.37,
+  "status": "AHEAD_OF_SCHEDULE (+78.83)",
+  "accounts": {
+    "pion_main": {
+      "equity": 14576.71,
+      "cash": 14576.71,
+      "positions": [],
+      "next_action": "Monday Aug 24: Open 2C LMT Bull Put Spread @ 20:30 ICT"
+    },
+    "pion2_sub": {
+      "equity": 3110.85,
+      "positions": [
+        {
+          "symbol": "SPY",
+          "strategy": "Bull Put Spread (740/735)",
+          "short_strike": 740.0,
+          "long_strike": 735.0,
+          "expiration": "2026-09-04",
+          "spot_buffer": "+$7.03 (Spot $747.03 > $740.00)",
+          "unrealized_profit_pct": 35.0,
+          "harvest_target": "60% on Wed Aug 26"
+        },
+        {
+          "symbol": "SPY",
+          "strategy": "Tail Risk Hedge Put",
+          "strike": 728.0,
+          "expiration": "2026-08-28",
+          "status": "Active Protection"
+        }
+      ],
+      "next_action": "Wednesday Aug 26: Fast harvest SPY 740/735 spread @ 60% profit"
+    }
+  }
+}

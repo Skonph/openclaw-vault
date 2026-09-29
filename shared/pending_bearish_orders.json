@@ -1,0 +1,35 @@
+[
+  {
+    "symbol": "QQQ",
+    "spot": 684.43,
+    "strategy": "BEAR_CALL_SPREAD",
+    "sell_strike": 695.0,
+    "buy_strike": 700.0,
+    "credit": 1.45,
+    "roc": 0.41,
+    "dte": 35,
+    "rationale": "Resistance test below SMA20 ($703). High win-rate bear call spread."
+  },
+  {
+    "symbol": "SPY",
+    "spot": 741.52,
+    "strategy": "BEAR_PUT_SPREAD",
+    "buy_strike": 735.0,
+    "sell_strike": 725.0,
+    "debit": 2.85,
+    "max_payout": 7.15,
+    "dte": 42,
+    "rationale": "Defined-risk downside debit spread. Benefits from breakdown & IV expansion."
+  },
+  {
+    "symbol": "NVDA",
+    "spot": 195.49,
+    "strategy": "BEAR_CALL_SPREAD",
+    "sell_strike": 205.0,
+    "buy_strike": 210.0,
+    "credit": 1.62,
+    "roc": 0.48,
+    "dte": 35,
+    "rationale": "Tech rotation weakness. Upper resistance at $205."
+  }
+]

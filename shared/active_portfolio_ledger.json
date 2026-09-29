@@ -1,0 +1,10 @@
+[
+  {
+    "system": "tradier",
+    "symbol": "SPY",
+    "direction": "bull",
+    "qty": 1,
+    "max_risk_usd": 224.0,
+    "opened_at": "2026-07-09T21:16:28.422321"
+  }
+]

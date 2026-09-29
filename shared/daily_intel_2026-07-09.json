@@ -1,0 +1,118 @@
+{
+  "schema": "anna.daily_intel.v2",
+  "generated_at": "2026-07-09T08:00:00+07:00",
+  "type": "daily_intelligence_package",
+  "portfolio": {
+    "tradier": {
+      "account_id": "tradier_prod",
+      "equity_usd": 15336.89,
+      "cash_usd": 16256.89,
+      "cash_pct": 106.0,
+      "yesterday_pnl_usd": -118.0,
+      "yesterday_pnl_pct": -0.76,
+      "positions": [
+        {
+          "underlying": "QQQ",
+          "expiry": "2026-07-17",
+          "dte": 8,
+          "structure": "put_spread",
+          "legs": 2,
+          "net_pnl_usd": -170.0,
+          "gamma_risk": "APPROACHING"
+        },
+        {
+          "underlying": "QQQ",
+          "expiry": "2026-07-24",
+          "dte": 15,
+          "structure": "put_spread_4legs",
+          "legs": 4,
+          "net_pnl_usd": -288.0,
+          "gamma_risk": "LOW"
+        },
+        {
+          "underlying": "IWM",
+          "expiry": "2026-07-24",
+          "dte": 15,
+          "structure": "put_spread",
+          "legs": 2,
+          "net_pnl_usd": -10.0,
+          "gamma_risk": "LOW"
+        },
+        {
+          "underlying": "SPY",
+          "expiry": "2026-08-07",
+          "dte": 29,
+          "structure": "put_spread",
+          "legs": 2,
+          "net_pnl_usd": -18.0,
+          "gamma_risk": "NONE"
+        },
+        {
+          "underlying": "XLE",
+          "expiry": "2026-07-17",
+          "dte": 8,
+          "structure": "put_spread",
+          "legs": 2,
+          "net_pnl_usd": -3.0,
+          "gamma_risk": "APPROACHING"
+        }
+      ],
+      "total_positions": 5,
+      "total_legs": 12,
+      "net_unrealized_usd": -489.0
+    },
+    "pionex": {
+      "account_id": "pionex_vault",
+      "status": "legacy",
+      "estimated_pnl_usd": -295.0,
+      "action_required": "EVALUATE_EXIT_STRATEGY"
+    },
+    "combined": {
+      "total_cash_usd": 16256.89,
+      "combined_pnl_usd": -784.0
+    }
+  },
+  "market_regime": {
+    "vix_approx": 18.31,
+    "vix_change_pct": 13.5,
+    "vix_regime": "ELEVATED",
+    "regime_action": "REDUCE_POSITION_SIZE_50_PCT"
+  },
+  "combination_lock": {
+    "alignment": "2/5",
+    "verdict": "STAND_ASIDE_INSUFFICIENT_ALIGNMENT"
+  },
+  "gamma_risk_alerts": [
+    {
+      "underlying": "QQQ",
+      "expiry": "2026-07-17",
+      "dte": 8,
+      "alert": "GAMMA_ZONE_APPROACHING",
+      "action": "EXIT_OR_ROLL_BY_FRI_JUL_11"
+    },
+    {
+      "underlying": "XLE",
+      "expiry": "2026-07-17",
+      "dte": 8,
+      "alert": "GAMMA_ZONE_APPROACHING",
+      "action": "EXIT_OR_ROLL_BY_FRI_JUL_11"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "EVALUATE_JUL_17_EXPIRY_POSITIONS",
+      "estimated_risk_usd": -173.0
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "MONITOR_QQQ_TECH_SELLING",
+      "combined_pnl": -458.0
+    },
+    {
+      "priority": "LOW",
+      "action": "PLAN_PIONEX_EXIT",
+      "estimated_pnl": -295.0
+    }
+  ]
+}

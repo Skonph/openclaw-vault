@@ -41,10 +41,14 @@ except ImportError:
 
 # ─── MODE FLAGS ───────────────────────────────────────────────────────────────
 TEST_MODE      = "--test"      in sys.argv
+DRY_RUN        = "--dry-run"   in sys.argv   # REAL Tradier data + real chains, but NO order sent to Alpaca and no state writes
 NO_NOTIFY      = "--no-notify" in sys.argv   # suppress Telegram (used by telegram_bot.py)
 
 if TEST_MODE:
     print("\n  ⚡ TEST MODE — using mock data, no API calls made\n")
+elif DRY_RUN:
+    print("\n  🧪 DRY-RUN — LIVE Tradier data + real option chains, but NO order sent to Alpaca "
+          "and no writes to trade_log/active_trades. Use this to validate strikes/pipeline safely.\n")
 
 # ─── DUAL-API CONFIG ──────────────────────────────────────────────────────────
 #
@@ -86,6 +90,15 @@ DYNAMIC_SIZING_SCORE_THRESHOLD_IC = 0.020   # iron condor (sum of put + call leg
 DYNAMIC_SIZING_SCORE_THRESHOLD_TIER3    = 0.018   # single-leg, qty=3
 DYNAMIC_SIZING_SCORE_THRESHOLD_IC_TIER3 = 0.032   # iron condor, qty=3
 MAX_RISK_TIER3 = 480   # qty=3 ceiling = 1.5× MAX_RISK ($320). Per-trade max loss ≤ $480; 5 positions × $480 = $2,400 = 15% of $16k. (was 450)
+
+# ── STRATEGY GATE ────────────────────────────────────────────────────────────
+# Backtest verdict (2y, 13 ETFs): Bull-Put is the ONLY edge (~83% WR, robust).
+# Bear-Call was a confirmed net loser (−$150 to −$206) and Iron Condor was
+# net-negative / high-variance. Both are CUT. The regime router already routes
+# their conditions to no-trade; this flag is defense-in-depth so the losing
+# constructors can never fire even if someone re-wires the router. Flip to False
+# only with fresh backtest evidence that those strategies have an edge.
+BULL_PUT_ONLY = True
 
 # Pre-built headers for each API
 PROD_HEADERS = {
@@ -370,6 +383,40 @@ def check_calendar_skip():
             return True, f"CPI Release on {event_str} (in {diff} days)"
             
     return False, ""
+
+def get_next_macro_event() -> str:
+    """Returns a string describing the next upcoming macro event (CPI/FOMC) and days remaining."""
+    import datetime as dt
+    today = dt.date.today()
+    fomc_dates = [
+        "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17",
+        "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09"
+    ]
+    cpi_dates = [
+        "2026-01-13", "2026-02-11", "2026-03-11", "2026-04-10", "2026-05-12",
+        "2026-06-10", "2026-07-14", "2026-08-12", "2026-09-11", "2026-10-14",
+        "2026-11-10", "2026-12-10"
+    ]
+    future_events = []
+    for d_str in fomc_dates:
+        edate = dt.datetime.strptime(d_str, "%Y-%m-%d").date()
+        diff = (edate - today).days
+        if diff >= 0:
+            future_events.append((diff, "FOMC", d_str))
+    for d_str in cpi_dates:
+        edate = dt.datetime.strptime(d_str, "%Y-%m-%d").date()
+        diff = (edate - today).days
+        if diff >= 0:
+            future_events.append((diff, "CPI", d_str))
+
+    if not future_events:
+        return "No upcoming macro events scheduled"
+
+    future_events.sort(key=lambda x: x[0])
+    diff, name, date_str = future_events[0]
+    if diff == 0:
+        return f"{name} TODAY ({date_str})"
+    return f"{name} on {date_str} ({diff}d away)"
 
 # ─── SECTION 1: MORNING MARKET SCAN ─────────────────────────────────────────
 
@@ -769,8 +816,8 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
         print(f"  ──────────────────────────────────────────────────────")
         print(f"  Net Credit:      ${net_credit:.2f}/share  (${max_profit:.0f} total)")
         print(f"  Max Profit:      ${max_profit:.0f}  (spread expires worthless)")
-        print(f"  Max Loss:        ${max_loss:.0f}  (SPY closes below ${long_strike:.0f})")
-        print(f"  Breakeven:       ${breakeven:.2f}  (SPY must stay above this)")
+        print(f"  Max Loss:        ${max_loss:.0f}  ({symbol} closes below ${long_strike:.0f})")
+        print(f"  Breakeven:       ${breakeven:.2f}  ({symbol} must stay above this)")
         print(f"  Prob. of profit: ~{100 + short_delta*100:.0f}%")
         print(f"  Reward/Risk:     {net_credit/((width - net_credit)):.2f}:1")
         print(f"  ── Exit Rules ─────────────────────────────────────────")
@@ -801,8 +848,9 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
   }}
         """)
 
-    # ── SAVE PENDING TRADE for Telegram /approve ─────────────────────────────
-    # telegram_bot.py reads this file when the user sends /approve
+    # ── SNAPSHOT THE PENDING TRADE (audit + auto-execute handoff) ────────────
+    # auto_execute_trade() reads this immediately, fires it on Alpaca, then
+    # archives it to executed_*.json. The system is autonomous — no manual step.
     import json as _json
     _pending = {
         "meta": {
@@ -840,7 +888,7 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
         _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
         with open(_pending_path, "w") as _f:
             _json.dump(_pending, _f, indent=2)
-        print(f"  💾 Trade saved → pending_trade.json  (reply /approve in Telegram to execute)")
+        print(f"  💾 Trade snapshot → pending_trade.json  (system auto-executes autonomously; Telegram is notify-only)")
 
     return {
         "strategy":             "Bull Put Spread",
@@ -862,6 +910,21 @@ def construct_bull_put_spread(symbol="SPY", expiration=None, spy_price=742, vix=
         "quantity":             qty,
         "score":                score,
         "underlying_price":     spy_price,
+        # ── Real fields for the conviction scorer (no more stubs) ──────────────
+        "dte":                  dte,
+        "width":                width,
+        # credit R:R = credit / max-loss-per-share (the ~0.2–0.5 the summary prints)
+        "rr_credit":            round(net_credit / (width - net_credit), 4) if (width - net_credit) else 0.0,
+        "short_iv":             round(short_iv, 2),
+        "short_delta":          round(short_delta, 4),
+        "short_oi":             short_put.get("open_interest", 0) or 0,
+        "long_oi":              long_put.get("open_interest", 0) or 0,
+        "short_bid":            round(short_put.get("bid", 0) or 0, 2),
+        "short_ask":            round(short_put.get("ask", 0) or 0, 2),
+        "long_bid":             round(long_put.get("bid", 0) or 0, 2),
+        "long_ask":             round(long_put.get("ask", 0) or 0, 2),
+        # bull-put only reaches here when price >= SMA20 (trend filter); None if unknown
+        "etf_above_ema20":      (spy_price >= sma) if sma is not None else None,
     }
 
 # ─── SECTION 3B: BEAR CALL SPREAD CONSTRUCTION ───────────────────────────────
@@ -880,6 +943,10 @@ def construct_bear_call_spread(symbol="SPY", expiration=None, spy_price=742, vix
       - Max loss ≤ $200
       - Long call is ABOVE the short call (protection caps upside risk)
     """
+    if BULL_PUT_ONLY:
+        print("  🚫 Bear Call Spread is CUT (BULL_PUT_ONLY) — backtest net loser (−$150 to −$206). No trade.")
+        return None
+
     # 20-day SMA trend filter
     sma = get_sma_20(symbol)
     if sma is not None and spy_price > sma:
@@ -1019,7 +1086,7 @@ def construct_bear_call_spread(symbol="SPY", expiration=None, spy_price=742, vix
   }}
     """)
 
-    # ── SAVE PENDING TRADE for Telegram /approve ─────────────────────────────
+    # ── SNAPSHOT THE PENDING TRADE (audit + auto-execute handoff) ────────────
     import json as _json
     _pending = {
         "meta": {
@@ -1056,7 +1123,7 @@ def construct_bear_call_spread(symbol="SPY", expiration=None, spy_price=742, vix
     _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
     with open(_pending_path, "w") as _f:
         _json.dump(_pending, _f, indent=2)
-    print(f"  💾 Trade saved → pending_trade.json  (reply /approve in Telegram to execute)")
+    print(f"  💾 Trade snapshot → pending_trade.json  (system auto-executes autonomously; Telegram is notify-only)")
 
     return {
         "strategy":             "Bear Call Spread",
@@ -1088,6 +1155,10 @@ def construct_iron_condor(symbol="SPY", expiration=None, spy_price=742, vix=16.0
       - |SPY day change| ≤ 0.5%  (no strong directional bias)
       - VIX ≥ 18                 (enough IV to collect meaningful premium from both sides)
     """
+    if BULL_PUT_ONLY:
+        print("  🚫 Iron Condor is CUT (BULL_PUT_ONLY) — backtest net-negative / high variance. No trade.")
+        return None
+
     from datetime import date as _date
     today = _date.today()
 
@@ -1289,7 +1360,7 @@ def construct_iron_condor(symbol="SPY", expiration=None, spy_price=742, vix=16.0
     _pending_path = os.path.join(os.path.dirname(__file__), "pending_trade.json")
     with open(_pending_path, "w") as _f:
         _json.dump(_pending, _f, indent=2)
-    print(f"  💾 Trade saved → pending_trade.json  (reply /approve in Telegram to execute)")
+    print(f"  💾 Trade snapshot → pending_trade.json  (system auto-executes autonomously; Telegram is notify-only)")
 
     return {
         "strategy":          "Iron Condor",
@@ -1395,6 +1466,16 @@ def auto_execute_trade():
         print("  🧪 TEST MODE — order not submitted to Alpaca (auto-execute suppressed)")
         return {"success": True, "order_id": "TEST-AUTO-001", "order_status": "simulated"}
 
+    if DRY_RUN:
+        print("  🧪 DRY-RUN — order NOT submitted (validated against live data only).")
+        print(f"     Would POST to Alpaca /v2/orders: {json.dumps(payload)[:300]}")
+        # Remove the pending file so a later REAL run can't pick up this dry-run order.
+        try:
+            os.remove(pending_path)
+        except OSError:
+            pass
+        return {"success": True, "order_id": "DRY-RUN", "order_status": "dry_run"}
+
     # Enforce paper-only execution checks
     _check_alpaca_paper_account()
 
@@ -1427,11 +1508,37 @@ def auto_execute_trade():
         return {"success": False, "error": str(resp)[:200], "order_id": "rejected"}
 
 
+def _conviction_may_veto(workspace_dir, min_sample=20):
+    """
+    Conviction earns the right to BLOCK trades only after a proven track record:
+      • ≥ min_sample resolved (entry+exit) outcomes in the conviction log, AND
+      • the accuracy tracker reports NO calibration warnings (i.e. high-score
+        buckets are not underperforming — the model is actually predictive).
+    Until both hold, conviction is advisory-only. Any error → fail safe (no veto).
+    """
+    try:
+        from pathlib import Path as _Path
+        from shared.conviction_accuracy_tracker import resolve_outcomes, compute_accuracy
+        workspace_dir = _Path(workspace_dir)
+        conv_log   = workspace_dir / "shared" / "conviction_log.jsonl"
+        trade_logs = [workspace_dir / "Tradier" / "trade_log.jsonl"]
+        outcomes = resolve_outcomes(conv_log, trade_logs)
+        if len(outcomes) < min_sample:
+            return False
+        report = compute_accuracy(outcomes)
+        return not report.calibration_warnings
+    except Exception:
+        return False
+
+
 def log_trade_activity(trade, exec_result):
     """
     Append one JSON line to trade_log.jsonl for the daily summary script.
     Each line is a self-contained record of one trade attempt.
     """
+    if DRY_RUN:
+        print("  🧪 DRY-RUN — not written to trade_log.jsonl / active_trades.json")
+        return
     from datetime import date as _date
     log_path = os.path.join(os.path.dirname(__file__), "trade_log.jsonl")
 
@@ -1478,6 +1585,24 @@ def log_trade_activity(trade, exec_result):
     # Save to active_trades.json so position_monitor.py can manage exits
     if exec_result.get("success"):
         _save_active_trade(trade, exec_result, entry["date"])
+        # Pair the conviction score with the real order_id so the accuracy
+        # tracker can resolve win/loss outcomes later (and eventually earn veto).
+        if "conviction_score" in trade:
+            try:
+                from pathlib import Path as _Path
+                from shared.conviction_accuracy_tracker import log_conviction as _log_conv
+                _log_conv(
+                    symbol=trade.get("symbol", ""),
+                    strategy=trade.get("strategy", ""),
+                    entry_date=entry["date"],
+                    conviction_score=int(trade.get("conviction_score", 0)),
+                    factors=trade.get("conviction_factors", {}),
+                    order_id=exec_result.get("order_id", "unknown"),
+                    log_path=_Path(__file__).parent.parent / "shared" / "conviction_log.jsonl",
+                )
+                print("  🧠 Conviction logged → shared/conviction_log.jsonl")
+            except Exception as _e:
+                print(f"  ⚠️ [Conviction log error] {_e}")
 
 
 def _save_active_trade(trade, exec_result, trade_date):
@@ -1836,6 +1961,143 @@ def full_morning_routine():
                 )
             else:
                 print("\n  ⚪ No qualifying Bull Put Spreads found across all 13 ETFs.")
+
+    # ── SANITY GUARD: reject absurd strikes (e.g. a $732 put on a $45 ETF — a
+    #    bad/mock chain). Runs BEFORE the paid research/conviction calls. ─────────
+    if trade:
+        try:
+            _u = (best_cand or {}).get("underlying_price") or trade.get("underlying_price") or 0
+            _ss = parse_occ_strike(trade.get("short_symbol", "")) if trade.get("short_symbol") else 0
+            if _u and _ss and abs(_ss - _u) / _u > 0.5:
+                print(f"  ❌ Trade REJECTED — sanity guard: short strike ${_ss:.0f} is "
+                      f">50% from {trade.get('symbol')} spot ${_u:.2f} (bad/mock chain?).")
+                trade = None
+        except Exception as _e:
+            print(f"  ⚠️ [Sanity guard error] {_e}")
+
+    # ── RESEARCH LAYER: SENTIMENT & UOA ──────────────────────────────────────
+    if trade:
+        try:
+            import sys
+            from pathlib import Path
+            sys.path.append(str(Path(__file__).parent.parent))
+            from shared.sentiment_agent import get_sentiment
+            from shared.uoa_detector import check_uoa
+            
+            sym = trade.get('symbol')
+            trade_dir = "BULLISH" if "Bull" in trade.get('strategy', '') else "BEARISH" if "Bear" in trade.get('strategy', '') else "NEUTRAL"
+            
+            print(f"\n  🕵️ Running Research Layer on {sym}...")
+            
+            sentiment = get_sentiment(sym)
+            sent_score = sentiment.get('score', 0.0)
+            print(f"    Sentiment Score: {sent_score} — {sentiment.get('summary', '')}")
+            
+            uoa = check_uoa(sym)
+            uoa_flag = uoa.get('uoa_flag', 'None')
+            print(f"    UOA Flag: {uoa_flag} — {uoa.get('details', '')}")
+            
+            # Veto logic
+            if trade_dir == "BULLISH" and (sent_score <= -0.5 or uoa_flag == "BEARISH"):
+                print("  ❌ Trade VETOED: Research Layer detects severe opposing bearish flow/sentiment.")
+                trade = None
+            elif trade_dir == "BEARISH" and (sent_score >= 0.5 or uoa_flag == "BULLISH"):
+                print("  ❌ Trade VETOED: Research Layer detects severe opposing bullish flow/sentiment.")
+                trade = None
+                
+        except Exception as e:
+            print(f"\n  ⚠️ [Research Layer Error] {e}")
+
+    # ── CONVICTION SCORING, IV CALIBRATION, & PORTFOLIO AUDIT ───────────────
+    if trade:
+        try:
+            import sys
+            from pathlib import Path
+            sys.path.append(str(Path(__file__).parent.parent))
+            from shared.portfolio_auditor import PortfolioAuditor
+            from shared.conviction_scorer import score_conviction, CONVICTION_MIN
+            from shared.iv_calibrator import IVCalibrator
+            
+            # 1. Portfolio Audit
+            auditor = PortfolioAuditor(Path(__file__).parent.parent)
+            approved, audit_msg = auditor.audit_trade(trade)
+            print(f"\n  🛡️ Portfolio Audit: {audit_msg}")
+            
+            if not approved:
+                print(f"  ❌ Trade VETOED by Portfolio Auditor.")
+                trade = None
+            else:
+                # 2. Conviction Scoring & IV Calibration — REAL candidate fields
+                _strat = trade.get('strategy', '')
+                if 'Condor' in _strat:
+                    _stype = 'iron_condor'
+                elif 'Bull Put' in _strat:
+                    _stype = 'bull_put'
+                elif 'Bear Call' in _strat:
+                    _stype = 'bear_call'
+                elif 'Bull' in _strat:
+                    _stype = 'bull_call'
+                else:
+                    _stype = 'bear_put'
+
+                _siv = float(trade.get('short_iv', 0) or 0)
+                alert = {
+                    'symbol':          trade.get('symbol'),
+                    'spread_type':     _stype,
+                    'long_strike':     trade.get('long_strike'),
+                    'short_strike':    trade.get('short_strike'),
+                    'dte':             int(trade.get('dte', 0) or 0),
+                    'long_oi':         int(trade.get('long_oi', 0) or 0),
+                    'short_oi':        int(trade.get('short_oi', 0) or 0),
+                    'long_bid':        float(trade.get('long_bid', 0) or 0),
+                    'long_ask':        float(trade.get('long_ask', 0) or 0),
+                    'short_bid':       float(trade.get('short_bid', 0) or 0),
+                    'short_ask':       float(trade.get('short_ask', 0) or 0),
+                    'long_iv':         _siv,     # short-leg IV proxies the spread's vol
+                    'short_iv':        _siv,
+                    'spread_mid':      float(trade.get('net_credit', 0) or 0),
+                    'max_profit':      float(trade.get('max_profit', 0) or 0),
+                    'rr':              float(trade.get('rr_credit', 0) or 0),
+                    'price':           float(trade.get('underlying_price', 0) or 0),
+                    'etf_above_ema20': trade.get('etf_above_ema20'),
+                }
+                macro_ctx = {'VIX': {'price': vix_level}}
+
+                conv = score_conviction(alert, macro_ctx)
+                calibrator = IVCalibrator(Path(__file__).parent.parent)
+                calibrated_score, reason = calibrator.adjust_score(conv['score'], alert, conv['factors'])
+
+                # Stash for post-execution logging (conviction↔order_id pairing)
+                trade['conviction_score']   = calibrated_score
+                trade['conviction_factors'] = conv.get('factors', {})
+
+                # ── ACCURACY-GATED VETO ──────────────────────────────────────
+                # Conviction may only BLOCK a trade once it has a proven track
+                # record (≥ MIN_SAMPLE resolved outcomes AND no calibration
+                # warnings). Until then it is ADVISORY ONLY: it scores, prints,
+                # and logs — but never vetoes — so an unproven model cannot kill
+                # otherwise-valid trades.
+                allow_veto = _conviction_may_veto(Path(__file__).parent.parent)
+                gate = "VETO-ENABLED" if allow_veto else "advisory"
+                print(f"\n  🎯 Conviction [{conv.get('mode','offline')}]: {conv['score']} -> "
+                      f"Calibrated {calibrated_score} ({reason}) [{gate}]")
+                if calibrated_score < CONVICTION_MIN:
+                    if allow_veto:
+                        print(f"  ❌ Trade VETOED by Conviction (Score {calibrated_score} < {CONVICTION_MIN}).")
+                        trade = None
+                    else:
+                        print(f"  ⚠️ Conviction {calibrated_score} < {CONVICTION_MIN}, but ADVISORY ONLY "
+                              f"(model not yet proven on enough resolved trades) — trade allowed.")
+        except Exception as e:
+            print(f"\n  ⚠️ [Portfolio Audit/IV Calibrator Error] {e}")
+
+    # ── If any gate vetoed/rejected the trade, clear the stale pending order so
+    #    it can't be picked up by a later re-run / the next auto-execute cycle ────
+    if trade is None:
+        _pp = os.path.join(os.path.dirname(__file__), "pending_trade.json")
+        if os.path.exists(_pp):
+            os.remove(_pp)
+            print("  🧹 Vetoed/rejected trade cleared from pending_trade.json")
 
     # ── AUTONOMOUS EXECUTION ─────────────────────────────────────────────────
     if trade:

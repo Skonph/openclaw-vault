@@ -1,0 +1,25 @@
+{
+  "NCLH": {
+    "spot": 17.36,
+    "iv_hv_ratio": 1.25,
+    "rec_trend_state": "improving",
+    "skew_state": "steep_put",
+    "days_to_earnings": 10,
+    "earnings_ban_active": true,
+    "notes": [
+      "vol/IV-rank look tradeable BUT earnings ban active \u2014 skip per v4.0",
+      "put skew corroborated by deteriorating consensus \u2014 downside conviction"
+    ]
+  },
+  "F": {
+    "spot": 14.11,
+    "iv_hv_ratio": 0.60,
+    "rec_trend_state": "stable",
+    "skew_state": "normal",
+    "days_to_earnings": 32,
+    "earnings_ban_active": false,
+    "notes": [
+      "cheap IV + improving analyst consensus \u2014 favourable asymmetry"
+    ]
+  }
+}

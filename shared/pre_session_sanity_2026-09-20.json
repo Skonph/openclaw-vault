@@ -1,0 +1,451 @@
+{
+  "generated_at": "2026-09-20 07:56:58 ICT",
+  "accounts": {
+    "pion_main": {
+      "equity": 5339.07,
+      "cash": 7561.07,
+      "buying_power": 22244.28,
+      "status": "ACTIVE"
+    },
+    "pion2_sub": {
+      "equity": 2643.3,
+      "cash": 2963.3,
+      "buying_power": 653.2,
+      "status": "ACTIVE"
+    }
+  },
+  "positions": [
+    {
+      "account": "pion2_sub",
+      "underlying": "AMD",
+      "expiry": "2026-10-02",
+      "type": "PUT spread",
+      "legs": [
+        {
+          "strike": 485.0,
+          "qty": 4.0,
+          "iv": 53.83,
+          "delta": -0.0643,
+          "vega": 0.1397,
+          "theta": -0.3041,
+          "oi": 658,
+          "vol": 46
+        },
+        {
+          "strike": 490.0,
+          "qty": -4.0,
+          "iv": 53.04,
+          "delta": -0.0783,
+          "vega": 0.1616,
+          "theta": -0.3447,
+          "oi": 300,
+          "vol": 159
+        }
+      ],
+      "width": 5.0,
+      "spot": 559.82,
+      "short_strike": 490.0,
+      "short_strike_delta": -0.0783,
+      "otm_buffer_pct": 12.47,
+      "net_delta_shares": 0.1,
+      "net_gamma": -0.002,
+      "net_theta_usd_per_day": 16.24,
+      "net_vega_usd_per_volpt": -8.76,
+      "net_credit_received": 220.0,
+      "max_risk_usd": 2000.0,
+      "avg_iv": 53.44,
+      "hv20": 49.9,
+      "iv_hv_ratio": 1.071,
+      "unrealized_pl": -4.0,
+      "vega_pct_of_equity_per_volpt": 0.331,
+      "delta_pct_of_equity": 1.19
+    },
+    {
+      "account": "pion2_sub",
+      "underlying": "XLF",
+      "expiry": "2026-09-28",
+      "type": "PUT spread",
+      "legs": [
+        {
+          "strike": 53.0,
+          "qty": 4.0,
+          "iv": 19.84,
+          "delta": 0.0,
+          "vega": 0.0,
+          "theta": 0.0,
+          "oi": 0,
+          "vol": 0
+        },
+        {
+          "strike": 55.0,
+          "qty": -4.0,
+          "iv": 13.209999999999999,
+          "delta": -0.2438,
+          "vega": 0.0268,
+          "theta": -0.0129,
+          "oi": 24,
+          "vol": 16
+        }
+      ],
+      "width": 2.0,
+      "spot": 55.86,
+      "short_strike": 55.0,
+      "short_strike_delta": -0.2438,
+      "otm_buffer_pct": 1.54,
+      "net_delta_shares": 1.0,
+      "net_gamma": -1.196,
+      "net_theta_usd_per_day": 5.16,
+      "net_vega_usd_per_volpt": -10.72,
+      "net_credit_received": 84.0,
+      "max_risk_usd": 800.0,
+      "avg_iv": 16.52,
+      "hv20": 13.33,
+      "iv_hv_ratio": 1.24,
+      "unrealized_pl": -12.0,
+      "vega_pct_of_equity_per_volpt": 0.406,
+      "delta_pct_of_equity": 2.06
+    },
+    {
+      "account": "pion_main",
+      "underlying": "AVGO",
+      "expiry": "2026-10-16",
+      "type": "PUT spread",
+      "legs": [
+        {
+          "strike": 160.0,
+          "qty": 14.0,
+          "iv": 99.22999999999999,
+          "delta": 0.0,
+          "vega": 0.0,
+          "theta": 0.0,
+          "oi": 461,
+          "vol": 0
+        }
+      ],
+      "width": null,
+      "spot": 357.61,
+      "short_strike": 160.0,
+      "short_strike_delta": 0.0,
+      "otm_buffer_pct": 55.26,
+      "net_delta_shares": 0.0,
+      "net_gamma": 0.0,
+      "net_theta_usd_per_day": 0.0,
+      "net_vega_usd_per_volpt": 0.0,
+      "net_credit_received": -84.0,
+      "max_risk_usd": 0.0,
+      "avg_iv": 99.23,
+      "hv20": 34.2,
+      "iv_hv_ratio": 2.901,
+      "unrealized_pl": -84.0,
+      "vega_pct_of_equity_per_volpt": 0.0,
+      "delta_pct_of_equity": 0.0
+    },
+    {
+      "account": "pion_main",
+      "underlying": "NVDA",
+      "expiry": "2026-10-02",
+      "type": "PUT spread",
+      "legs": [
+        {
+          "strike": 115.0,
+          "qty": 14.0,
+          "iv": 119.13,
+          "delta": 0.0,
+          "vega": 0.0,
+          "theta": 0.0,
+          "oi": 905,
+          "vol": 140
+        }
+      ],
+      "width": null,
+      "spot": 222.27,
+      "short_strike": 115.0,
+      "short_strike_delta": 0.0,
+      "otm_buffer_pct": 48.26,
+      "net_delta_shares": 0.0,
+      "net_gamma": 0.0,
+      "net_theta_usd_per_day": 0.0,
+      "net_vega_usd_per_volpt": 0.0,
+      "net_credit_received": -98.0,
+      "max_risk_usd": 0.0,
+      "avg_iv": 119.13,
+      "hv20": 45.85,
+      "iv_hv_ratio": 2.598,
+      "unrealized_pl": -70.0,
+      "vega_pct_of_equity_per_volpt": 0.0,
+      "delta_pct_of_equity": 0.0
+    },
+    {
+      "account": "pion_main",
+      "underlying": "XLU",
+      "expiry": "2026-10-02",
+      "type": "PUT spread",
+      "legs": [
+        {
+          "strike": 42.0,
+          "qty": 10.0,
+          "iv": 14.099999999999998,
+          "delta": -0.821,
+          "vega": 0.0215,
+          "theta": -0.0087,
+          "oi": 92,
+          "vol": 165
+        },
+        {
+          "strike": 44.0,
+          "qty": -10.0,
+          "iv": 40.14,
+          "delta": -0.9943,
+          "vega": 0.0014,
+          "theta": -0.0007,
+          "oi": 48,
+          "vol": 26
+        }
+      ],
+      "width": 2.0,
+      "spot": 41.1,
+      "short_strike": 44.0,
+      "short_strike_delta": -0.9943,
+      "otm_buffer_pct": -7.06,
+      "net_delta_shares": 1.7,
+      "net_gamma": 2.251,
+      "net_theta_usd_per_day": -8.0,
+      "net_vega_usd_per_volpt": 20.1,
+      "net_credit_received": 950.0,
+      "max_risk_usd": 2000.0,
+      "avg_iv": 27.12,
+      "hv20": 15.65,
+      "iv_hv_ratio": 1.733,
+      "unrealized_pl": -1300.0,
+      "vega_pct_of_equity_per_volpt": 0.376,
+      "delta_pct_of_equity": 1.33
+    }
+  ],
+  "tail_flags": [
+    "AMD: IV/HV 1.071 < 1.15 VRP floor (thin edge)",
+    "XLF 2026-09-28 55.0P short leg OI=24 < 50",
+    "XLU 2026-10-02 44.0P short leg OI=48 < 50"
+  ],
+  "citadel": [
+    {
+      "underlying": "AMD",
+      "expiry": "2026-10-02",
+      "width": 5.0,
+      "max_risk_usd": 2000.0,
+      "all_passed": true,
+      "worst_shock_loss_pct_of_width": 54.5,
+      "scenarios": [
+        {
+          "scenario": "S1: Flash Crash (-5% Equity Gap)",
+          "est_loss_pct": 54.5,
+          "capped_loss_usd": 272.61,
+          "passed": true
+        },
+        {
+          "scenario": "S2: Volatility Explosion (+50% VIX Surge)",
+          "est_loss_pct": 44.3,
+          "capped_loss_usd": 221.27,
+          "passed": true
+        },
+        {
+          "scenario": "S3: Hawkish Rate Spike (+50bps Fed)",
+          "est_loss_pct": 34.3,
+          "capped_loss_usd": 171.58,
+          "passed": true
+        },
+        {
+          "scenario": "S4: Severe Liquidity Drain (3x Slippage)",
+          "est_loss_pct": 14.1,
+          "capped_loss_usd": 70.55,
+          "passed": true
+        },
+        {
+          "scenario": "S5: Combined Cascade (-3% Drop + +30% VIX)",
+          "est_loss_pct": 42.3,
+          "capped_loss_usd": 211.66,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "underlying": "XLF",
+      "expiry": "2026-09-28",
+      "width": 2.0,
+      "max_risk_usd": 800.0,
+      "all_passed": true,
+      "worst_shock_loss_pct_of_width": 42.3,
+      "scenarios": [
+        {
+          "scenario": "S1: Flash Crash (-5% Equity Gap)",
+          "est_loss_pct": 42.3,
+          "capped_loss_usd": 84.61,
+          "passed": true
+        },
+        {
+          "scenario": "S2: Volatility Explosion (+50% VIX Surge)",
+          "est_loss_pct": 34.3,
+          "capped_loss_usd": 68.54,
+          "passed": true
+        },
+        {
+          "scenario": "S3: Hawkish Rate Spike (+50bps Fed)",
+          "est_loss_pct": 26.6,
+          "capped_loss_usd": 53.25,
+          "passed": true
+        },
+        {
+          "scenario": "S4: Severe Liquidity Drain (3x Slippage)",
+          "est_loss_pct": 10.9,
+          "capped_loss_usd": 21.88,
+          "passed": true
+        },
+        {
+          "scenario": "S5: Combined Cascade (-3% Drop + +30% VIX)",
+          "est_loss_pct": 32.8,
+          "capped_loss_usd": 65.64,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "underlying": "AVGO",
+      "expiry": "2026-10-16",
+      "width": null,
+      "max_risk_usd": 0.0,
+      "all_passed": true,
+      "worst_shock_loss_pct_of_width": 73.5,
+      "scenarios": [
+        {
+          "scenario": "S1: Flash Crash (-5% Equity Gap)",
+          "est_loss_pct": 73.5,
+          "capped_loss_usd": 367.44,
+          "passed": true
+        },
+        {
+          "scenario": "S2: Volatility Explosion (+50% VIX Surge)",
+          "est_loss_pct": 71.1,
+          "capped_loss_usd": 355.36,
+          "passed": true
+        },
+        {
+          "scenario": "S3: Hawkish Rate Spike (+50bps Fed)",
+          "est_loss_pct": 47.1,
+          "capped_loss_usd": 235.35,
+          "passed": true
+        },
+        {
+          "scenario": "S4: Severe Liquidity Drain (3x Slippage)",
+          "est_loss_pct": 20.7,
+          "capped_loss_usd": 103.26,
+          "passed": true
+        },
+        {
+          "scenario": "S5: Combined Cascade (-3% Drop + +30% VIX)",
+          "est_loss_pct": 62.0,
+          "capped_loss_usd": 309.77,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "underlying": "NVDA",
+      "expiry": "2026-10-02",
+      "width": null,
+      "max_risk_usd": 0.0,
+      "all_passed": true,
+      "worst_shock_loss_pct_of_width": 72.9,
+      "scenarios": [
+        {
+          "scenario": "S1: Flash Crash (-5% Equity Gap)",
+          "est_loss_pct": 57.2,
+          "capped_loss_usd": 285.83,
+          "passed": true
+        },
+        {
+          "scenario": "S2: Volatility Explosion (+50% VIX Surge)",
+          "est_loss_pct": 72.9,
+          "capped_loss_usd": 364.51,
+          "passed": true
+        },
+        {
+          "scenario": "S3: Hawkish Rate Spike (+50bps Fed)",
+          "est_loss_pct": 37.9,
+          "capped_loss_usd": 189.37,
+          "passed": true
+        },
+        {
+          "scenario": "S4: Severe Liquidity Drain (3x Slippage)",
+          "est_loss_pct": 18.6,
+          "capped_loss_usd": 92.91,
+          "passed": true
+        },
+        {
+          "scenario": "S5: Combined Cascade (-3% Drop + +30% VIX)",
+          "est_loss_pct": 55.7,
+          "capped_loss_usd": 278.72,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "underlying": "XLU",
+      "expiry": "2026-10-02",
+      "width": 2.0,
+      "max_risk_usd": 2000.0,
+      "all_passed": true,
+      "worst_shock_loss_pct_of_width": 100.0,
+      "scenarios": [
+        {
+          "scenario": "S1: Flash Crash (-5% Equity Gap)",
+          "est_loss_pct": 100.0,
+          "capped_loss_usd": 200.0,
+          "passed": true
+        },
+        {
+          "scenario": "S2: Volatility Explosion (+50% VIX Surge)",
+          "est_loss_pct": 74.8,
+          "capped_loss_usd": 149.53,
+          "passed": true
+        },
+        {
+          "scenario": "S3: Hawkish Rate Spike (+50bps Fed)",
+          "est_loss_pct": 71.5,
+          "capped_loss_usd": 142.94,
+          "passed": true
+        },
+        {
+          "scenario": "S4: Severe Liquidity Drain (3x Slippage)",
+          "est_loss_pct": 27.2,
+          "capped_loss_usd": 54.43,
+          "passed": true
+        },
+        {
+          "scenario": "S5: Combined Cascade (-3% Drop + +30% VIX)",
+          "est_loss_pct": 81.6,
+          "capped_loss_usd": 163.28,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "snowball": {
+    "total_equity": 7982.37,
+    "total_cash": 10524.37,
+    "open_spreads": 5,
+    "deployed_max_risk_usd": 4800.0,
+    "deployed_pct_of_equity": 60.13,
+    "tier_contract_target": 3,
+    "tier_thresholds": {
+      "1 contract": "<= $3,999",
+      "2 contracts": ">= $4,000",
+      "3 contracts": ">= $6,000",
+      "4 contracts": ">= $8,000"
+    },
+    "per_acct_tier_contracts": {
+      "pion_main": 2,
+      "pion2_sub": 1
+    },
+    "turnover_note": "Snowball rule: limit exit at 50% max profit on fill; recycle collateral in 1.5-2.0 days"
+  },
+  "errors": []
+}

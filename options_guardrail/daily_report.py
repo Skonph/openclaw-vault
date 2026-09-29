@@ -86,12 +86,28 @@ def build_daily_report(store: PositionStore, state: AccountState,
 
 
 def main() -> None:
+    import sys
     from config import Config
     from telegram_notify import from_config as telegram_from_config
+
+    quiet_no_op = "--quiet-no-op" in sys.argv or "--suppress-empty" in sys.argv
 
     cfg = Config.load()
     state = AccountState.load(cfg.state_path, default_equity=cfg.equity)
     store = PositionStore(cfg.positions_path)
+
+    open_now = store.open_positions()
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=24)
+    closed = [p for p in store.all()
+              if not p.is_open and (_parse(p.closed_at) or now) >= cutoff]
+    opened = [p for p in store.all()
+              if (_parse(p.opened_at) or now) >= cutoff]
+
+    if quiet_no_op and not closed and not opened and not open_now:
+        print("ℹ️ No activity in window (--quiet-no-op active) — Telegram report suppressed.")
+        return
+
     report = build_daily_report(store, state)
 
     tg = telegram_from_config(cfg)

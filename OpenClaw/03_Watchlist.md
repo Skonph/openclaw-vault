@@ -228,3 +228,111 @@ URL: barchart.com/options/iv-rank-percentile Filter: IV Rank < 40 Filter: Price 
 | GRAB | Below $10 | Monitor |
 | AM | Conviction 62, bearish signals | Monitor |
 ```
+
+| Phase     | Trigger              | Action                                 | Status        |
+| --------- | -------------------- | -------------------------------------- | ------------- |
+| Current   | —                    | 12 ETFs + 5 single names               | ✅ Active      |
+| Week 2    | Mon Jul 14 12:00 ICT | Add AAPL/MSFT/GOOGL if IVR ≥40%        | ⏰ Cron set    |
+| Post-Grad | Live money approved  | Add JPM/BAC for sector diversification | 📝 Documented |
+
+
+
+**EXPANSION PROPOSALS**
+
+  
+
+**Tier 1: Expand ETF Universe (Low Effort)**
+
+  
+
+Add sector ETFs with liquid options:
+
+| Category   | Symbols      | Rationale                              |
+
+| ---------- | ------------ | -------------------------------------- |
+
+| Financials | XLF, KRE     | Already have KRE, add XLF              |
+
+| Tech       | XLK, QQQ     | Already have QQQ, add XLK              |
+
+| Energy     | XLE, XOP     | Oil volatility often elevated          |
+
+| Defensive  | XLP, XLU     | Already have XLU, add XLP              |
+
+| Volatility | VXX          | High IV rank product (IVR often >50%)  |
+
+| Bonds      | IEI (7-10yr) | Shorter duration, more liquid than TLT |
+
+**Tier 2: Add High-Liquidity Single Names (Medium Effort)**
+
+  
+
+Top-tier liquid names with consistent premium:
+
+| Category   | Symbols                                   | Avg IV Rank | Why                       |
+
+| ---------- | ----------------------------------------- | ----------- | ------------------------- |
+
+| Mag 7      | AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA | 30-50%      | Liquid, tight spreads     |
+
+| Financials | JPM, BAC, GS                              | 25-40%      | Sector tailwind           |
+
+| Defensive  | PG, KO, COST, WMT                         | 20-35%      | Low beta, stable premiums |
+
+| Biotech    | XBI components (LABU)                     | 50-70%      | High IV, volatile         |
+
+**Tier 3: Trigger-Based Screening (Intelligent Expansion)**
+
+  
+
+Instead of scanning everything daily:
+
+  
+
+1. **Pre-scan sector IV rank** → only deep-dive sectors with IVR >40%
+
+2. **Single-name UOA** via Finnhub when sector IVR >50%
+
+3. **Earnings scan** → Add names 2 weeks before earnings (IV spike window)
+
+  
+
+───
+
+  
+
+**🎯 MY RECOMMENDATION**
+
+  
+
+**Phase 1 (Next Week):**
+
+  
+
+• Add XLF, XLK, XLE, XLP, VXX to ETF scan
+
+• Total universe: 12 ETFs (up from 7)
+
+• Hermes: Update symbols_scanned in UOA scanner
+
+  
+
+**Phase 2 (Week 2):**
+
+  
+
+• Add top 10 single-name screener (AAPL, MSFT, NVDA, AMZN, GOOGL, META, TSLA, JPM, BAC, COST)
+
+• Filter: IV Rank >40% OR volume/OI >3x
+
+• Requires: Finnhub single-name UOA endpoint OR Tradier OHLC + volume fetch
+
+  
+
+**Phase 3 (Post-Graduation):**
+
+  
+
+• Earnings calendar integration
+
+• Sector-IVR-triggered deep scans

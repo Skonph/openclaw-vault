@@ -1,0 +1,54 @@
+[
+  {
+    "event_type": "position_closed",
+    "account": "Pion2 (PA3C75K8SZ57)",
+    "symbol": "SPY260828P00733000",
+    "action": "BUY_TO_CLOSE",
+    "entry_credit": 1.03,
+    "exit_price": 0.37,
+    "realized_pnl": 66.0,
+    "pnl_pct": 64.08,
+    "closed_by": "USER_MANUAL_EXECUTION",
+    "timestamp_ict": "2026-08-19 22:06:06",
+    "timestamp_utc": "2026-08-19T15:06:06.351514+00:00"
+  },
+  {
+    "event_type": "position_closed",
+    "account": "Pion2 (PA3C75K8SZ57)",
+    "symbol": "SPY260828P00733000",
+    "action": "BUY_TO_CLOSE",
+    "entry_credit": 1.03,
+    "exit_price": 0.37,
+    "realized_pnl": 66.0,
+    "pnl_pct": 64.08,
+    "closed_by": "USER_MANUAL_EXECUTION",
+    "timestamp_ict": "2026-08-19 22:07:02",
+    "timestamp_utc": "2026-08-19T15:07:02.999507+00:00"
+  },
+  {
+    "event_type": "position_closed",
+    "account": "Pion2 (PA3C75K8SZ57)",
+    "symbol": "SPY260828P00733000",
+    "action": "BUY_TO_CLOSE",
+    "entry_credit": 1.03,
+    "exit_price": 0.37,
+    "realized_pnl": 66.0,
+    "pnl_pct": 64.08,
+    "closed_by": "USER_MANUAL_EXECUTION",
+    "timestamp_ict": "2026-08-19 22:08:03",
+    "timestamp_utc": "2026-08-19T15:08:03.591611+00:00"
+  },
+  {
+    "event_type": "position_closed",
+    "account": "Pion2 (PA3C75K8SZ57)",
+    "symbol": "SPY260828P00733000",
+    "action": "BUY_TO_CLOSE",
+    "entry_credit": 1.03,
+    "exit_price": 0.37,
+    "realized_pnl": 66.0,
+    "pnl_pct": 64.08,
+    "closed_by": "USER_MANUAL_EXECUTION",
+    "timestamp_ict": "2026-08-19 22:09:48",
+    "timestamp_utc": "2026-08-19T15:09:48.081449+00:00"
+  }
+]

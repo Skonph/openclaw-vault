@@ -36,3 +36,35 @@ options_guardrail/IBCLinux-3.23.0.zip
 .env.local
 **/.env
 **/.env.local
+
+# Runtime Logs and Temporary Office Locks
+*.log
+**/*.log
+~$*
+**/~$*
+
+# Databases and Local Runtime Caches
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.db-journal
+.spot_cache.json
+**/.spot_cache.json
+
+# Scratchpad, Archives, and System Backups
+scratch/
+shared/archive/
+shared/cot_data/
+shared/systemd_backup/
+
+# Obsidian Local Workspace State
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# Local Configuration Secrets
+openclaw.json
+

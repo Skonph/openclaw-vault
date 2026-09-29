@@ -1,0 +1,27 @@
+{
+  "analyzed_at": "2026-09-28T16:35:11.067053+00:00",
+  "symbol": "SPY",
+  "price": 771.35,
+  "sma20": 765.26,
+  "sma50": 761.53,
+  "trend_health": {
+    "status": "BASE_CONSOLIDATION",
+    "slope_angle_deg": 0.99,
+    "dist_to_sma20": 6.09,
+    "dist_atr_multiples": 0.87,
+    "is_overextended": false,
+    "recommendation": "BASE_BREAKOUT_WAIT",
+    "conviction_adjustment": 0,
+    "rationale": "20 SMA is flat (0.99\u00b0). Price is forming a base; awaiting volume-contracted breakout."
+  },
+  "macro_trend_gate_r1": {
+    "status": "GOLDEN_TREND_ALIGNMENT",
+    "price_above_sma50": true,
+    "sma20_above_sma50": true,
+    "golden_alignment": true,
+    "conviction_bonus": 10,
+    "max_bp_utilization_pct": 65.0,
+    "rationale": "Price & 20 SMA sit firmly above 50 SMA. Macro trend is 100% bullish (+10 pts bonus)."
+  },
+  "total_conviction_bonus": 10
+}

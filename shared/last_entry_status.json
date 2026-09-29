@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-09-25 20:30:00 ICT",
+  "subject": "SGOV_LIQUIDATION_COMPLETE",
+  "message": "SGOV Treasury shares 100% liquidated across Alpaca Live and Tradier Live. ~$32,094.07 liquid cash available for Monday launch.",
+  "payload": {
+    "status": "STANDBY_WEEKEND",
+    "mode": "OPTION_A_PURE_LIVE"
+  }
+}

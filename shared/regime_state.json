@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-08-06T17:00:02.620033+00:00",
+  "tier": "AGGRESSIVE",
+  "score": 7,
+  "spy_close": 771.33,
+  "vix": 17.0,
+  "iv_percentile": 15.6,
+  "sma20": 748.41,
+  "sma50": 746.34,
+  "rules": {
+    "max_positions": 4,
+    "max_bp_pct": 50,
+    "max_daily_loss_pct": 5,
+    "delta_range": [
+      0.25,
+      0.3
+    ],
+    "profit_target_pct": 60,
+    "strike_otm_pct": 0.5,
+    "pion2_enabled": true,
+    "description": "Go get it \u2014 favorable conditions"
+  },
+  "pion2_enabled": true,
+  "max_positions": 4,
+  "max_bp_pct": 50,
+  "delta_range": [
+    0.25,
+    0.3
+  ],
+  "profit_target_pct": 60,
+  "strike_otm_pct": 0.5,
+  "description": "Go get it \u2014 favorable conditions"
+}

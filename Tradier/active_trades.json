@@ -6,12 +6,40 @@
     "expiration": "2026-06-26",
     "entry_credit": 0.04,
     "profit_target_debit": 0.01,
-    "stop_loss_debit": 2.50,
+    "stop_loss_debit": 2.5,
     "order_id": "reconciled-manual",
     "entered_at": "2026-06-18T00:00:00",
     "quantity": 3,
     "short_symbol": "SPY260626P00700000",
     "long_symbol": "SPY260626P00695000",
     "_note": "Thresholds corrected 2026-06-18: $5-wide spread, SPY ~750, both legs OTM, 8 DTE. Profit target=near-zero, stop=50% of width. Origin: manual/legacy sandbox fill (no executed_*.json); exceeds MAX_RISK=$100 policy."
+  },
+  {
+    "trade_id": "20260624_200640",
+    "strategy": "Bull Put Spread",
+    "symbol": "QQQ",
+    "expiration": "2026-07-03",
+    "entry_credit": 0.37,
+    "profit_target_debit": 0.18,
+    "stop_loss_debit": 0.74,
+    "order_id": "TEST-AUTO-001",
+    "entered_at": "2026-06-24T20:06:40.326002",
+    "quantity": 1,
+    "short_symbol": "QQQ260703P00732000",
+    "long_symbol": "QQQ260703P00730000"
+  },
+  {
+    "trade_id": "20260624_203451",
+    "strategy": "Bull Put Spread",
+    "symbol": "IWM",
+    "expiration": "2026-07-03",
+    "entry_credit": 0.37,
+    "profit_target_debit": 0.18,
+    "stop_loss_debit": 0.74,
+    "order_id": "TEST-AUTO-001",
+    "entered_at": "2026-06-24T20:34:51.445161",
+    "quantity": 1,
+    "short_symbol": "IWM260703P00732000",
+    "long_symbol": "IWM260703P00730000"
   }
 ]

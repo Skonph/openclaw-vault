@@ -3,18 +3,20 @@
 ## Host
 - **IP**: 43.156.9.185
 - **Type**: Tencent Cloud LightHouse (轻量应用服务器)
-- **OS**: Ubuntu 22.04 LTS
+- **OS**: Ubuntu 24.04.5 LTS (Kernel 6.8.0-142-generic)
 - **Specs**: 2 vCPUs, 2GB RAM, 40GB SSD
+- **Node Runtime**: Node.js v24.16.0 LTS (Krypton)
 - **Timezone**: ICT (UTC+7, Bangkok)
 - **US Market overlap**: 20:30–04:00 ICT
 
 ## Systemd Services
 
-### Active
-| Service | Runtime | Purpose | Notes |
-|---------|---------|---------|-------|
-| `hermes-gateway.service` | active/running | Hermes Agent Telegram gateway | Port: 9222 browser debugging |
-| `tradier-bot.service` | active/running | Tradier Telegram command bot | Python, always-on |
+### Active (Enabled & Auto-Starting on Boot)
+| Service | Type | Runtime | Purpose | Notes |
+|---------|------|---------|---------|-------|
+| `hermes-gateway.service` | System | active/running | Hermes Agent Telegram gateway | Port: 9222 browser debugging |
+| `tradier-bot.service` | System | active/running | Tradier Telegram command bot | Python, always-on, enabled |
+| `openclaw-gateway.service` | User (`systemd --user`) | active/running | OpenClaw Anna Telegram gateway | Node v24.16.0, v2026.9.6, user lingering enabled |
 
 ### Inactive / Disabled
 | Service | Runtime | Purpose | Notes |
@@ -83,11 +85,10 @@
 
 ## Budget & Cost Tracking
 
-### TokenHub (Primary — 2026 Jun)
-- Model: glm-5.2 (1M free tokens)
-- Fallback: deepseek-v4-flash-202605
-- No programmatic usage API — self-tracked via `~/.hermes/memories/budget.json`
-- 1M token free trial per model, valid 90 days
+### TokenHub (Primary — 2026 Sep)
+- OpenClaw Primary: `tokenhub/glm-5.3-flash` (Fallbacks: `tokenhub/deepseek-v4-flash`, `tokenhub/glm-5`)
+- Hermes Primary: `glm-5.2` (Fallback: `deepseek-v4-flash`)
+- Self-tracked via `~/.hermes/memories/budget.json`
 
 ### Anthropic (Legacy)
 - Last snapshot: $12.08 (Jun 13, 2026)

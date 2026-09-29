@@ -1023,6 +1023,52 @@ def run_daily_scan():
         if alert.get('events_status') == 'blocked':
             continue   # skip events-blocked; already logged above
 
+        # ── RESEARCH LAYER: SENTIMENT & UOA ──────────────────────────────────────
+        import sys
+        from pathlib import Path
+        sys.path.append(str(Path(__file__).parent.parent))
+        from shared.sentiment_agent import get_sentiment
+        from shared.uoa_detector import check_uoa
+        
+        sym = alert.get('symbol')
+        trade_dir = "BULLISH" if alert.get('spread_type') == 'bull_call' else "BEARISH" if alert.get('spread_type') == 'bear_put' else "NEUTRAL"
+        
+        print(f"\n  🕵️ Running Research Layer on {sym}...")
+        
+        sentiment = get_sentiment(sym)
+        sent_score = sentiment.get('score', 0.0)
+        print(f"    Sentiment Score: {sent_score} — {sentiment.get('summary', '')}")
+        
+        uoa = check_uoa(sym)
+        uoa_flag = uoa.get('uoa_flag', 'None')
+        print(f"    UOA Flag: {uoa_flag} — {uoa.get('details', '')}")
+        
+        # Veto logic
+        if trade_dir == "BULLISH" and (sent_score <= -0.5 or uoa_flag == "BEARISH"):
+            print("  ❌ Trade VETOED: Research Layer detects severe opposing bearish flow/sentiment.")
+            alert['events_status'] = 'blocked'
+            holds.append(f"{sym}: RESEARCH LAYER BLOCKED (Bearish Flow/Sentiment)")
+            continue
+        elif trade_dir == "BEARISH" and (sent_score >= 0.5 or uoa_flag == "BULLISH"):
+            print("  ❌ Trade VETOED: Research Layer detects severe opposing bullish flow/sentiment.")
+            alert['events_status'] = 'blocked'
+            holds.append(f"{sym}: RESEARCH LAYER BLOCKED (Bullish Flow/Sentiment)")
+            continue
+
+        # ── PORTFOLIO AUDIT ───────────────────────────────────────────────────────
+        import sys
+        from pathlib import Path
+        sys.path.append(str(Path(__file__).parent.parent))
+        from shared.portfolio_auditor import PortfolioAuditor
+        auditor = PortfolioAuditor(Path(__file__).parent.parent)
+        
+        approved, audit_msg = auditor.audit_trade(alert)
+        if not approved:
+            print(f"  ❌ {alert['symbol']}: {audit_msg}")
+            alert['events_status'] = 'blocked'
+            holds.append(f"{alert['symbol']}: PORTFOLIO AUDIT BLOCKED — {audit_msg}")
+            continue
+
         conviction = score_conviction(alert, macro)
         alert['conviction_score']  = conviction['score']
         alert['conviction_pass']   = conviction['pass']

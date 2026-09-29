@@ -1,0 +1,38 @@
+{
+  "updated_at_ict": "2026-09-22 07:33:49 ICT",
+  "cumulative_stats": {
+    "total_stopouts_logged": 1,
+    "total_collateral_unlocked": 1800.0,
+    "total_counterfactual_loss_prevented": 1800.0,
+    "total_capital_saved_usd": 1386.0,
+    "avg_collateral_salvage_pct": 77.0
+  },
+  "events": [
+    {
+      "event_id": "STOPOUT_XLU_2026-09-22",
+      "timestamp_ict": "2026-09-22 07:33:49 ICT",
+      "account": "pion_main",
+      "symbol": "XLU",
+      "strategy": "Bull Put Spread (44P/42P)",
+      "short_strike": 44.0,
+      "long_strike": 42.0,
+      "spread_width": 2.0,
+      "contracts": 9,
+      "expiration": "2026-10-09",
+      "dte_at_stopout": 17,
+      "spot_at_stopout": 40.66,
+      "breach_amount": -3.34,
+      "breach_pct": -8.2,
+      "initial_credit_total": 1386.0,
+      "closing_debit_est": 2.0,
+      "order_id": "6b95643c-f68a-4180-8da4-f6c08af0e5a4",
+      "order_status": "accepted",
+      "collateral_locked": 1800.0,
+      "counterfactual_max_loss": -1800.0,
+      "actual_loss_at_stopout": -414.0,
+      "capital_saved_vs_max_loss": 1386.0,
+      "collateral_salvage_pct": 77.0,
+      "trigger_reason": "DEFENSIVE STOP-OUT (RULE-087): Short Strike $44.00 Breached! Spot $40.66 (Buffer -8.2%) | Salvaging Collateral"
+    }
+  ]
+}

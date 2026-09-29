@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-09-26 08:12:28 ICT",
+  "market_status": "LIVE_REFRESH",
+  "regime": "BULLISH_CONTANGO",
+  "quotes": {
+    "SPY": {
+      "last": 771.35,
+      "source": "tradier",
+      "asof": "2026-09-26T08:12:28",
+      "prev_close": 767.18,
+      "change_pct": 0.54,
+      "sma20": 765.26,
+      "sma50": 761.53,
+      "trend": "DOWN",
+      "data_asof": "2026-09-25"
+    },
+    "QQQ": {
+      "last": 744.5,
+      "source": "tradier",
+      "asof": "2026-09-26T08:12:28",
+      "prev_close": 741.1,
+      "change_pct": 0.46,
+      "sma20": 720.87,
+      "sma50": 712.65,
+      "trend": "DOWN",
+      "data_asof": "2026-09-25"
+    },
+    "VIX": {
+      "last": 14.87,
+      "source": "tradier",
+      "asof": "2026-09-26T08:12:27",
+      "prev_close": 15.67
+    }
+  },
+  "vix": 14.87,
+  "_meta": {
+    "generated_at": "2026-09-26 08:12:28 ICT",
+    "source": "live_spot/live_market_data (Tradier PROD -> Finnhub -> Alpaca IEX)"
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "system_architecture": {
+    "model_name": "Engine 1 & Engine 2 Dual Compound Strategy",
+    "engine_1": "Position Sizing / Contract Scaling Engine (Risk-Adjusted Contract Count)",
+    "engine_2": "Trade Frequency & Opportunity Engine (Trades Per Month Generation)",
+    "initial_base_equity_usd": 3141.12
+  },
+  "month_by_month_projections": [
+    {
+      "month": 1,
+      "starting_equity_usd": 3141.12,
+      "engine_1_contract_size": 1,
+      "engine_2_trades_per_month": 12,
+      "net_profit_per_trade_usd": 52.26,
+      "monthly_net_profit_usd": 506.95,
+      "ending_equity_usd": 3648.07,
+      "cumulative_return_percent": 16.1,
+      "scaling_event": null
+    },
+    {
+      "month": 2,
+      "starting_equity_usd": 3648.07,
+      "engine_1_contract_size": 1,
+      "engine_2_trades_per_month": 12,
+      "net_profit_per_trade_usd": 52.26,
+      "monthly_net_profit_usd": 506.95,
+      "ending_equity_usd": 4155.02,
+      "cumulative_return_percent": 32.2,
+      "scaling_event": null
+    },
+    {
+      "month": 3,
+      "starting_equity_usd": 4155.02,
+      "engine_1_contract_size": 2,
+      "engine_2_trades_per_month": 12,
+      "net_profit_per_trade_usd": 104.52,
+      "monthly_net_profit_usd": 1083.9,
+      "ending_equity_usd": 5238.92,
+      "cumulative_return_percent": 66.7,
+      "scaling_event": "CONTRACT_SIZE_SCALED_TO_2"
+    },
+    {
+      "month": 4,
+      "starting_equity_usd": 5238.92,
+      "engine_1_contract_size": 2,
+      "engine_2_trades_per_month": 12,
+      "net_profit_per_trade_usd": 104.52,
+      "monthly_net_profit_usd": 1083.9,
+      "ending_equity_usd": 6322.82,
+      "cumulative_return_percent": 101.2,
+      "scaling_event": "MILESTONE_2X_ACCOUNT_DOUBLED"
+    },
+    {
+      "month": 5,
+      "starting_equity_usd": 6322.82,
+      "engine_1_contract_size": 3,
+      "engine_2_trades_per_month": 14,
+      "net_profit_per_trade_usd": 156.78,
+      "monthly_net_profit_usd": 1949.33,
+      "ending_equity_usd": 8272.15,
+      "cumulative_return_percent": 163.3,
+      "scaling_event": "CONTRACT_SIZE_3_AND_FREQUENCY_14_TRADES"
+    },
+    {
+      "month": 6,
+      "starting_equity_usd": 8272.15,
+      "engine_1_contract_size": 4,
+      "engine_2_trades_per_month": 14,
+      "net_profit_per_trade_usd": 209.04,
+      "monthly_net_profit_usd": 2622.44,
+      "ending_equity_usd": 10894.58,
+      "cumulative_return_percent": 246.8,
+      "scaling_event": "MILESTONE_3_4X_ACCOUNT_GROWTH"
+    }
+  ],
+  "target_6_month_summary": {
+    "starting_equity_usd": 3141.12,
+    "final_equity_usd": 10894.58,
+    "total_profit_usd": 7753.46,
+    "total_roi_percent": 246.8,
+    "growth_factor": "3.47x"
+  }
+}

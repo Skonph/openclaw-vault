@@ -1,0 +1,11 @@
+{
+  "last_checked": "2026-06-13",
+  "balance_usd": 12.08,
+  "monthly_spend": 5.13,
+  "month_reset": "2026-07-01",
+  "daily_burn_estimate": 0.35,
+  "alert_threshold_usd": 5.0,
+  "warning_threshold_usd": 8.0,
+  "note": "Balance read manually from platform.claude.com on 2026-06-06. Update by running credit_balance_check.py with browser.",
+  "last_checked_prev": "2026-06-13"
+}

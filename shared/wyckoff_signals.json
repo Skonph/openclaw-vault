@@ -1,0 +1,27 @@
+{
+  "analyzed_at": "2026-09-28T16:35:09.883099+00:00",
+  "symbol": "SPY",
+  "spring_trap": {
+    "is_spring_trap": true,
+    "pierced_support": true,
+    "reclaimed_support": true,
+    "support_level": 766.32,
+    "intraday_low": 763.74,
+    "penetration_pct": 0.34,
+    "signal_quality": "HIGH_CONVICTION_SPRING"
+  },
+  "supply_exhaustion": {
+    "is_supply_exhausted": true,
+    "sc_volume": 1683360.0,
+    "st_volume": 727995.0,
+    "volume_ratio": 0.4325,
+    "volume_reduction_pct": 56.75,
+    "status": "EXHAUSTION_CONFIRMED"
+  },
+  "wyckoff_trade_authorization": {
+    "bull_put_spread_authorized": true,
+    "conviction_bonus": 15,
+    "recommended_action": "ENTER_BULL_PUT_SPREAD",
+    "rationale": "Wyckoff Spring liquidity trap & supply exhaustion confirmed at support."
+  }
+}
