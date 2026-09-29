@@ -518,10 +518,17 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
             # Dynamically derive strikes from live spot (RULE-081)
             cur_spot = 0.0
             try:
-                bbar = client.get_latest_bar(sym) if hasattr(client, 'get_latest_bar') else None
-                cur_spot = float(bbar.get("c", 0.0)) if bbar else 0.0
+                from live_spot import get_spot
+                s_data = get_spot(sym)
+                cur_spot = float(s_data.get("price", 0.0)) if s_data else 0.0
             except Exception:
                 cur_spot = 0.0
+            if cur_spot <= 0:
+                try:
+                    bbar = client.get_latest_bar(sym) if hasattr(client, 'get_latest_bar') else None
+                    cur_spot = float(bbar.get("c", 0.0)) if bbar else 0.0
+                except Exception:
+                    cur_spot = 0.0
 
             w = float(cand.get("width", 5.0))
             if cur_spot > 0:
