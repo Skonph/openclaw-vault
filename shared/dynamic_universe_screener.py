@@ -140,51 +140,68 @@ def run_dynamic_screening() -> Dict[str, Any]:
 
     catalog = json.loads(cat_file.read_text(encoding="utf-8"))
 
-    # 2. Active portfolio (anti-overlap) — live broker truth first
-    active_symbols: List[str] = []
-    for client_name in ["alpaca_live", "pion_main", "pion2_sub"]:
-        try:
-            cli = AlpacaClient(client_name)
-            for p in cli.get_positions():
-                sym = p.get("symbol", "")
-                m = re.match(r"^([A-Z]+)", sym)
-                if m:
-                    active_symbols.append(m.group(1))
-                elif sym:
-                    active_symbols.append(sym)
-        except Exception:
-            pass
+    # 2. Active portfolio (anti-overlap) — live real-money broker truth
+    # Strict isolation: paper accounts (pion_main, pion2_sub) must NEVER contaminate live portfolio decisions!
+    # AMD and IBIT are paper-sandbox only and must NOT be counted against live portfolio caps.
+    live_positions_map: Dict[str, List[str]] = {}
 
+    # Alpaca Live broker
+    try:
+        cli = AlpacaClient("alpaca_live")
+        alpaca_syms = []
+        for p in cli.get_positions():
+            sym = p.get("symbol", "")
+            m = re.match(r"^([A-Z]+)", sym)
+            s_val = m.group(1) if m else sym
+            if s_val:
+                alpaca_syms.append(s_val)
+        live_positions_map["alpaca_live"] = alpaca_syms
+    except Exception as ex_alp:
+        print(f"  ℹ️ Alpaca Live broker position audit notice: {ex_alp}")
+
+    # Tradier Live broker
     try:
         from tradier_broker import TradierClient
         t_cli = TradierClient("live")
+        tradier_syms = []
         for p in t_cli.get_positions():
             sym = p.get("symbol", "")
             m = re.match(r"^([A-Z]+)", sym)
-            if m:
-                active_symbols.append(m.group(1))
-            elif sym:
-                active_symbols.append(sym)
-    except Exception:
-        pass
+            s_val = m.group(1) if m else sym
+            if s_val:
+                tradier_syms.append(s_val)
+        live_positions_map["tradier_live"] = tradier_syms
+    except Exception as ex_trd:
+        print(f"  ℹ️ Tradier Live broker position audit notice: {ex_trd}")
 
+    # Fallback to active_trades.json ONLY for live accounts if broker returned empty/unreachable
     trades_file = base_dir / "active_trades.json"
     if trades_file.exists():
         try:
             tdata = json.loads(trades_file.read_text(encoding="utf-8"))
-            for acct in tdata.get("accounts", {}).values():
-                for pos in acct.get("positions", []):
-                    st = pos.get("status", "").upper()
-                    if "ACTIVE" in st or "PROTECTION" in st or "OPEN" in st:
-                        s_pos = pos.get("symbol")
-                        if s_pos:
-                            active_symbols.append(s_pos)
+            for acct_id in ["alpaca_live", "tradier_live"]:
+                if acct_id not in live_positions_map or not live_positions_map[acct_id]:
+                    file_syms = []
+                    acct = tdata.get("accounts", {}).get(acct_id, {})
+                    for pos in acct.get("positions", []):
+                        st = pos.get("status", "").upper()
+                        if "ACTIVE" in st or "PROTECTION" in st or "OPEN" in st:
+                            s_pos = pos.get("symbol")
+                            if s_pos:
+                                file_syms.append(s_pos)
+                    if file_syms:
+                        live_positions_map[acct_id] = file_syms
         except Exception:
             pass
 
+    # Flatten into clean active live symbols list
+    active_symbols: List[str] = []
+    for acct_id, syms in live_positions_map.items():
+        active_symbols.extend(syms)
+
     active_symbols_counts = {s: active_symbols.count(s) for s in set(active_symbols) if s}
     active_symbols = sorted(set(s for s in active_symbols if s))
-    print(f"  • Currently Active In Portfolio: {active_symbols or 'None (100% Cash)'} | Counts: {active_symbols_counts}")
+    print(f"  • Currently Active In Live Portfolio: {active_symbols or 'None (100% Cash)'} | Counts: {active_symbols_counts}")
 
     # 3. Ingest catalog
     all_candidates: List[Dict[str, Any]] = []
