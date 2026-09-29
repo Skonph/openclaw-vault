@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-29 21:18 ICT",
-  "subject": "ORDER_FILLED_META",
-  "message": "Confirmed Fill: 1C META ($685P/$680P) @ +$0.98/sh in TRADIER_LIVE!"
+  "timestamp": "2026-09-29 21:46 ICT",
+  "subject": "ORDER_RESOLVED_STANDOFF_CLOSED_AVGO",
+  "message": "Fallback Stand Down: Zero viable candidates above MAC floor. Portfolio in 100% SGOV cash."
 }

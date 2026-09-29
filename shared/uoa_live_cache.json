@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-29 14:10:06 UTC",
+  "timestamp": "2026-09-29 14:45:07 UTC",
   "target_symbol": "SPY",
   "secondary_symbols": [
     "QQQ",
@@ -7,7 +7,7 @@
     "GLD",
     "XLF"
   ],
-  "spot": 765.07,
+  "spot": 765.12,
   "expiration": "2026-10-02",
   "dte": 3,
   "call_wall_strike": 785.0,
@@ -15,8 +15,8 @@
   "put_wall_strike": 745.0,
   "put_wall_oi": 67934,
   "max_pain_strike": 765.0,
-  "volume_oi_ratio": 0.08,
-  "total_volume": 60499,
+  "volume_oi_ratio": 0.12,
+  "total_volume": 90340,
   "total_oi": 732317,
   "institutional_sweeps_count": 0,
   "sweeps": [],

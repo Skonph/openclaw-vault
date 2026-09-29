@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-29 21:18:09 ICT",
+  "updated_at": "2026-09-29 21:46:03 ICT",
   "orders": [
     {
       "order_id": "7be51e3f-877c-4134-a6c4-79d95aa44d79",
@@ -90,7 +90,7 @@
       "filled_avg_price": null
     },
     {
-      "order_id": "f7088757-32e3-4555-876e-1c1991d116f7",
+      "order_id": "37ea46b9-ba82-4c4d-bc82-47b5a2672524",
       "account": "alpaca_live",
       "broker_type": "alpaca",
       "symbol": "AVGO",
@@ -103,10 +103,10 @@
       "exp_date": "2026-10-16",
       "submitted_at": "2026-09-29 21:16:14 ICT",
       "initial_limit": 1.95,
-      "current_limit": 1.95,
-      "current_stage": 1,
-      "status": "working",
-      "stage1_nudged_at": null,
+      "current_limit": 1.64,
+      "current_stage": 2,
+      "status": "aborted_flow_diverged",
+      "stage1_nudged_at": "2026-09-29 21:30 ICT",
       "stage2_action": null,
       "filled_at": null,
       "filled_avg_price": null
