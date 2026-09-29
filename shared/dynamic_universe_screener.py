@@ -145,32 +145,34 @@ def run_dynamic_screening() -> Dict[str, Any]:
     # AMD and IBIT are paper-sandbox only and must NOT be counted against live portfolio caps.
     live_positions_map: Dict[str, List[str]] = {}
 
-    # Alpaca Live broker
+    # Alpaca Live broker (group option legs by root + expiration so 1 spread = 1 count)
     try:
         cli = AlpacaClient("alpaca_live")
-        alpaca_syms = []
+        alpaca_spreads = set()
         for p in cli.get_positions():
             sym = p.get("symbol", "")
-            m = re.match(r"^([A-Z]+)", sym)
-            s_val = m.group(1) if m else sym
-            if s_val:
-                alpaca_syms.append(s_val)
-        live_positions_map["alpaca_live"] = alpaca_syms
+            m = re.match(r"^([A-Z]+)(\d{6})", sym)
+            if m:
+                alpaca_spreads.add((m.group(1), m.group(2)))
+            elif sym:
+                alpaca_spreads.add((sym, "equity"))
+        live_positions_map["alpaca_live"] = [root for root, _ in alpaca_spreads]
     except Exception as ex_alp:
         print(f"  ℹ️ Alpaca Live broker position audit notice: {ex_alp}")
 
-    # Tradier Live broker
+    # Tradier Live broker (group option legs by root + expiration so 1 spread = 1 count)
     try:
         from tradier_broker import TradierClient
         t_cli = TradierClient("live")
-        tradier_syms = []
+        tradier_spreads = set()
         for p in t_cli.get_positions():
             sym = p.get("symbol", "")
-            m = re.match(r"^([A-Z]+)", sym)
-            s_val = m.group(1) if m else sym
-            if s_val:
-                tradier_syms.append(s_val)
-        live_positions_map["tradier_live"] = tradier_syms
+            m = re.match(r"^([A-Z]+)(\d{6})", sym)
+            if m:
+                tradier_spreads.add((m.group(1), m.group(2)))
+            elif sym:
+                tradier_spreads.add((sym, "equity"))
+        live_positions_map["tradier_live"] = [root for root, _ in tradier_spreads]
     except Exception as ex_trd:
         print(f"  ℹ️ Tradier Live broker position audit notice: {ex_trd}")
 
