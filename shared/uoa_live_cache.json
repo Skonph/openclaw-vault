@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-23 01:45:00 UTC",
+  "timestamp": "2026-09-29 14:10:06 UTC",
   "target_symbol": "SPY",
   "secondary_symbols": [
     "QQQ",
@@ -7,14 +7,21 @@
     "GLD",
     "XLF"
   ],
-  "call_wall_strike": 780.0,
-  "call_wall_oi": 68000,
-  "put_wall_strike": 765.0,
-  "put_wall_oi": 49000,
-  "max_pain_strike": 775.0,
-  "volume_oi_ratio": 2.85,
-  "institutional_sweeps_count": 16,
+  "spot": 765.07,
+  "expiration": "2026-10-02",
+  "dte": 3,
+  "call_wall_strike": 785.0,
+  "call_wall_oi": 61909,
+  "put_wall_strike": 745.0,
+  "put_wall_oi": 67934,
+  "max_pain_strike": 765.0,
+  "volume_oi_ratio": 0.08,
+  "total_volume": 60499,
+  "total_oi": 732317,
+  "institutional_sweeps_count": 0,
+  "sweeps": [],
   "min_dte_filter": 3,
-  "institutional_bias": "BULLISH_SUPPORTED_ABOVE_765_PUT_WALL",
+  "institutional_bias": "SUPPORTED_ABOVE_745_PUT_WALL",
+  "data_source": "LIVE Tradier PROD chain (measured)",
   "status": "LIVE_BACKGROUND_CACHE_ACTIVE"
 }

@@ -1,39 +1,39 @@
-# SkonVault Weekly Candidate Roster — Refreshed: 2026-09-29 17:58 ICT
+# SkonVault Weekly Candidate Roster — Refreshed: 2026-09-29 21:15 ICT
 # Data: LIVE chain (no synthetic strikes)
-# Primary Lead: QQQ (Score: 98.84 pts) strikes $699P/$689P 2026-10-30
-QQQ    # Rank #1  | OK  | Score: 98.84 pts | 7. Broad Index & Market Hedging | Strikes: $699P/$689P 2026-10-30 | Spot: $736.53
-CAT    # Rank #2  | OK  | Score: 73.57 pts | 5. Consumer Staples & National Defense | Strikes: $770P/$750P 2026-10-16 | Spot: $819.95
-NVDA   # Rank #3  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $210P/$205P 2026-10-30 | Spot: $228.86
-AVGO   # Rank #4  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $330P/$320P 2026-10-09 | Spot: $349.57
-AMD    # Rank #5  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $570P/$560P 2026-10-09 | Spot: $607.87
-TSM    # Rank #6  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $430P/$420P 2026-10-09 | Spot: $452.88
-SMH    # Rank #7  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $570P/$560P 2026-10-09 | Spot: $600.01
-XLU    # Rank #8  | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $37P/$35P 2026-11-06 | Spot: $39.25
-CEG    # Rank #9  | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $245P/$235P 2026-10-09 | Spot: $260.43
-VRT    # Rank #10 | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $225P/$220P 2026-10-09 | Spot: $244.04
-GE     # Rank #11 | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $300P/$290P 2026-10-16 | Spot: $318.24
-GLD    # Rank #12 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $355P/$345P 2026-10-30 | Spot: $377.91
-XLE    # Rank #13 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $58P/$53P 2026-11-06 | Spot: $62.10
-SLV    # Rank #14 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $52P/$50P 2026-10-09 | Spot: $54.95
-IBIT   # Rank #15 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $44P/$42P 2026-10-30 | Spot: $47.21
-XLV    # Rank #16 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $162P/$158P 2026-11-06 | Spot: $171.26
-UNH    # Rank #17 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $345P/$335P 2026-10-30 | Spot: $377.83
-JNJ    # Rank #18 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $258P/$248P 2026-10-16 | Spot: $271.95
-ABBV   # Rank #19 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $252P/$242P 2026-10-16 | Spot: $266.28
-XLP    # Rank #20 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $78P/$74P 2026-10-09 | Spot: $82.28
-LMT    # Rank #21 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $490P/$480P 2026-10-16 | Spot: $518.10
-COST   # Rank #22 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $875P/$855P 2026-10-09 | Spot: $922.92
-RTX    # Rank #23 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $178P/$172P 2026-10-16 | Spot: $187.66
-XLF    # Rank #24 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $51P/$49P 2026-10-09 | Spot: $54.19
-JPM    # Rank #25 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $315P/$305P 2026-10-30 | Spot: $336.59
-V      # Rank #26 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $345P/$335P 2026-10-30 | Spot: $367.74
-BAC    # Rank #27 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $52P/$50P 2026-10-16 | Spot: $55.47
-SPY    # Rank #28 | SKIP | Score: 0.0 pts | 7. Broad Index & Market Hedging | Strikes: $727P/$717P 2026-10-30 | Spot: $765.61
-IWM    # Rank #29 | SKIP | Score: 0.0 pts | 7. Broad Index & Market Hedging | Strikes: $266P/$256P 2026-10-30 | Spot: $280.02
-MSFT   # Rank #30 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $470P/$460P 2026-10-30 | Spot: $509.22
-AAPL   # Rank #31 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $315P/$305P 2026-10-30 | Spot: $338.40
-GOOGL  # Rank #32 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $325P/$315P 2026-10-09 | Spot: $342.75
-AMZN   # Rank #33 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $225P/$220P 2026-10-30 | Spot: $246.15
-META   # Rank #34 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $650P/$640P 2026-10-30 | Spot: $715.62
-PANW   # Rank #35 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $362P/$352P 2026-10-09 | Spot: $392.09
-TSLA   # Rank #36 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $335P/$325P 2026-10-09 | Spot: $357.45
+# Primary Lead: QQQ (Score: 69.72 pts) strikes $701P/$691P 2026-10-30
+QQQ    # Rank #1  | OK  | Score: 69.72 pts | 7. Broad Index & Market Hedging | Strikes: $701P/$691P 2026-10-30 | Spot: $738.19
+AVGO   # Rank #2  | OK  | Score: 54.67 pts | 1. AI Chips & Hardware | Strikes: $330P/$320P 2026-10-30 | Spot: $357.80
+SMH    # Rank #3  | OK  | Score: 54.67 pts | 1. AI Chips & Hardware | Strikes: $560P/$550P 2026-10-30 | Spot: $608.85
+NVDA   # Rank #4  | OK  | Score: 46.81 pts | 1. AI Chips & Hardware | Strikes: $215P/$205P 2026-10-30 | Spot: $229.88
+AMD    # Rank #5  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $555P/$545P 2026-10-30 | Spot: $615.63
+TSM    # Rank #6  | SKIP | Score: 0.0 pts | 1. AI Chips & Hardware | Strikes: $425P/$415P 2026-10-16 | Spot: $452.16
+XLU    # Rank #7  | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $37P/$35P 2026-10-30 | Spot: $39.48
+CEG    # Rank #8  | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $250P/$240P 2026-10-09 | Spot: $266.60
+VRT    # Rank #9  | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $210P/$200P 2026-10-30 | Spot: $252.39
+GE     # Rank #10 | SKIP | Score: 0.0 pts | 2. Data Center Power & Cooling | Strikes: $295P/$285P 2026-10-30 | Spot: $319.69
+GLD    # Rank #11 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $360P/$350P 2026-10-30 | Spot: $381.87
+XLE    # Rank #12 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $58P/$53P 2026-10-30 | Spot: $61.65
+SLV    # Rank #13 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $51P/$49P 2026-10-30 | Spot: $55.26
+IBIT   # Rank #14 | SKIP | Score: 0.0 pts | 3. Inflation Defense & Hard Assets | Strikes: $44P/$42P 2026-10-30 | Spot: $47.48
+XLV    # Rank #15 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $161P/$156P 2026-10-30 | Spot: $170.08
+UNH    # Rank #16 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $355P/$345P 2026-10-09 | Spot: $374.51
+JNJ    # Rank #17 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $250P/$240P 2026-10-30 | Spot: $267.90
+ABBV   # Rank #18 | SKIP | Score: 0.0 pts | 4. Longevity & Healthcare | Strikes: $250P/$240P 2026-10-16 | Spot: $264.67
+XLP    # Rank #19 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $78P/$75P 2026-10-30 | Spot: $81.81
+LMT    # Rank #20 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $490P/$480P 2026-10-16 | Spot: $518.03
+COST   # Rank #21 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $870P/$850P 2026-10-16 | Spot: $918.03
+CAT    # Rank #22 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $780P/$760P 2026-10-09 | Spot: $823.52
+RTX    # Rank #23 | SKIP | Score: 0.0 pts | 5. Consumer Staples & National Defense | Strikes: $178P/$172P 2026-10-16 | Spot: $187.94
+XLF    # Rank #24 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $51P/$49P 2026-10-30 | Spot: $54.12
+JPM    # Rank #25 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $315P/$305P 2026-10-30 | Spot: $335.87
+V      # Rank #26 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $345P/$335P 2026-10-30 | Spot: $366.94
+BAC    # Rank #27 | SKIP | Score: 0.0 pts | 6. Financial Services & Payment Rails | Strikes: $52P/$50P 2026-10-16 | Spot: $55.44
+SPY    # Rank #28 | SKIP | Score: 0.0 pts | 7. Broad Index & Market Hedging | Strikes: $726P/$716P 2026-10-30 | Spot: $764.88
+IWM    # Rank #29 | SKIP | Score: 0.0 pts | 7. Broad Index & Market Hedging | Strikes: $265P/$255P 2026-10-30 | Spot: $279.69
+MSFT   # Rank #30 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $465P/$455P 2026-10-30 | Spot: $504.83
+AAPL   # Rank #31 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $315P/$305P 2026-10-30 | Spot: $333.04
+GOOGL  # Rank #32 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $315P/$305P 2026-10-30 | Spot: $340.05
+AMZN   # Rank #33 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $225P/$215P 2026-10-30 | Spot: $245.91
+META   # Rank #34 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $685P/$675P 2026-10-09 | Spot: $722.81
+PANW   # Rank #35 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $350P/$340P 2026-10-16 | Spot: $379.96
+TSLA   # Rank #36 | SKIP | Score: 0.0 pts | 8. Mega-Cap Cloud & Software Platform | Strikes: $335P/$325P 2026-10-09 | Spot: $354.54

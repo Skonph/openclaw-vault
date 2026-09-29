@@ -174,21 +174,6 @@ This section consolidates all 8 core trading frameworks into a single unified kn
 - **Spring Liquidity Trap:** Intraday price piercing below PDL/VAL support followed by a fast range reclaim within 60 minutes. Triggers highest conviction Bull Put Spread entries (+15 pts).
 - **Supply Exhaustion Confirmation:** Secondary Test (ST) volume must show a $\ge 30\%$ reduction relative to initial Selling Climax (SC) volume ($V_{\text{ST}} \le 0.70 \times V_{\text{SC}}$) to confirm selling pressure has dried up.
 
-### 10. 20 SMA Slope Health & Overextension Veto Framework (Parabolic Risk & Retracements)
-- **20 SMA Slope Classifier:** Evaluates 5-day slope angle in degrees ($\text{Angle} = \arctan(\Delta \text{SMA20}) \times \frac{180}{\pi}$).
-- **Overextension Veto ($\text{Angle} > 55^\circ$ or Distance $> 3.0\times\text{ATR}$):** Vetoes Bull Put Spreads to protect against buying-climax reversals and parabolic drops.
-- **Sustainable Trend Bonus ($25^\circ \le \text{Angle} \le 50^\circ$):** Grants +15 Conviction Bonus when price pulls back to the rising 20 SMA.
-- **Base Consolidation ($-15^\circ \le \text{Angle} \le 15^\circ$):** Requires volume-contracted base breakout before credit spread authorization.
-
-### 11. The 3R Rule & 50 SMA Macro Trend Framework (Primary Trend & Retracements)
-- **R1: Regard Primary Trend (50 SMA Gate):**
-  - Golden Trend Alignment ($\text{Price} > \text{SMA50}$ and $\text{SMA20} > \text{SMA50}$): +10 Conviction Bonus.
-  - Macro Caution Gate ($\text{Price} < \text{SMA50}$): Caps BP utilization at 35% reserve & requires Wyckoff Spring confirmation.
-- **R2: Risk-Reward Ratio Asymmetry:** Enforces positive Expected Value ($EV > 0$) via high Probability of Profit ($POP \ge 85\%$) paired with 50%–60% profit target takes.
-- **R3: Retracement Entry Gate:** Restricts credit spreads strictly to 20 SMA retracements or PDL box discounts, prohibiting entries at 5-day price highs.
-
-
-
 
 ---
 

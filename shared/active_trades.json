@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-29 17:58:39 ICT",
+  "timestamp": "2026-09-29 21:20:45 ICT",
   "combined_equity": 38806.17,
   "total_cash": 40670.17,
   "live_equity": 31781.58,
@@ -368,6 +368,33 @@
           "return_on_risk": 42.9,
           "unrealized_pl": 0.0,
           "status": "Active Protection"
+        },
+        {
+          "symbol": "META",
+          "strategy": "Bull Put Spread (685/680)",
+          "short_strike": 685.0,
+          "long_strike": 680.0,
+          "contracts": 1,
+          "expiration": "2026-10-09",
+          "net_credit": 0.98,
+          "entry_date": "2026-09-29 21:18 ICT",
+          "status": "Active Protection",
+          "order_id": "148305471",
+          "strategy_type": "bull_put_spread",
+          "width": 5.0,
+          "dte": 10,
+          "short_symbol": "META261009P00685000",
+          "long_symbol": "META261009P00680000",
+          "hedged": true,
+          "defined_risk": true,
+          "collateral": 500.0,
+          "margin_collateral": 500.0,
+          "inception_spot": 721.2,
+          "inception_buffer_pct": 5.02,
+          "max_profit": 98.0,
+          "max_risk": 402.0,
+          "return_on_risk": 24.4,
+          "unrealized_pl": 0.0
         }
       ],
       "trades": [
@@ -397,6 +424,33 @@
           "return_on_risk": 42.9,
           "unrealized_pl": 0.0,
           "status": "Active Protection"
+        },
+        {
+          "symbol": "META",
+          "strategy": "Bull Put Spread (685/680)",
+          "short_strike": 685.0,
+          "long_strike": 680.0,
+          "contracts": 1,
+          "expiration": "2026-10-09",
+          "net_credit": 0.98,
+          "entry_date": "2026-09-29 21:18 ICT",
+          "status": "Active Protection",
+          "order_id": "148305471",
+          "strategy_type": "bull_put_spread",
+          "width": 5.0,
+          "dte": 10,
+          "short_symbol": "META261009P00685000",
+          "long_symbol": "META261009P00680000",
+          "hedged": true,
+          "defined_risk": true,
+          "collateral": 500.0,
+          "margin_collateral": 500.0,
+          "inception_spot": 721.2,
+          "inception_buffer_pct": 5.02,
+          "max_profit": 98.0,
+          "max_risk": 402.0,
+          "return_on_risk": 24.4,
+          "unrealized_pl": 0.0
         }
       ],
       "tail_hedges": [],
@@ -573,7 +627,7 @@
       "account": "tradier_live"
     }
   ],
-  "updated_at_ict": "2026-09-29 17:58:39 ICT",
-  "updated_at_utc": "2026-09-29T10:58:39.751708+00:00",
-  "updated_by": "reconcile_active_trades"
+  "updated_at_ict": "2026-09-29 21:20:45 ICT",
+  "updated_at_utc": "2026-09-29T14:20:45.217449+00:00",
+  "updated_by": "meta_enrichment"
 }

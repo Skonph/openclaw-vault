@@ -1,9 +1,9 @@
-# 🛑 HEARTBEAT — STANDBY (US Market Closed)
-**Status:** STAND DOWN (RULE-074 Market Gatekeeper Active)
-**Last Verified:** 2026-09-22 21:59:00 ICT
-**Reason:** US Market Holiday: US Market Exchange Holiday (All Exchanges 100% Closed)
+# 🟢 HEARTBEAT — ACTIVE US TRADING SESSION
+**Status:** MARKET OPEN ✅
+**Last Verified:** 2026-09-29 21:20:01 ICT
+**Regime:** Live Market Active (09:30–16:00 ET / 20:30–03:30 ICT)
 
-## Directives:
-• US options exchanges are 100% CLOSED.
-• ZERO trades, ZERO orders, and ZERO background tool evaluations authorized.
-• Output strictly: `HEARTBEAT_OK_STAND_DOWN_MARKET_CLOSED`.
+## Instructions:
+1. FastHarvest Poller: Check active credit spreads for 50%-60% profit threshold.
+2. Margin & Risk Guard: Confirm buying power reserve >= 35% (RULE-072).
+3. If no spreads meet harvest criteria, reply: `HEARTBEAT_OK_MONITORING`.

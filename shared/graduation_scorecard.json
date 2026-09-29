@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-09-27T02:31:53Z",
-  "updated_at_ict": "2026-09-27 09:31 ICT",
+  "timestamp": "2026-09-29T00:15:01Z",
+  "updated_at_ict": "2026-09-29 07:15 ICT",
   "mode": "OPTION_A_PURE_LIVE",
   "live_production_progress": {
-    "total_liquid_cash": 32094.01,
-    "current_combined_equity": 32036.01,
+    "total_liquid_cash": 32632.73,
+    "current_combined_equity": 31781.73,
     "monthly_target_net_cash": 5766.0,
     "monthly_target_pct": "18%+ Target (>=12% Floor)",
     "monthly_floor_net_cash": 3844.0,
@@ -23,21 +23,23 @@
   },
   "accounts": {
     "alpaca_live": {
-      "equity": 30028.88,
-      "cash": 30071.88,
-      "positions_count": 2,
+      "equity": 29758.36,
+      "cash": 30497.36,
+      "positions_count": 4,
       "open_positions": [
+        "NVDA261012P00215000",
+        "NVDA261012P00220000",
         "XLE261016P00058000",
         "XLE261016P00060000"
       ]
     },
     "tradier_live": {
-      "equity": 2007.13,
-      "cash": 2022.13,
+      "equity": 2023.37,
+      "cash": 2135.37,
       "positions_count": 2,
       "open_positions": [
-        "XLF261016P00053000",
-        "XLF261016P00054000"
+        "TSM261030P00420000",
+        "TSM261030P00425000"
       ]
     },
     "standby_paper": {

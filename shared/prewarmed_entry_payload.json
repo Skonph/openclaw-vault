@@ -1,0 +1,29 @@
+{
+  "version": "TIER_3_PREWARMED_V1",
+  "generated_at_ict": "2026-09-29 21:10:05 ICT",
+  "timestamp_epoch": 1790691005.663765,
+  "status": "READY_FOR_EXECUTION",
+  "account": "pion_main",
+  "symbol": "NVDA",
+  "short_sym": "NVDA261014P00220000",
+  "long_sym": "NVDA261014P00215000",
+  "short_strike": 220.0,
+  "long_strike": 215.0,
+  "width": 5.0,
+  "exp_date": "2026-10-14",
+  "min_dte": 14,
+  "baseline_spot": 229.91,
+  "prewarmed_snipe_credit": 0.7,
+  "prewarmed_mid_credit": 0.68,
+  "prewarmed_natural_credit": 0.62,
+  "quotes": {
+    "short": {
+      "bid": 1.97,
+      "ask": 2.21
+    },
+    "long": {
+      "bid": 1.19,
+      "ask": 1.58
+    }
+  }
+}

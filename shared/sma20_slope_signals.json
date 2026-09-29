@@ -1,18 +1,18 @@
 {
-  "analyzed_at": "2026-09-28T16:35:11.067053+00:00",
+  "analyzed_at": "2026-09-29T14:16:55.879181+00:00",
   "symbol": "SPY",
-  "price": 771.35,
-  "sma20": 765.26,
-  "sma50": 761.53,
+  "price": 764.88,
+  "sma20": 764.98,
+  "sma50": 762.44,
   "trend_health": {
     "status": "BASE_CONSOLIDATION",
-    "slope_angle_deg": 0.99,
-    "dist_to_sma20": 6.09,
-    "dist_atr_multiples": 0.87,
+    "slope_angle_deg": -0.16,
+    "dist_to_sma20": -0.1,
+    "dist_atr_multiples": -0.01,
     "is_overextended": false,
     "recommendation": "BASE_BREAKOUT_WAIT",
     "conviction_adjustment": 0,
-    "rationale": "20 SMA is flat (0.99\u00b0). Price is forming a base; awaiting volume-contracted breakout."
+    "rationale": "20 SMA is flat (-0.16\u00b0). Price is forming a base; awaiting volume-contracted breakout."
   },
   "macro_trend_gate_r1": {
     "status": "GOLDEN_TREND_ALIGNMENT",

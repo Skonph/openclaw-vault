@@ -1,11 +1,11 @@
 {
-  "updated_at_ict": "2026-09-22 07:33:49 ICT",
+  "updated_at_ict": "2026-09-25 20:36:45 ICT",
   "cumulative_stats": {
-    "total_stopouts_logged": 1,
-    "total_collateral_unlocked": 1800.0,
-    "total_counterfactual_loss_prevented": 1800.0,
-    "total_capital_saved_usd": 1386.0,
-    "avg_collateral_salvage_pct": 77.0
+    "total_stopouts_logged": 2,
+    "total_collateral_unlocked": 2000.0,
+    "total_counterfactual_loss_prevented": 1979.0,
+    "total_capital_saved_usd": 1538.0,
+    "avg_collateral_salvage_pct": 76.5
   },
   "events": [
     {
@@ -32,7 +32,51 @@
       "actual_loss_at_stopout": -414.0,
       "capital_saved_vs_max_loss": 1386.0,
       "collateral_salvage_pct": 77.0,
-      "trigger_reason": "DEFENSIVE STOP-OUT (RULE-087): Short Strike $44.00 Breached! Spot $40.66 (Buffer -8.2%) | Salvaging Collateral"
+      "trigger_reason": "DEFENSIVE STOP-OUT (RULE-087): Short Strike $44.00 Breached! Spot $40.66 (Buffer -8.2%) | Salvaging Collateral",
+      "actual_loss_est": -414.0,
+      "capital_saved_est": 1386.0,
+      "closing_debit_realized": 2.62,
+      "actual_loss_realized": -972.0,
+      "capital_saved_realized": 828.0,
+      "collateral_salvage_pct_realized": 46.0,
+      "realized_round_trip_id": "TRD-20260921-XLU-44/42",
+      "fills_used": 4,
+      "fill_verified": true,
+      "fill_verified_at_ict": "2026-09-23 23:54:55 ICT",
+      "fills_source": "trade_history.py -> Alpaca /v2/account/activities (FILL)",
+      "reconciliation_note": "Trigger-time estimate debit $2.0/sh vs realized $2.62/sh \u2014 realized figures are authoritative."
+    },
+    {
+      "event_id": "STOPOUT_XLF_2026-09-25",
+      "timestamp_ict": "2026-09-25 20:36:45 ICT",
+      "account": "alpaca_live",
+      "symbol": "XLF",
+      "strategy": "Bull Put Spread (54P/52P)",
+      "short_strike": 54.0,
+      "long_strike": 52.0,
+      "spread_width": 2.0,
+      "contracts": 1,
+      "expiration": "2026-10-16",
+      "dte_at_stopout": 21,
+      "spot_at_stopout": 54.61,
+      "breach_amount": 0.61,
+      "breach_pct": 1.12,
+      "initial_credit_total": 21.0,
+      "closing_debit_est": 0.48,
+      "order_id": "b597c894-13c1-4aaa-a033-9a9682ba7a50",
+      "order_status": "pending_new",
+      "collateral_locked": 200.0,
+      "counterfactual_max_loss": -179.0,
+      "actual_loss_at_stopout": -27.0,
+      "capital_saved_vs_max_loss": 152.0,
+      "collateral_salvage_pct": 76.0,
+      "trigger_reason": "21-DTE GAMMA CLIFF DEFENSE (RULE-004): DTE 21d <= 21 & Buffer +1.1% <= 1.5% | Closing Threatened Spread"
     }
-  ]
+  ],
+  "fill_reconciliation": {
+    "verified_events": 1,
+    "unverified_events": 0,
+    "source": "trade_history.py (Alpaca FILL activities)",
+    "policy": "estimates preserved as *_est; realized figures authoritative for P&L"
+  }
 }
