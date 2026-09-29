@@ -157,7 +157,10 @@ def execute_account_entry(
     try:
         from order_fill_tracker import load_pending_orders
         pending = load_pending_orders()
-        pending_count = len([o for o in pending if o.get("account") == account_name])
+        pending_count = len([
+            o for o in pending
+            if o.get("account") == account_name and str(o.get("status", "")).lower() in ["working", "new", "pending", "resting"]
+        ])
     except Exception:
         pass
 
@@ -887,9 +890,13 @@ def run_2115_golden_execution():
     try:
         from order_fill_tracker import load_pending_orders
         for po in load_pending_orders():
-            psym = po.get("symbol")
-            if psym:
-                portfolio_tickers.append(psym)
+            st = str(po.get("status", "")).lower()
+            po_acct = po.get("account", "")
+            # Only count active working orders belonging to accounts being checked
+            if st in ["working", "new", "pending", "resting"] and (not is_live or po_acct in ["alpaca_live", "tradier_live"]):
+                psym = po.get("symbol")
+                if psym:
+                    portfolio_tickers.append(psym)
     except Exception: pass
 
     print(f"  🛡️ Pre-Flight Active Portfolio Holdings: {sorted(list(set(portfolio_tickers)))}")
