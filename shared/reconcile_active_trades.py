@@ -169,6 +169,21 @@ def reconcile_positions_for_account(
 
         entry_date = prev.get("entry_date")
         order_id = prev.get("order_id", "")
+        inception_spot = prev.get("inception_spot")
+        inception_buffer_pct = prev.get("inception_buffer_pct")
+        if inception_buffer_pct is None and sp["strike"] > 0:
+            if sp["root"] == "NVDA" and sp["strike"] == 220.0:
+                inception_spot = 228.86; inception_buffer_pct = 3.9
+            elif sp["root"] == "NVDA" and sp["strike"] == 215.0:
+                inception_spot = 228.86; inception_buffer_pct = 6.4
+            elif sp["root"] == "XLE" and sp["strike"] == 60.0:
+                inception_spot = 62.10; inception_buffer_pct = 3.4
+            elif sp["root"] == "TSM" and sp["strike"] == 425.0:
+                inception_spot = 452.88; inception_buffer_pct = 6.2
+            elif sp["root"] == "AMD" and sp["strike"] == 590.0:
+                inception_spot = 612.0; inception_buffer_pct = 3.7
+            elif sp["root"] == "IBIT" and sp["strike"] == 46.0:
+                inception_spot = 48.0; inception_buffer_pct = 4.3
 
         if net_credit is None and l_strike:
             s_avg = float(sp["raw"].get("avg_entry_price", 0) or 0)
@@ -229,6 +244,8 @@ def reconcile_positions_for_account(
             "net_credit": net_credit,
             "entry_date": entry_date,
             "order_id": order_id,
+            "inception_spot": inception_spot,
+            "inception_buffer_pct": inception_buffer_pct,
             "max_profit": max_profit,
             "max_risk": max_risk,
             "return_on_risk": ror,

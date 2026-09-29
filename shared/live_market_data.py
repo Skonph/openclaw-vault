@@ -236,7 +236,7 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         # Spot >= $800: $20.00 (Ultra-high priced: COST)
         if width is None:
             if spot < 75:
-                w = 1.0 if sym in ["XLF", "SLV"] else 2.0
+                w = 2.0  # DIR-11: Enforce minimum $2.00 width (ban $1.00 micro-spreads on XLF/SLV/IBIT)
             elif spot < 250:
                 w = 5.0
             elif spot < 800:
@@ -248,11 +248,13 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
                 w = 20.0
             elif spot >= 250 and width < 10.0:
                 w = 10.0
+            elif spot < 75 and width < 2.0:
+                w = 2.0
             else:
                 w = width
         grid = sorted({o["strike"] for o in puts})
         step = round(min(b - a for a, b in zip(grid, grid[1:])), 2) if len(grid) > 1 else 1.0
-        w = max(w, step)
+        w = max(w, step, 2.0)  # DIR-11: hard floor at $2.00 width
         long_cands = [o for o in puts if o["strike"] <= short["strike"] - step / 2]
         if not long_cands:
             continue

@@ -705,7 +705,7 @@ class AlpacaClient:
             natural_credit = float(prewarmed_payload.get("prewarmed_natural_credit", 0.0))
             baseline_spot = float(prewarmed_payload.get("baseline_spot", 0.0))
             width = abs(short_strike - long_strike)
-            min_roc_credit = max(0.12, round(width * 0.125, 2))
+            min_roc_credit = max(0.25, round(width * 0.125, 2))  # DIR-11: $0.25 absolute minimum credit floor
             snipe_offset = round(snipe_credit - mid_credit, 2)
             penny_pilot = {"SPY", "QQQ", "IWM", "XLF", "NVDA", "AMD", "TSM", "AAPL", "MSFT", "AMZN", "GOOGL"}
             is_penny = symbol in penny_pilot
@@ -724,7 +724,7 @@ class AlpacaClient:
                 long_sym = f"{symbol}{exp_date.replace('-','')[2:]}P{int(long_strike*1000):08d}"
 
             width = abs(short_strike - long_strike)
-            min_roc_credit = max(0.12, round(width * 0.125, 2)) # RULE-084: 12.5% ROC Floor
+            min_roc_credit = max(0.25, round(width * 0.125, 2)) # DIR-11: $0.25 absolute minimum credit floor
 
             # Penny Pilot tick calibration
             penny_pilot = {"SPY", "QQQ", "IWM", "XLF", "NVDA", "AMD", "TSM", "AAPL", "MSFT", "AMZN", "GOOGL"}

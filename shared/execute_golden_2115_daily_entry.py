@@ -257,10 +257,22 @@ def execute_account_entry(
             if s_strike >= (cur_spot * 0.98) or buf_pct < 2.0:
                 print(f"  🛑 RULE-087 SANITY REJECTED {sym} on {account_name}: Short strike ${s_strike:.2f} vs live spot ${cur_spot:.2f} (Buffer: {buf_pct:+.1f}% < 2.0% min OTM)!")
                 continue
-            else:
-                c["live_spot"] = cur_spot
-                c["buffer_pct"] = buf_pct
-                valid_otm_cands.append(c)
+
+            # DIR-11: Hard pre-selection width & credit floors
+            cand_w = float(c.get("width") or (s_strike - float(c.get("long_strike", 0))))
+            cand_cr = float(c.get("natural_credit") or c.get("mid_credit") or c.get("credit_mid") or 0.0)
+            if cand_w > 0 and cand_w < 2.0:
+                print(f"  🛑 DIR-11 REJECTED {sym} on {account_name}: Spread width ${cand_w:.2f} < $2.00 minimum floor!")
+                continue
+            if cand_cr > 0 and cand_cr < 0.25:
+                print(f"  🛑 DIR-11 REJECTED {sym} on {account_name}: Candidate credit ${cand_cr:.2f} < $0.25 minimum floor!")
+                continue
+
+            c["live_spot"] = cur_spot
+            c["buffer_pct"] = buf_pct
+            c["inception_spot"] = cur_spot
+            c["inception_buffer_pct"] = round(buf_pct, 2)
+            valid_otm_cands.append(c)
         else:
             print(f"  🛑 RULE-087 ZERO SPOT GUARD: Cannot verify live spot for {sym}! Rejecting to prevent blind execution.")
             continue
@@ -569,10 +581,20 @@ def execute_tradier_live_entry(
             long_mid = (l_bid + l_ask) / 2.0
             limit_credit = max(0.05, round(short_mid - long_mid, 2))
         else:
-            limit_credit = float(target_cand.get("natural_credit") or target_cand.get("credit_mid") or (0.12 if width <= 1.0 else (0.25 if width <= 2.0 else 0.65)))
+            limit_credit = float(target_cand.get("natural_credit") or target_cand.get("credit_mid") or (0.25 if width <= 2.0 else 0.65))
     except Exception as ex_chain:
         print(f"  ⚠️ Tradier chain fetch notice: {ex_chain}")
-        limit_credit = float(target_cand.get("natural_credit") or target_cand.get("credit_mid") or (0.12 if width <= 1.0 else (0.25 if width <= 2.0 else 0.65)))
+        limit_credit = float(target_cand.get("natural_credit") or target_cand.get("credit_mid") or (0.25 if width <= 2.0 else 0.65))
+
+    # DIR-11: Hard Pre-Submission Veto (Reject Micro-Credit & Sub-$2 Width Traps)
+    MIN_ENTRY_CREDIT = 0.25
+    if limit_credit < MIN_ENTRY_CREDIT:
+        print(f"  🛑 EXECUTION VETO (DIR-11): Resolved limit credit ${limit_credit:.2f} < ${MIN_ENTRY_CREDIT:.2f} floor! Aborting Tradier Live submission.")
+        _send_telegram(f"⚠️ Tradier Live 21:15 ICT Order Aborted: {sym} credit ${limit_credit:.2f} < ${MIN_ENTRY_CREDIT:.2f} (DIR-11 floor)")
+        return {"symbol": sym, "order_id": None, "status": "rejected_micro_credit", "credit": limit_credit, "account": "tradier_live"}
+    if width < 2.0:
+        print(f"  🛑 EXECUTION VETO (DIR-11): Spread width ${width:.2f} < $2.00 floor! Aborting Tradier Live submission.")
+        return {"symbol": sym, "order_id": None, "status": "rejected_narrow_width", "width": width, "account": "tradier_live"}
 
     # Dynamic Conviction-Tiered Sizing for Tradier Live Sprint (DIR-10 & RULE-055)
     # Executive Efficiency Principle: Pass exact resolved width to ensure 1-contract wider spread execution

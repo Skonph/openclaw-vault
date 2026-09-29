@@ -39,7 +39,8 @@ from live_spot import get_spot, _load_env, _get_json
 
 # ---- Eligibility gates (RULE: no fabricated lead) --------------------------------
 MIN_VRP_RATIO = 1.15        # Default Tastytrade VRP edge floor: IV/HV (adaptive to VIX)
-MIN_CREDIT = 0.20           # DIR-01: minimum $0.20/share ($20/spread) for >=$2 width, $0.12 for $1 width
+MIN_CREDIT = 0.25           # DIR-01 & DIR-11: hard minimum $0.25/share ($25/spread) credit floor
+MIN_SPREAD_WIDTH = 2.0      # DIR-11: enforce >= $2.00 spread width; ban $1.00 micro-spreads
 MIN_ROC_PCT = 12.5          # DIR-01: minimum 12.5% ROC floor
 MIN_OTM_PCT = 5.0           # RULE-072: short strike must sit >= 5% below live spot (92% win rate floor)
 TARGET_DELTA = 0.20          # Institutional 20-delta target (~80% OTM probability)
@@ -446,9 +447,10 @@ def run_dynamic_screening() -> Dict[str, Any]:
         in_quar, ern_date = check_earnings_quarantine(sym, exp_date)
         if in_quar:
             reasons.append(f"RULE-050: earnings quarantine ({ern_date} before exp {exp_date})")
-        min_credit_req = 0.12 if width <= 1.0 else MIN_CREDIT
-        if credit_mid is not None and credit_mid < min_credit_req:
-            reasons.append(f"credit ${credit_mid:.2f} < ${min_credit_req:.2f} (DIR-01 micro-credit floor)")
+        if width is not None and width < MIN_SPREAD_WIDTH:
+            reasons.append(f"spread width ${width:.2f} < ${MIN_SPREAD_WIDTH:.2f} (DIR-11 anti-friction width floor: $1 spreads banned)")
+        if credit_mid is not None and credit_mid < MIN_CREDIT:
+            reasons.append(f"credit ${credit_mid:.2f} < ${MIN_CREDIT:.2f} (DIR-01/11 hard credit floor)")
         fee_drag = sp.get("fee_drag_pct")
         if fee_drag is not None and fee_drag > 15.0:
             reasons.append(f"fee drag {fee_drag:.1f}% > 15.0% (DIR-01 micro-credit fee trap: ${sp.get('round_trip_fee', 1.40):.2f} fee on ${sp.get('gross_cash', (credit_mid or 0)*100):.1f} credit)")
