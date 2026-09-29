@@ -232,12 +232,15 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         # Executive Efficiency Principle: Calibrate width by underlying spot price
         # Spot < $75: $1.00 (XLF/SLV) or $2.00
         # $75 <= Spot < $250: $5.00
-        # $250 <= Spot < $800: $10.00 (Mega-caps & Index ETFs: SPY, QQQ, MSFT, META, LMT, CAT, UNH, AVGO)
-        # Spot >= $800: $20.00 (Ultra-high priced: COST)
+        # Executive Efficiency Principle: Calibrate width by underlying spot price
+        # Spot < $75: $2.00 (DIR-11 minimum floor)
+        # $75 <= Spot < $200: $5.00
+        # $200 <= Spot < $800: $10.00 (Mega-caps & Index ETFs: NVDA, SPY, QQQ, MSFT, META, LMT, UNH, AVGO)
+        # Spot >= $800: $20.00 (Ultra-high priced: COST, CAT)
         if width is None:
             if spot < 75:
                 w = 2.0  # DIR-11: Enforce minimum $2.00 width (ban $1.00 micro-spreads on XLF/SLV/IBIT)
-            elif spot < 250:
+            elif spot < 200:
                 w = 5.0
             elif spot < 800:
                 w = 10.0
@@ -246,7 +249,7 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         else:
             if spot >= 800 and width < 20.0:
                 w = 20.0
-            elif spot >= 250 and width < 10.0:
+            elif spot >= 200 and width < 10.0:
                 w = 10.0
             elif spot < 75 and width < 2.0:
                 w = 2.0

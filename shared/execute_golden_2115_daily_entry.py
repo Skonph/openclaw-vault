@@ -95,27 +95,30 @@ def calculate_conviction_tiered_sizing(
 
     is_live_alpaca = account_name in ["pion_main", "alpaca_live", "live"]
     is_tradier = "tradier" in account_name
+    is_broad_index = sym in ["SPY", "QQQ", "IWM"]
 
-    if score >= 85.0:
-        tier_label = "TIER 3: APEX CONVICTION (HIGH VELOCITY SWEET SPOT TRANCHE 🚀)"
-        max_tranche = 4500.0 if is_live_alpaca else (400.0 if is_tradier else 2500.0)
-        max_contracts = (9 if width >= 5.0 else (22 if width <= 2.0 else 15)) if is_live_alpaca else (4 if width <= 1.5 else 2)
+    if score >= 85.0 or is_broad_index:
+        tier_label = "TIER 3: APEX CONVICTION / INDEX ENVELOPE (20% CAP TRANCHE 🚀)" if is_broad_index else "TIER 3: APEX CONVICTION (HIGH VELOCITY SWEET SPOT TRANCHE 🚀)"
+        # 20% single-asset cap: Up to $6,000 max tranche on Alpaca Live ($500 on Tradier)
+        max_tranche = 6000.0 if is_live_alpaca else (500.0 if is_tradier else 3000.0)
+        max_contracts = (6 if width >= 10.0 else (12 if width >= 5.0 else 24)) if is_live_alpaca else (1 if width >= 5.0 else 2)
     elif score >= 75.0:
         tier_label = "TIER 2: SOLID PRODUCTION (STANDARD VELOCITY TRANCHE ⚖️)"
-        max_tranche = 3200.0 if is_live_alpaca else (300.0 if is_tradier else 1500.0)
-        max_contracts = (6 if width >= 5.0 else (16 if width <= 2.0 else 10)) if is_live_alpaca else (3 if width <= 1.5 else 1)
+        # 10-12% single-asset cap: Up to $3,500 max tranche on Alpaca Live (3C @ $10w = $3,000 risk)
+        max_tranche = 3500.0 if is_live_alpaca else (350.0 if is_tradier else 1500.0)
+        max_contracts = (3 if width >= 10.0 else (7 if width >= 5.0 else 16)) if is_live_alpaca else (1 if width >= 5.0 else 2)
     else:
         tier_label = "TIER 1: DEFENSIVE PILOT (CONTROLLED PROBE 🛡️)"
         max_tranche = 1500.0 if is_live_alpaca else (150.0 if is_tradier else 1000.0)
-        max_contracts = (3 if width >= 5.0 else 7) if is_live_alpaca else 1
+        max_contracts = (1 if width >= 10.0 else (3 if width >= 5.0 else 7)) if is_live_alpaca else 1
 
     # Absolute bounds: Never exceed 65% total cash envelope or available buying power
     target_risk = min(max_tranche, cash * margin_ceiling_pct, bp)
     contracts = max(1, int(target_risk / (width * 100.0)))
     contracts = min(contracts, max_contracts)
     if is_tradier:
-        # Sweet-Spot Fee Efficiency: 3-4 contracts on $1w, 1-2 contracts on wider spreads
-        contracts = min(contracts, 4 if width <= 1.5 else 2)
+        # Sweet-Spot Fee Efficiency: 1 contract on $5w/$10w, max 2 contracts on $2w
+        contracts = min(contracts, 1 if width >= 5.0 else 2)
 
     return contracts, target_risk, tier_label
 
