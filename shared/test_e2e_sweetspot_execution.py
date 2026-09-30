@@ -106,7 +106,7 @@ def run_e2e_test():
     try:
         p_w = float(primary.get("width", 5.0))
         p_contracts, p_risk, p_tier = calculate_conviction_tiered_sizing(
-            primary, cash, bp, "alpaca_live", 0.65
+            primary, cash, bp, "alpaca_live", 0.70
         )
         p_defined_risk = p_contracts * p_w * 100.0
         p_credit = float(primary.get("credit_mid", 1.0))
@@ -134,11 +134,11 @@ def run_e2e_test():
         test_results.append(("Step 4: Primary Sizing Engine", "FAIL", str(ex)))
         return False
 
-    # ── STEP 5: SECONDARY SIZING & PORTFOLIO ENVELOPE (65% CEILING) ───────────
+    # ── STEP 5: SECONDARY SIZING & PORTFOLIO ENVELOPE (70% CEILING) ───────────
     print("\n[STEP 5/7] ⚖️ Testing Secondary Dual-Dispatch & Portfolio Envelope...")
     try:
-        margin_ceiling = cash * 0.65
-        cash_defense_floor = cash * 0.35
+        margin_ceiling = cash * 0.70
+        cash_defense_floor = cash * 0.30
         headroom = margin_ceiling - p_defined_risk
         s_w = float(secondary.get("width", 5.0))
         s_credit = float(secondary.get("credit_mid", 1.0))

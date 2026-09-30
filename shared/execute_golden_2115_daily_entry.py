@@ -76,12 +76,12 @@ def calculate_conviction_tiered_sizing(
     cash: float,
     bp: float,
     account_name: str,
-    margin_ceiling_pct: float = 0.65
+    margin_ceiling_pct: float = 0.70
 ) -> Tuple[int, float, str]:
     """
-    DIR-10 / RULE-055: Quantitative Conviction-Tiered Capital Allocation Engine.
-    Sizing dynamically scales based on candidate score and asset class,
-    honoring the 35% Cash Defense Floor and 5-minute Strike Sentinel protection.
+    DIR-10 / RULE-055 / RULE-095: Quantitative Conviction-Tiered Capital Allocation Engine.
+    Sizing dynamically scales based on candidate score, asset class, and regime volatility,
+    honoring the 30% Cash Defense Floor (70% Elastic Margin Ceiling under VIX < 22).
 
     Tier 3 (Apex >= 90.0 pts): Full Tranche ($5,000-$6,500 Alpaca / $400-$500 Tradier)
     Tier 2 (Solid 80.0-89.9 pts): Medium Tranche ($3,000-$3,500 Alpaca / $200-$300 Tradier)
@@ -295,11 +295,11 @@ def execute_account_entry(
         print(f"  🛑 RULE-087 ERROR: Zero candidates passed OTM sanity gate for {account_name.upper()}! Standing down cleanly.")
         return None
 
-    # Dynamic Regime-Adaptive Tuning (Market-Aware Rule & RULE-072):
+    # Dynamic Regime-Adaptive Tuning (Market-Aware Rule & RULE-072 / RULE-095):
     from dynamic_regime_manager import evaluate_market_regime
     regime_info = evaluate_market_regime()
-    margin_ceiling_pct = regime_info.get("margin_ceiling_pct", 0.65)
-    cash_defense_floor_pct = regime_info.get("cash_defense_floor_pct", 0.35)
+    margin_ceiling_pct = regime_info.get("margin_ceiling_pct", 0.70)
+    cash_defense_floor_pct = regime_info.get("cash_defense_floor_pct", 0.30)
 
     width = float(valid_otm_cands[0].get("width", 5.0))
     contracts, target_risk, tier_label = calculate_conviction_tiered_sizing(
@@ -718,7 +718,7 @@ def execute_tradier_live_entry(
     # Executive Efficiency Principle: Pass exact resolved width to ensure 1-contract wider spread execution
     from dynamic_regime_manager import evaluate_market_regime
     regime_info = evaluate_market_regime()
-    margin_ceiling_pct = regime_info.get("margin_ceiling_pct", 0.65)
+    margin_ceiling_pct = regime_info.get("margin_ceiling_pct", 0.70)
     cand_with_width = dict(target_cand)
     cand_with_width["width"] = width
     contracts, target_risk, tier_label = calculate_conviction_tiered_sizing(

@@ -441,7 +441,7 @@
     },
     {
       "rule_id": "RULE-072",
-      "title": "65% Buying Power Acceleration, 10-12 Delta Probability Expansion & 6-Sector Citadel Risk Floor Protocol",
+      "title": "70% Dynamic Elastic Margin Acceleration, 10-12 Delta Probability Expansion & 6-Sector Citadel Risk Floor Protocol",
       "category": "CAPITAL_VELOCITY_AND_ACCELERATED_COMPOUNDING",
       "status": "ACTIVE"
     },
@@ -584,7 +584,7 @@
     },
     {
       "rule_id": "RULE-095",
-      "title": "Dynamic Regime-Adaptive Tuning, Market-Aware Barbell & Elastic Margin Protocol",
+      "title": "Dynamic Regime-Adaptive Tuning, Market-Aware Barbell & Elastic Margin Protocol (70% Normal / 55% Elevated)",
       "category": "DYNAMIC_REGIME_AND_ELASTIC_MARGIN",
       "status": "ACTIVE"
     },

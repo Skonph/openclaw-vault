@@ -46,7 +46,7 @@ The SkonVault automated trading engine operates with autonomous closed-loop exec
    • Total Equity / BP   : $30,020.50 / $82,848.29
    • Treasury Position   : 298 Shares SGOV ($29,984.76 @ ~5.2% Daily Yield Anchor)
    • Active Live Spreads : 1C XLE $60P/$58P ($200 Collateral) + 1C XLF $54P/$52P ($200 Collateral)
-   • Sprint Sizing Cap   : Up to 65% cash utilization ($6,500 defined risk per spread under RULE-072)
+   • Sprint Sizing Cap   : Up to 70% cash utilization ($6,000–$9,000 defined risk per spread under RULE-072 / RULE-095)
 
 2. TRADIER LIVE (#6YB80974) — TACTICAL MICRO-SPRINT ANCHOR:
    • Status              : ACTIVE 🟢 (Multi-Leg & API Key Verified)
@@ -86,7 +86,7 @@ All rules are registered in [`shared/learned_rules.json`](file:///Users/SkonP/AI
 | **RULE-051** | Transaction Journal Excel Sync | Maintains 3-sheet auto-updating workbook (`SkonVault_Live_Transaction_Journal.xlsx`). |
 | **RULE-052** | Alpaca 36-Candidate Orderability Gate | Automated pre-flight check for option tradability. |
 | **RULE-060** | Intelligent Spread Formatting | Human-readable option parsing and Telegram alert formatting. |
-| **RULE-072** | Accelerated Sprint & Dynamic Progressive Concentration (65% Deployment / 35% Defense Reserve) | Deploys up to 65% liquid capital ($20.9k max live risk) across non-correlated sectors with dynamic progressive scaling: Theme Cap = 3 (4 for Indices), Ticker Cap = 3 with progressive penalties (-15 pts for Tranche 2, -25 pts for Tranche 3), 10–12Δ strikes, >=5.0% OTM buffer, and >=92% target win rate while preserving permanent 35% cash defense floor. |
+| **RULE-072** | Accelerated Sprint & Dynamic Progressive Concentration (70% Elastic Deployment / 30% Defense Reserve) | Deploys up to 70% liquid capital ($22.7k max live risk under VIX < 22) across non-correlated sectors with dynamic progressive scaling: Theme Cap = 3 (4 for Indices), Ticker Cap = 3 with progressive penalties (-15 pts for Tranche 2, -25 pts for Tranche 3), 10–12Δ strikes, >=5.0% OTM buffer, and >=92% target win rate while preserving permanent >=30% cash defense floor (throttling to 55% deployment in elevated volatility VIX >= 22). |
 | **RULE-074** | US Exchange Holiday & Market-Clock Gate | Suppresses executions on exchange holidays and market closures. |
 | **RULE-075** | 3-Stage Adaptive Fill Protocol | Stage 1 (21:30 Nudge) $\to$ Stage 2 (21:46 Conviction) $\to$ Stage 3 (22:00 Standoff). |
 | **RULE-076** | T-3 Gamma Defense Harvest | Takes profit on DTE $\le 3$ threatened positions. |

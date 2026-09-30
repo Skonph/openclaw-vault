@@ -237,7 +237,7 @@ Anna's screening engine prioritizes high-liquidity names with strong institution
   - **Day 6+**: Standard $\ge 50\%$ Take Profit.
   - **Terminal Gamma Defense (DTE $\le 3\text{d}$)**: Auto-liquidate if OTM buffer $< 2.0\%$; harvest terminal theta if buffer $\ge 2.5\%$ and profit $\ge 90\%$.
 - **Sweet-Spot Tranche Sizing Architecture**:
-  - **Alpaca Live (`#290523608`)**: 3 to 4 active tranches of $\$3,500–\$4,500$ collateral (7–9 contracts on $\$5$-wide spreads, 17–22 contracts on $\$2$-wide spreads), keeping transaction friction and bid-ask slippage drag strictly $< 2.5\%$ while permanently preserving $\ge \$11,249.00$ ($35.0\%$) liquid cash defense.
+  - **Alpaca Live (`#290523608`)**: 3 to 4 active tranches of $\$3,500–\$6,500$ collateral (allowing 2-contract tranches on $\$30$-wide mega-caps and indexes), keeping transaction friction and bid-ask slippage drag strictly $< 2.5\%$ while permanently preserving $\ge 30.0\%$ liquid cash defense under normal volatility ($\text{VIX} < 22$, with $70.0\%$ elastic deployment ceiling, throttling to $55.0\%$ when $\text{VIX} \ge 22$).
   - **Tradier Live (`#6YB80974`)**: 1 to 2 sprint slots of $\$300–\$500$ collateral (3–5 contracts on $\$1$-wide spreads), keeping commission drag $< 4.0\%$.
 - **48-Hour FastHarvest Velocity Merit Score (0–100 pts)**:
   - Candidates evaluated across 5 predictive velocity pillars: (1) Order Flow / Wyckoff Spring Trap [25 pts], (2) Kalman Stat-Arb Dislocation $Z \ge +2.0\sigma$ [20 pts], (3) GEX Put Wall Pinning & $+GEX$ Drag [20 pts], (4) Vega Crush & 25D Put Skew [20 pts], (5) 10–14 DTE Theta Slope & Penny-Pilot Liquidity [15 pts].

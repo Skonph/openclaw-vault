@@ -94,20 +94,23 @@
     },
     {
       "directive_id": "DIR-09",
-      "title": "Adaptive FastHarvest & Terminal Theta Policy (RULE-077, RULE-085)",
-      "summary": "Auto-harvest spreads at 50% profit (DTE > 3). At terminal window (DTE <= 3d): if deeply safe (buffer >= 2.5%) and profit < 90%, let theta burn to 100% expiry; harvest early only if profit >= 90% (to bank gains and avoid pin risk) or if buffer is threatened (< 2.0%).",
+      "title": "Adaptive FastHarvest, Terminal Theta, Closing Micro-Walk & Profit Ratchet Policy (RULE-077, RULE-085, RULE-096, RULE-097, RULE-098)",
+      "summary": "Auto-harvest spreads at sliding-scale profit (30%@<=2d, 40%@<=5d, 50% std). Profit High-Water Mark Ratchet (RULE-097) arms a +20% hard profit floor when profit touches >=30%, auto-locking gains on pullbacks. Closing Micro-Walk (RULE-096) nudges limit debits +$0.01 on Penny-Pilot tickers for instant fill. Instant Slot Vacancy (RULE-098) broadcasts to Anna upon fill to unfreeze collateral for immediate same-day rotation. At terminal window (DTE <= 3d): if deeply safe (buffer >= 2.5%) and profit < 90%, let theta burn to 100% expiry; harvest early only if profit >= 90% or if buffer is threatened (< 2.0%).",
       "consolidates": [
         "RULE-002",
         "RULE-042",
         "RULE-059",
         "RULE-077",
-        "RULE-085"
+        "RULE-085",
+        "RULE-096",
+        "RULE-097",
+        "RULE-098"
       ]
     },
     {
       "directive_id": "DIR-10",
-      "title": "Proactive Strike-Touch Sentinel & Gamma Cliff Defense (RULE-087, RULE-090)",
-      "summary": "Monitor spot vs short strike continuously. If spot breaches short strike or delta exceeds danger threshold before 21 DTE, trigger proactive stop-out order to prevent gamma explosion and catastrophic loss.",
+      "title": "Proactive Strike-Touch Sentinel & True Strike Defense (RULE-087, RULE-090)",
+      "summary": "Monitor spot vs short strike continuously. Proactive stop-out triggers ONLY when short strike is genuinely threatened (spot touches short strike within 0.50% buffer or breaches ITM, buf <= 0.0), salvaging collateral before maximum loss. Eliminates premature stop-outs from arbitrary DTE-21 gates or micro-credit bid-ask noise.",
       "consolidates": [
         "RULE-004",
         "RULE-087",
@@ -136,16 +139,6 @@
         "RULE-060",
         "RULE-088",
         "RULE-093"
-      ]
-    },
-    {
-      "directive_id": "DIR-13",
-      "title": "Reproducible Profitability, FastHarvest Priority & Dual-Candidate Capital Scaling (RULE-096, RULE-097, RULE-098)",
-      "summary": "Institutionalize consistent spread wins: (1) Merit scoring prioritizes Reproducible Profitability (Gamma Shield 14-30 DTE, OTM Buffer >= 5.0%/7.0%, Spot > SMA20) over raw cash velocity; (2) FastHarvest Priority favors early 50% TP over holding to expiration; (3) Full capital utilization up to 65% margin ceiling across uncorrelated assets; (4) Multi-Candidate Dual Dispatch fires >= 2 qualified assets per account when Candidate #1 occupies up to 35% and total allocation is < 65%, while strictly preserving >= 35% liquid cash defense floor.",
-      "consolidates": [
-        "RULE-096",
-        "RULE-097",
-        "RULE-098"
       ]
     }
   ],
@@ -448,7 +441,7 @@
     },
     {
       "rule_id": "RULE-072",
-      "title": "65% Buying Power Acceleration, 10-12 Delta Probability Expansion & 6-Sector Citadel Risk Floor Protocol",
+      "title": "70% Dynamic Elastic Margin Acceleration, 10-12 Delta Probability Expansion & 6-Sector Citadel Risk Floor Protocol",
       "category": "CAPITAL_VELOCITY_AND_ACCELERATED_COMPOUNDING",
       "status": "ACTIVE"
     },
@@ -591,7 +584,7 @@
     },
     {
       "rule_id": "RULE-095",
-      "title": "Dynamic Regime-Adaptive Tuning, Market-Aware Barbell & Elastic Margin Protocol",
+      "title": "Dynamic Regime-Adaptive Tuning, Market-Aware Barbell & Elastic Margin Protocol (70% Normal / 55% Elevated)",
       "category": "DYNAMIC_REGIME_AND_ELASTIC_MARGIN",
       "status": "ACTIVE"
     },
@@ -603,14 +596,14 @@
     },
     {
       "rule_id": "RULE-097",
-      "title": "Profit High-Water Mark Ratchet & Velocity Protection Protocol",
-      "category": "CAPITAL_VELOCITY_AND_POSITION_LIFECYCLE",
+      "title": "Profit High-Water Mark Ratchet & Velocity Protection Floor Protocol",
+      "category": "CAPITAL_VELOCITY_AND_PORTFOLIO_CONCURRENCY",
       "status": "ACTIVE"
     },
     {
       "rule_id": "RULE-098",
-      "title": "Reproducible Profitability, FastHarvest Priority & Dual-Candidate 65% Capital Scaling Protocol",
-      "category": "REPRODUCIBILITY_AND_HIGH_WIN_RATE_STANDARDS",
+      "title": "Instant Slot Vacancy Broadcast & Immediate Collateral Recycling Protocol",
+      "category": "CAPITAL_VELOCITY_AND_PORTFOLIO_CONCURRENCY",
       "status": "ACTIVE"
     }
   ]

@@ -67,41 +67,41 @@ def evaluate_market_regime(override_vix: Optional[float] = None) -> Dict[str, An
     """
     vix = override_vix if override_vix is not None else get_live_vix()
 
-    if vix < 18.0:
+    if vix < 22.0:
         regime_id = "CALM_BULLISH"
-        regime_name = "Calm Bullish / Low Volatility"
-        margin_ceiling_pct = 0.65       # 65% Max Margin ($20,891 on $32,140 base)
-        cash_defense_floor_pct = 0.35   # 35% Permanent Liquid Cash ($11,249)
-        sprint_ratio = 0.60             # 60% Sprint allocation
-        anchor_ratio = 0.40             # 40% Core Anchor allocation
+        regime_name = "Calm Bullish / Low Volatility (Velocity Sprint)"
+        margin_ceiling_pct = 0.70       # 70% Elastic Margin Ceiling ($22,681 on $32,402 base)
+        cash_defense_floor_pct = 0.30   # 30% Permanent Liquid Cash Defense ($9,720)
+        sprint_ratio = 0.65             # 65% Sprint allocation
+        anchor_ratio = 0.35             # 35% Core Anchor allocation
         target_sprint_slots = 4         # 4 Sprint slots
         target_anchor_slots = 3         # 3 Anchor slots
         min_otm_buffer_pct = 5.0        # >= 5.0% OTM buffer (92% win rate floor)
         preferred_strategy = "BULL_PUT_SPREAD"
-        max_slot_risk_alpaca = 2500.0   # $2,500 per slot
+        max_slot_risk_alpaca = 6500.0   # $6,500 per slot (supports 2C on $30w mega-caps)
         max_slot_risk_tradier = 600.0   # $600 per slot
         description = (
             "Calm trending market favoring maximum money velocity and short-cycle compounding. "
-            "High delta turnover, rapid theta harvesting (10-14 DTE Sprint focus)."
+            "70% elastic margin ceiling enables friction-free 2C $30w spreads while preserving 30% cash defense."
         )
-    elif vix < 24.0:
+    elif vix < 26.0:
         regime_id = "ELEVATED_CHURN"
         regime_name = "Elevated Volatility / Market Churn"
-        margin_ceiling_pct = 0.55       # 55% Margin Ceiling ($17,677)
-        cash_defense_floor_pct = 0.45   # 45% Permanent Liquid Cash ($14,463)
+        margin_ceiling_pct = 0.55       # 55% Margin Ceiling ($17,821)
+        cash_defense_floor_pct = 0.45   # 45% Permanent Liquid Cash Defense ($14,581)
         sprint_ratio = 0.50             # 50% Sprint allocation
         anchor_ratio = 0.50             # 50% Core Anchor allocation
         target_sprint_slots = 3         # 3 Sprint slots
         target_anchor_slots = 3         # 3 Anchor slots
         min_otm_buffer_pct = 6.0        # Widened to 6.0% OTM buffer for elevated ATR
         preferred_strategy = "BALANCED_HYBRID"
-        max_slot_risk_alpaca = 2200.0
+        max_slot_risk_alpaca = 4500.0
         max_slot_risk_tradier = 500.0
         description = (
             "Heightened market swings. Widened OTM safety buffers and balanced 50/50 "
-            "Sprint/Anchor posture to mitigate gap risk."
+            "Sprint/Anchor posture to mitigate gap risk and preserve dry powder."
         )
-    else:  # vix >= 24.0
+    else:  # vix >= 26.0
         regime_id = "HIGH_VOL_STORM"
         regime_name = "Storm Mode / High Volatility Panic"
         margin_ceiling_pct = 0.45       # 45% Margin Ceiling ($14,463)
