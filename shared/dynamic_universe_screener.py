@@ -382,27 +382,54 @@ def run_dynamic_screening() -> Dict[str, Any]:
                                               dte=max(dte_est, 1))
         drag_score_adj = drag_info["score_adjustment"]
         base_yield_score = 20.0 if is_core_penny else 18.0
+        # Factor 4: Yield / ROC Efficiency & Gamma Shield Horizon (RULE-098)
+        # Shift weight from raw cash velocity (shorter DTE) to Reproducible Profitability (Gamma Shield 14-30 DTE):
+        # 21-32 DTE: +12.0 pts (Core Gamma Shield: low gamma ~0.001, delta immune to daily 1-2% noise)
+        # 14-20 DTE: +8.0 pts (Intermediate stability)
+        # 8-13 DTE: +2.0 pts (Sprint: high gamma, requires >=7% buffer to be viable)
+        if 21 <= dte_est <= 32:
+            gamma_shield_bonus = 12.0
+        elif 14 <= dte_est < 21:
+            gamma_shield_bonus = 8.0
+        elif 8 <= dte_est < 14:
+            gamma_shield_bonus = 2.0
+        else:
+            gamma_shield_bonus = 0.0
+
         roc_bonus = 0.0
         if roc_pct is not None:
-            roc_bonus = max(-6.0, min(6.0, (roc_pct - 15.0) * 0.4))   # real ROC vs 15% par
+            par_roc = 7.5 if width >= 20.0 else 12.5
+            roc_bonus = max(-4.0, min(6.0, (roc_pct - par_roc) * 0.4))
 
-        # Daily Cash-Flow Velocity Rate (CVR): rewards shorter DTE delivering identical net cash P&L (DIR-04 & DIR-09)
-        # Par = 0.50%/day (e.g. 15% ROC over 30 DTE). 14 DTE at 15% = 1.07%/day (+4.6 pts). 10 DTE at 15% = 1.50%/day (+6.0 pts max).
-        daily_roc = (roc_pct / max(dte_est, 1)) if (roc_pct and dte_est) else 0.50
-        daily_velocity_boost = max(-4.0, min(6.0, (daily_roc - 0.50) * 8.0))
-        yield_score = max(0.0, min(30.0, base_yield_score + drag_score_adj + roc_bonus + daily_velocity_boost))
+        yield_score = max(0.0, min(30.0, base_yield_score + drag_score_adj + roc_bonus + gamma_shield_bonus))
 
-        # ---- Factor 5: OTM safety buffer from LIVE spot (15 pts)
+        # ---- Factor 5: Reproducible OTM Safety Buffer from LIVE spot (0-25 pts)
         safety_buffer_pct = (round((spot_price - target_s) / spot_price * 100, 2)
                              if (spot_price and target_s) else None)
         if safety_buffer_pct is None:
             safety_score = 0.0
+        elif safety_buffer_pct >= 7.0:
+            safety_score = 25.0  # Fortress safety buffer (eliminates 1-2% daily noise)
+        elif safety_buffer_pct >= 5.0:
+            safety_score = 20.0  # Institutional Standard floor
         elif safety_buffer_pct >= 4.5:
-            safety_score = 15.0
-        elif safety_buffer_pct >= 2.0:
-            safety_score = 9.0
+            safety_score = 12.0  # Marginal Institutional buffer
+        elif safety_buffer_pct >= 3.5:
+            safety_score = 6.0   # Caution buffer
         else:
-            safety_score = 0.0
+            safety_score = 0.0   # Unsafe
+
+        # ---- Factor 5b: Trend Momentum Alignment (Spot > SMA20) (0-8 pts)
+        trend_info = live.get("trend", {})
+        trend_diff_pct = trend_info.get("diff_pct") if trend_info else None
+        if trend_diff_pct is None and spot_price and live.get("sma20"):
+            trend_diff_pct = round((spot_price - live["sma20"]) / live["sma20"] * 100, 2)
+        if trend_diff_pct is not None and trend_diff_pct >= 2.0:
+            trend_momentum_bonus = 8.0  # Strong institutional buying tailwind
+        elif trend_diff_pct is not None and trend_diff_pct >= 0.0:
+            trend_momentum_bonus = 4.0  # Mild uptrend above SMA20
+        else:
+            trend_momentum_bonus = 0.0  # At or below SMA20 (quarantined)
 
         # ---- Factor 6: put skew + calendar velocity (10 pts) — real IV inputs where available
         iv_25d_f = iv_25d / 100.0 if iv_25d else 0.0
@@ -421,6 +448,7 @@ def run_dynamic_screening() -> Dict[str, Any]:
         total_velocity_bonus = round(base_skew_bonus * warp_mult, 2)
 
         # Pillar 2: 48-Hour FastHarvest Velocity Merit Score (0-100 pts)
+        # Favours early Take-Profit (50% TP, or 30-40% inside 5 days) over holding to expiration
         fh_stat = calculate_48h_fastharvest_merit_score(
             symbol=sym,
             spot_price=spot_price or 0.0,
@@ -435,7 +463,7 @@ def run_dynamic_screening() -> Dict[str, Any]:
         fast_harvest_score = fh_stat["fastharvest_score"]
         fast_harvest_tier = fh_stat["velocity_tier"]
         target_tp_pct = fh_stat["recommended_tp_pct"]
-        fast_harvest_boost = round(fast_harvest_score * 0.15, 2) # Up to +15 pts for Apex 48h Sprint
+        fast_harvest_boost = round(fast_harvest_score * 0.25, 2) # Up to +25 pts for Apex FastHarvest early TP!
 
         sym_held_count = active_symbols_counts.get(sym, 0)
         reentry_penalty = 0.0
@@ -445,7 +473,8 @@ def run_dynamic_screening() -> Dict[str, Any]:
             reentry_penalty = 25.0  # Tranche 3 penalty (-25 pts)
 
         total_score = round(max(0.0, box_score + div_score + cot_score + yield_score
-                            + safety_score + total_velocity_bonus + fast_harvest_boost - reentry_penalty), 2)
+                            + safety_score + trend_momentum_bonus + total_velocity_bonus
+                            + fast_harvest_boost - reentry_penalty), 2)
 
         # ---- Hard eligibility gates
         reasons = []
@@ -585,8 +614,10 @@ def run_dynamic_screening() -> Dict[str, Any]:
                 "cot_smart_money": round(cot_score, 1),
                 "roc_yield": round(yield_score, 2),
                 "roc_bonus": round(roc_bonus, 2),
+                "gamma_shield_bonus": gamma_shield_bonus,
                 "drag_hours_adj": drag_score_adj,
-                "kalman_safety_buffer": safety_score,
+                "reproducible_safety_buffer": safety_score,
+                "trend_momentum_bonus": trend_momentum_bonus,
                 "velocity_warp_bonus": total_velocity_bonus,
                 "fast_harvest_boost": fast_harvest_boost,
             },
@@ -606,7 +637,22 @@ def run_dynamic_screening() -> Dict[str, Any]:
               f"({r['dte']}d, credit {r['credit_mid']}, ROC {r['roc_pct']}%) | {gate}")
 
     lead = eligible_ranked[0] if eligible_ranked else None
-    fallbacks = eligible_ranked[1:4]
+
+    # Multi-Candidate Dual Dispatch (RULE-098): Select Candidate #2 from different uncorrelated sector
+    secondary = None
+    if lead and len(eligible_ranked) > 1:
+        for cand in eligible_ranked[1:]:
+            if cand["symbol"] != lead["symbol"] and cand.get("theme") != lead.get("theme"):
+                secondary = cand
+                break
+        if not secondary and len(eligible_ranked) > 1:
+            for cand in eligible_ranked[1:]:
+                if cand["symbol"] != lead["symbol"]:
+                    secondary = cand
+                    break
+
+    selected_syms = {s for s in [lead["symbol"] if lead else None, secondary["symbol"] if secondary else None] if s}
+    fallbacks = [r for r in eligible_ranked if r["symbol"] not in selected_syms][:3]
 
     output_payload: Dict[str, Any] = {
         "timestamp": now_ict,
@@ -617,6 +663,7 @@ def run_dynamic_screening() -> Dict[str, Any]:
                   "theme_concentration_cap": THEME_CONCENTRATION_CAP},
         "regime": regime_info,
         "primary": lead or {},
+        "secondary": secondary or {},
         "fallbacks": fallbacks,
         "stand_aside": lead is None,
         "stand_aside_reason": (None if lead else

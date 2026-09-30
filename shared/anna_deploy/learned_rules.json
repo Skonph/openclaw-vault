@@ -140,8 +140,8 @@
     },
     {
       "directive_id": "DIR-13",
-      "title": "The 4 Reproducibility Rules & High-Win-Rate Wide Spread Standard (RULE-096, RULE-097, RULE-098)",
-      "summary": "Institutionalize the 4 pillars of consistent spread wins: (1) OTM Buffer Floor >= 5.0% (>= 7.0% for DTE < 14); (2) 14-30 DTE Gamma Shield; (3) 18-Delta target on $25w-$30w wide spreads with max 3 contracts and up to 35% capital scaling; (4) SMA20 uptrend & institutional Put Wall alignment.",
+      "title": "Reproducible Profitability, FastHarvest Priority & Dual-Candidate Capital Scaling (RULE-096, RULE-097, RULE-098)",
+      "summary": "Institutionalize consistent spread wins: (1) Merit scoring prioritizes Reproducible Profitability (Gamma Shield 14-30 DTE, OTM Buffer >= 5.0%/7.0%, Spot > SMA20) over raw cash velocity; (2) FastHarvest Priority favors early 50% TP over holding to expiration; (3) Full capital utilization up to 65% margin ceiling across uncorrelated assets; (4) Multi-Candidate Dual Dispatch fires >= 2 qualified assets per account when Candidate #1 occupies up to 35% and total allocation is < 65%, while strictly preserving >= 35% liquid cash defense floor.",
       "consolidates": [
         "RULE-096",
         "RULE-097",
@@ -609,7 +609,7 @@
     },
     {
       "rule_id": "RULE-098",
-      "title": "The 4 Reproducibility Rules & High-Win-Rate Wide Spread Capital Scaling Protocol",
+      "title": "Reproducible Profitability, FastHarvest Priority & Dual-Candidate 65% Capital Scaling Protocol",
       "category": "REPRODUCIBILITY_AND_HIGH_WIN_RATE_STANDARDS",
       "status": "ACTIVE"
     }

@@ -470,6 +470,109 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
         except Exception: pass
         print(f"  📢 Passive Handoff Telegram & Bridge Alert Dispatched for {account_name.upper()}!")
 
+    # ── MULTI-CANDIDATE DUAL DISPATCH (RULE-098 & 65% Portfolio Ceiling) ──────
+    # If Candidate #1 occupied up to 35% and total capital allocation is still < 65%,
+    # consider and dispatch Candidate #2 from an uncorrelated qualified asset.
+    try:
+        deployed_pct = total_risk / cash if cash > 0 else 0.0
+        print(f"\n  📊 POST-TRADE 1 CAPITAL ALLOCATION CHECK ({account_name.upper()}):")
+        print(f"     • Candidate #1 ({sym_filled}) Risk: ${total_risk:,.2f} ({deployed_pct*100:.1f}% of Cash)")
+        print(f"     • Margin Ceiling: {margin_ceiling_pct*100:.1f}% | Cash Defense Floor: {cash_defense_floor_pct*100:.1f}%")
+
+        if deployed_pct < margin_ceiling_pct and (active_spread_count + pending_count + 1) < max_spreads:
+            available_headroom = (margin_ceiling_pct * cash) - total_risk
+            print(f"     • Capital Headroom Available to 65% Ceiling: ${available_headroom:,.2f}")
+
+            # Filter remaining candidates: different symbol, not currently held, and strictly passing all gates
+            c1_theme = valid_otm_cands[0].get("theme")
+            c2_pool = [
+                c for c in valid_otm_cands[1:]
+                if c.get("symbol") != sym_filled
+            ]
+            # Prioritize uncorrelated sector/theme
+            uncorrelated_c2 = [c for c in c2_pool if c.get("theme") != c1_theme]
+            ranked_c2 = uncorrelated_c2 if uncorrelated_c2 else c2_pool
+
+            if ranked_c2:
+                c2 = ranked_c2[0]
+                c2_sym = c2.get("symbol")
+                c2_theme = c2.get("theme")
+                c2_w = float(c2.get("width", 5.0))
+                c2_short_strike = float(c2.get("short_strike", 0))
+                c2_long_strike = float(c2.get("long_strike", 0))
+
+                # Calculate sizing for Candidate #2: max 3 contracts, capped by 35% single-asset cap & 65% ceiling
+                c2_max_allowed_risk = min(cash * 0.35, available_headroom)
+                c2_contracts = min(3, int(c2_max_allowed_risk // (c2_w * 100.0)))
+
+                # Refresh BP from broker
+                refreshed_acct = broker.get_account()
+                live_bp = float(refreshed_acct.get("buying_power", 0))
+
+                if c2_contracts >= 1 and live_bp >= (c2_contracts * c2_w * 100.0):
+                    c2_risk = c2_contracts * c2_w * 100.0
+                    print(f"\n  🚀 FIRING CANDIDATE #2 ON {account_name.upper()}: {c2_sym} ({c2_theme})")
+                    print(f"     • Setup: {c2_contracts}C ${c2_short_strike:.0f}P/${c2_long_strike:.0f}P (${c2_w:.0f}w) | Defined Risk: ${c2_risk:,.2f}")
+
+                    success2, res2, msg2 = broker.execute_waterfall_spread([c2], contracts=c2_contracts)
+                    if success2 and res2:
+                        c2_sym_filled = res2.get("symbol")
+                        c2_s_k = res2.get("short_strike")
+                        c2_l_k = res2.get("long_strike")
+                        c2_s_sym = res2.get("short_sym", "")
+                        c2_l_sym = res2.get("long_sym", "")
+                        c2_real_w = float(res2.get("width", c2_s_k - c2_l_k))
+                        c2_exp = res2.get("exp_date")
+                        c2_oids = res2.get("order_ids", [])
+                        c2_cred = float(res2.get("limit_credit", 0.15))
+                        c2_oid = c2_oids[0] if c2_oids else ""
+                        c2_total_risk = c2_contracts * c2_real_w * 100
+
+                        from order_fill_tracker import register_order
+                        register_order(
+                            account=account_name,
+                            symbol=c2_sym_filled,
+                            short_sym=c2_s_sym,
+                            long_sym=c2_l_sym,
+                            short_strike=c2_s_k,
+                            long_strike=c2_l_k,
+                            width=c2_real_w,
+                            contracts=c2_contracts,
+                            exp_date=c2_exp,
+                            order_id=c2_oid,
+                            limit_credit=c2_cred,
+                            broker_type="alpaca"
+                        )
+
+                        combined_risk = total_risk + c2_total_risk
+                        comb_pct = (combined_risk / cash) * 100.0
+                        free_cash = cash - combined_risk
+                        free_pct = (free_cash / cash) * 100.0
+
+                        c2_alert = f"""🚀 AUTONOMOUS 21:15 ICT SECONDARY GOLDEN ENTRY SUBMITTED — {now_ict}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 PASSIVE SPREAD RESTING ON BOOK (RULE-098 DUAL DISPATCH)
+• Asset          : {c2_sym_filled} ({c2_contracts}-Contract Bull Put Spread | {c2_theme})
+• Strikes        : ${c2_s_k:.0f}P / ${c2_l_k:.0f}P (Width: ${c2_real_w:.2f})
+• Target Account : {account_name.upper()} ({acct_num})
+• Expiration     : {c2_exp}
+• Current Limit  : +${c2_cred:.2f} Credit
+• Defined Risk   : ${c2_total_risk - c2_contracts * c2_cred * 100:,.2f}
+• Combined Risk  : ${combined_risk:,.2f} ({comb_pct:.1f}% Deployed <= 65% Ceiling ✅)
+• Liquid Defense : ${free_cash:,.2f} ({free_pct:.1f}% Free Cash >= 35% Floor ✅)
+• Alpaca Order ID: {c2_oid}
+• Order Status   : WORKING / RESTING ON COMPLEX BOOK ⏳
+• Tracker Engine : Armed for Stage 1/2/3 Fill Tracking 🛡️"""
+                        _send_telegram(c2_alert)
+                        _broadcast_to_anna(f"ORDER_RESTING_{c2_sym_filled}", c2_alert, {
+                            "symbol": c2_sym_filled, "status": "RESTING", "account": account_name,
+                            "order_id": c2_oid, "limit_credit": c2_cred
+                        })
+                        print(f"  📢 Candidate #2 Telegram & Bridge Alerts Dispatched for {account_name.upper()}!")
+                        res_data["secondary_trade"] = res2
+    except Exception as ex_dual:
+        print(f"  ⚠️ Multi-Candidate Dual Dispatch notice: {ex_dual}")
+
     return res_data
 
 def execute_tradier_live_entry(
