@@ -563,9 +563,10 @@ def harvest_spread_positions(
     account_type: str = "pion2_sub",
     target_symbol: str = "SPY",
     force_close: bool = False,
-    min_profit_pct: float = 50.0
+    min_profit_pct: float = 50.0,
+    opt_type_filter: Optional[str] = None
 ) -> List[Dict[str, Any]]:
-    print(f"\n🌾 AUDITING POSITION: {target_symbol} ON {account_type.upper()}...")
+    print(f"\n🌾 AUDITING POSITION: {target_symbol}{' (' + opt_type_filter + ' Wing)' if opt_type_filter else ''} ON {account_type.upper()}...")
     broker = AlpacaClient(account_type)
     headers = broker._headers()
     ctx_ssl = broker.ssl_ctx
@@ -657,11 +658,23 @@ def harvest_spread_positions(
         p for p in positions 
         if target_symbol in p.get("symbol", "") and (p.get("asset_class") == "us_option" or bool(re.search(r"\d{6}[CP]\d{8}$", p.get("symbol", ""))))
     ]
+    if opt_type_filter:
+        target_positions = [p for p in target_positions if re.search(rf"\d{{6}}{opt_type_filter}\d{{8}}$", p.get("symbol", ""))]
+
     if not target_positions:
-        print(f"  ℹ️ No active option spread positions found for {target_symbol} on {account_type}.")
+        print(f"  ℹ️ No active option spread positions found for {target_symbol}{' (' + opt_type_filter + ' Wing)' if opt_type_filter else ''} on {account_type}.")
         return []
 
-    print(f"  📊 Found {len(target_positions)} active position legs for {target_symbol}:")
+    # RULE-094: Autonomous Iron Condor & Dual-Wing Dispatcher
+    has_puts = any(re.search(r"\d{6}P\d{8}$", p.get("symbol", "")) for p in target_positions)
+    has_calls = any(re.search(r"\d{6}C\d{8}$", p.get("symbol", "")) for p in target_positions)
+    if has_puts and has_calls and not opt_type_filter:
+        print(f"  🦅 DETECTED DUAL-WING / CONDOR POSITION FOR {target_symbol}: Auditing Put Wing & Call Wing independently (RULE-094)...")
+        res_p = harvest_spread_positions(account_type, target_symbol, force_close, min_profit_pct, opt_type_filter="P")
+        res_c = harvest_spread_positions(account_type, target_symbol, force_close, min_profit_pct, opt_type_filter="C")
+        return (res_p or []) + (res_c or [])
+
+    print(f"  📊 Found {len(target_positions)} active position legs for {target_symbol}{' (' + opt_type_filter + ' Wing)' if opt_type_filter else ''}:")
     
     short_leg = None
     long_leg = None
@@ -1005,7 +1018,7 @@ def harvest_spread_positions(
         is_mleg = any(c.get("type") == "mleg" for c in closed_orders)
         is_residual = any(c.get("type") == "residual_long" for c in closed_orders)
         if is_mleg:
-            asset_title = f"{target_symbol} Bull Put Spread"
+            asset_title = f"{target_symbol} {'Bull Put Spread' if opt_tag == 'P' else 'Bear Call Spread'}"
             exec_title = "Atomic Multi-Leg Zero-Margin Combo ✅"
         elif is_residual:
             asset_title = f"{target_symbol} Residual Long Leg / Tail Floor"

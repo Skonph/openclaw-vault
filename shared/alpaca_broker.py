@@ -433,7 +433,7 @@ class AlpacaClient:
             is_regular_hours = (9 * 60 + 30) <= ny_mins < (16 * 60)
             if is_regular_hours:
                 clock = self.get_clock()
-                if not clock.get("is_open", False):
+                if "error" not in clock and not clock.get("is_open", False):
                     return True, self.US_MARKET_HOLIDAYS_2026.get(ny_date, "US Market Exchange Holiday")
 
         return False, ""
