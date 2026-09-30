@@ -799,6 +799,9 @@ def harvest_spread_positions(
         elif days_held <= 2 and (profit_pct >= 30.0 or tot_pnl >= (total_initial_credit * 0.30)):
             should_harvest = True
             harvest_reason = f"DIR-09 48h Express FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
+        elif days_held <= 3 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
+            should_harvest = True
+            harvest_reason = f"DIR-09 72h Mid-Sprint FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
         elif days_held <= 5 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
             should_harvest = True
             harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
@@ -1251,6 +1254,9 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
         elif days_held <= 2 and (profit_pct >= 30.0 or current_pnl >= (initial_credit_total * 0.30)):
             should_harvest = True
             harvest_reason = f"DIR-09 48h Express FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
+        elif days_held <= 3 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
+            should_harvest = True
+            harvest_reason = f"DIR-09 72h Mid-Sprint FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
         elif days_held <= 5 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
             should_harvest = True
             harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"

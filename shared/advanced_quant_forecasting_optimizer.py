@@ -187,15 +187,18 @@ def calculate_48h_fastharvest_merit_score(
     gex_regime: str = "+GEX",
     is_at_put_wall: bool = False,
     is_penny_pilot: bool = False,
+    roc_pct: Optional[float] = None,
+    sma20_dist_pct: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Pillar 2: 48-Hour FastHarvest Velocity Merit Score Engine (0-100 Points).
-    Evaluates 5 quantitative pillars to predict >= 30% spread collapse in 24h-48h:
+    Evaluates quantitative pillars to predict >= 30% spread collapse in 24h-48h:
     1. Order Flow & Liquidity Sweep (Wyckoff Spring / Oops!) [25 pts]
     2. Statistical Dislocation (Kalman Dynamic Z-Score)       [20 pts]
     3. Structural Pinning & GEX Location (Dealer Gamma Drag)   [20 pts]
     4. Vega Crush & Put Skew Richness                         [20 pts]
     5. Theta Slope & Penny-Pilot Liquidity                    [15 pts]
+    6. Premium Density & Drift Tailwind (Velocity Multiplier) [up to +10 pts]
     """
     # 1. Order Flow (25 pts)
     if wyckoff_spring:
@@ -263,7 +266,26 @@ def calculate_48h_fastharvest_merit_score(
 
     p5_theta = max(0.0, p5_dte + p5_liq)
 
-    total_merit = round(min(100.0, max(0.0, p1_order_flow + p2_stat_arb + p3_gex + p4_vega + p5_theta)), 1)
+    # 6. Premium Density & Drift Tailwind (Velocity Multiplier: up to +10 pts)
+    p6_density = 0.0
+    if roc_pct is not None:
+        if roc_pct >= 18.0:
+            p6_density = 5.0  # Apex premium density (like META 19.6% ROC)
+        elif roc_pct >= 14.0:
+            p6_density = 3.0  # High premium density
+        elif roc_pct < 10.0:
+            p6_density = -3.0 # Slow burn penalty
+
+    p6_drift = 0.0
+    if sma20_dist_pct is not None:
+        if sma20_dist_pct >= 0.5:
+            p6_drift = 5.0   # Bullish drift tailwind (delta compresses in our favor)
+        elif sma20_dist_pct < 0.0:
+            p6_drift = -4.0  # Adverse drift (fights theta decay)
+
+    velocity_multiplier = p6_density + p6_drift
+
+    total_merit = round(min(100.0, max(0.0, p1_order_flow + p2_stat_arb + p3_gex + p4_vega + p5_theta + velocity_multiplier)), 1)
 
     if total_merit >= 85.0:
         tier = "APEX_SPRINT 🚀"
@@ -288,7 +310,9 @@ def calculate_48h_fastharvest_merit_score(
             "kalman_stat_arb_pts": p2_stat_arb,
             "gex_location_pts": p3_gex,
             "vega_crush_pts": p4_vega,
-            "theta_liquidity_pts": p5_theta
+            "theta_liquidity_pts": p5_theta,
+            "premium_density_pts": p6_density,
+            "drift_tailwind_pts": p6_drift
         }
     }
 

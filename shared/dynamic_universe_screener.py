@@ -458,7 +458,9 @@ def run_dynamic_screening() -> Dict[str, Any]:
             vrp_ratio=iv_hv,
             bid_ask_spread=spread_est,
             is_penny_pilot=is_core_penny,
-            wyckoff_spring=bool(box_pos is not None and box_pos <= 25.0)
+            wyckoff_spring=bool(box_pos is not None and box_pos <= 25.0),
+            roc_pct=roc_pct,
+            sma20_dist_pct=trend_diff_pct
         )
         fast_harvest_score = fh_stat["fastharvest_score"]
         fast_harvest_tier = fh_stat["velocity_tier"]
