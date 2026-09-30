@@ -67,7 +67,7 @@ def fetch_fills(account: str, max_pages: int = 12) -> List[Dict[str, Any]]:
             t = TradierClient("live")
             fills = []
             seen_events = set()
-            res = t._call_api(f"accounts/{t.account_id}/history")
+            res = t._call_api(f"accounts/{t.account_id}/history?limit=100&page=1")
             hist_node = res.get("history") if isinstance(res, dict) else {}
             if not isinstance(hist_node, dict):
                 hist_node = {}
@@ -83,15 +83,18 @@ def fetch_fills(account: str, max_pages: int = 12) -> List[Dict[str, Any]]:
                     if tr.get("trade_type") == "option" or (sym and len(sym) > 10):
                         qty = float(tr.get("quantity", 0))
                         side = "buy" if qty > 0 else "sell"
-                        fills.append({
-                            "symbol": sym,
-                            "side": side,
-                            "qty": str(abs(qty)),
-                            "price": str(tr.get("price", 0)),
-                            "transaction_time": ev.get("date", ""),
-                            "order_id": f"tradier_{ev.get('date', '')[:10]}"
-                        })
-                        seen_events.add(sym)
+                        dt = str(ev.get("date", ""))
+                        fill_key = (dt[:10], sym, side)
+                        if fill_key not in seen_events:
+                            fills.append({
+                                "symbol": sym,
+                                "side": side,
+                                "qty": str(abs(qty)),
+                                "price": str(tr.get("price", 0)),
+                                "transaction_time": dt,
+                                "order_id": f"tradier_{dt[:10]}"
+                            })
+                            seen_events.add(fill_key)
 
             # Intraday filled orders (to immediately capture today's fills before clearing)
             res_o = t._call_api(f"accounts/{t.account_id}/orders")
@@ -110,18 +113,21 @@ def fetch_fills(account: str, max_pages: int = 12) -> List[Dict[str, Any]]:
                         legs = [legs]
                     for leg in legs:
                         opt_sym = leg.get("option_symbol")
-                        if opt_sym and opt_sym not in seen_events:
-                            side_raw = leg.get("side", "").lower()
-                            side = "sell" if "sell" in side_raw else "buy"
+                        side_raw = leg.get("side", "").lower()
+                        side = "sell" if "sell" in side_raw else "buy"
+                        tx_time = leg.get("transaction_date") or o.get("transaction_date") or ""
+                        fill_key = (tx_time[:10], opt_sym, side)
+                        if opt_sym and fill_key not in seen_events:
                             fill_px = leg.get("avg_fill_price") or leg.get("last_fill_price") or 0.0
                             fills.append({
                                 "symbol": opt_sym,
                                 "side": side,
                                 "qty": str(abs(float(leg.get("exec_quantity") or 1.0))),
                                 "price": str(fill_px),
-                                "transaction_time": leg.get("transaction_date") or o.get("transaction_date") or "",
+                                "transaction_time": tx_time,
                                 "order_id": str(o.get("id"))
                             })
+                            seen_events.add(fill_key)
 
             fills.sort(key=lambda x: x.get("transaction_time", ""))
             return fills
