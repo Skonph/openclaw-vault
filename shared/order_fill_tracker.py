@@ -225,12 +225,12 @@ def save_pending_orders(orders: List[Dict[str, Any]]):
 def calculate_mac_floor(width: float) -> float:
     """
     Computes Minimum Acceptable Credit (MAC) to protect risk-reward ratio (RULE-084 Parity):
-    Enforces strict 12.5% Return on Collateral (ROC) floor across all spread widths:
-    - $1.00 wide: MAC >= $0.12 (13.6% ROC)
-    - $2.00 wide: MAC >= $0.25 (14.3% ROC)
-    - $5.00 wide: MAC >= $0.62 (14.2% ROC)
+    Enforces width-adaptive Return on Collateral (ROC) floor (par ROC from screener):
+    - Width >= $20.00: 7.5% ROC floor ($30w -> $2.25, $25w -> $1.88, $20w -> $1.50)
+    - Width < $20.00 : 12.5% ROC floor ($5w -> $0.62, $2w -> $0.25, $1w -> $0.12)
     """
-    return max(0.12, round(width * 0.125, 2))
+    roc_rate = 0.075 if width >= 20.0 else 0.125
+    return max(0.25, round(width * roc_rate, 2))
 
 def register_order(
     account: str,

@@ -465,7 +465,8 @@ def prewarm_entry_payload(base_dir: Path, lead_cand: Dict[str, Any]) -> Optional
         l_ask = quotes.get(long_sym, {}).get("ask", 0.30)
 
         # Microstructure credit calculations
-        min_roc_credit = max(0.12, round(width * 0.125, 2))
+        roc_rate = 0.075 if width >= 20.0 else 0.125
+        min_roc_credit = max(0.12, round(width * roc_rate, 2))
         s_spread = max(0.01, s_ask - s_bid)
         l_spread = max(0.01, l_ask - l_bid)
         smart_s_mid = s_bid + 0.60 * s_spread
