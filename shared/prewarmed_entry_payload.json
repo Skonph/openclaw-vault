@@ -1,29 +1,29 @@
 {
   "version": "TIER_3_PREWARMED_V1",
-  "generated_at_ict": "2026-09-29 21:10:05 ICT",
-  "timestamp_epoch": 1790691005.663765,
+  "generated_at_ict": "2026-09-30 21:06:16 ICT",
+  "timestamp_epoch": 1790777176.336531,
   "status": "READY_FOR_EXECUTION",
   "account": "pion_main",
-  "symbol": "NVDA",
-  "short_sym": "NVDA261014P00220000",
-  "long_sym": "NVDA261014P00215000",
-  "short_strike": 220.0,
-  "long_strike": 215.0,
-  "width": 5.0,
-  "exp_date": "2026-10-14",
+  "symbol": "QQQ",
+  "short_sym": "QQQ261016P00701000",
+  "long_sym": "QQQ261016P00691000",
+  "short_strike": 701.0,
+  "long_strike": 691.0,
+  "width": 10.0,
+  "exp_date": "2026-10-16",
   "min_dte": 14,
-  "baseline_spot": 229.91,
-  "prewarmed_snipe_credit": 0.7,
-  "prewarmed_mid_credit": 0.68,
-  "prewarmed_natural_credit": 0.62,
+  "baseline_spot": 744.35,
+  "prewarmed_snipe_credit": 1.26,
+  "prewarmed_mid_credit": 1.25,
+  "prewarmed_natural_credit": 1.25,
   "quotes": {
     "short": {
-      "bid": 1.97,
-      "ask": 2.21
+      "bid": 1.0,
+      "ask": 1.5
     },
     "long": {
-      "bid": 1.19,
-      "ask": 1.58
+      "bid": 0.1,
+      "ask": 0.3
     }
   }
 }
