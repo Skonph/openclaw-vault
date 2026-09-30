@@ -101,10 +101,13 @@ def calculate_conviction_tiered_sizing(
     single_asset_cap = cash * 0.35
 
     if score >= 85.0 or is_broad_index:
-        tier_label = "TIER 3: APEX CONVICTION / INDEX ENVELOPE (MAX 3C TRANCHE 🚀)" if is_broad_index else "TIER 3: APEX CONVICTION (SWEET SPOT MAX 3C TRANCHE 🚀)"
-        # Scale defined risk up to 35% single-asset cap ($10.5k max) with hard cap of max 3 contracts
+        tier_label = "TIER 3: APEX CONVICTION / INDEX ENVELOPE (MAX 3-4C TRANCHE 🚀)" if is_broad_index else "TIER 3: APEX CONVICTION (SWEET SPOT MAX 3-4C TRANCHE 🚀)"
+        # Scale defined risk up to 35% single-asset cap ($10.5k max) with width-adaptive cap:
+        # Width >= $30w: max 3 contracts ($9.0k risk = 29.5% capital)
+        # Width <= $25w: max 4 contracts ($10.0k risk = 32.8% capital <= 35% cap)
         max_tranche = min(10500.0, single_asset_cap) if is_live_alpaca else (500.0 if is_tradier else 3000.0)
-        max_contracts = 3 if is_live_alpaca else (1 if width >= 5.0 else 2)
+        max_width_cap = 3 if width >= 30.0 else 4
+        max_contracts = max_width_cap if is_live_alpaca else (1 if width >= 5.0 else 2)
     elif score >= 75.0:
         tier_label = "TIER 2: SOLID PRODUCTION (STANDARD 2-3C TRANCHE ⚖️)"
         max_tranche = min(7500.0, single_asset_cap) if is_live_alpaca else (350.0 if is_tradier else 1500.0)
@@ -117,7 +120,8 @@ def calculate_conviction_tiered_sizing(
     # Absolute bounds: Never exceed 35% single-asset cap, 65% total cash envelope, or buying power
     target_risk = min(max_tranche, single_asset_cap, cash * margin_ceiling_pct, bp)
     contracts = max(1, int(target_risk / (width * 100.0)))
-    contracts = min(contracts, max_contracts, 3)  # Hard Institutional Floor/Ceiling: Max 3 Contracts
+    hard_contract_ceiling = 3 if width >= 30.0 else 4
+    contracts = min(contracts, max_contracts, hard_contract_ceiling)
     if is_tradier:
         # Sweet-Spot Fee Efficiency: 1 contract on $5w/$10w, max 2 contracts on $2w
         contracts = min(contracts, 1 if width >= 5.0 else 2)
@@ -501,9 +505,10 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
                 c2_short_strike = float(c2.get("short_strike", 0))
                 c2_long_strike = float(c2.get("long_strike", 0))
 
-                # Calculate sizing for Candidate #2: max 3 contracts, capped by 35% single-asset cap & 65% ceiling
+                # Calculate sizing for Candidate #2: Width-Adaptive cap (3C if width >= 30, else 4C), capped by 35% single-asset cap & 65% ceiling
                 c2_max_allowed_risk = min(cash * 0.35, available_headroom)
-                c2_contracts = min(3, int(c2_max_allowed_risk // (c2_w * 100.0)))
+                c2_max_c = 3 if c2_w >= 30.0 else 4
+                c2_contracts = min(c2_max_c, int(c2_max_allowed_risk // (c2_w * 100.0)))
 
                 # Refresh BP from broker
                 refreshed_acct = broker.get_account()
