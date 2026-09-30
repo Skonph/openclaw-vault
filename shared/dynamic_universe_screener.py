@@ -43,8 +43,8 @@ MIN_CREDIT = 0.25           # DIR-01 & DIR-11: hard minimum $0.25/share ($25/spr
 MIN_SPREAD_WIDTH = 2.0      # DIR-11: enforce >= $2.00 spread width; ban $1.00 micro-spreads
 MIN_ROC_PCT = 12.5          # DIR-01: minimum 12.5% ROC floor
 MIN_OTM_PCT = 5.0           # RULE-072: short strike must sit >= 5% below live spot (92% win rate floor)
-TARGET_DELTA = 0.20          # Institutional 20-delta target (~80% OTM probability)
-DTE_MIN, DTE_MAX = 14, 32    # 14 to 30 DTE Sweet Spot Focus (strictly bans gamma traps < 14 DTE and slow anchors > 32 DTE)
+TARGET_DELTA = 0.18          # Institutional 18-delta target (>80% OTM probability)
+DTE_MIN, DTE_MAX = 8, 32     # 8 to 30 DTE Horizon (from 8-13 DTE rapid theta to 14-30 DTE steady harvest)
 THEME_CONCENTRATION_CAP = 3        # RULE-072: Max 3 active spreads per sector theme
 INDEX_THEME_CONCENTRATION_CAP = 4  # Broad Index (SPY/QQQ/IWM) allowed up to 4 spreads
 MAX_PER_TICKER_CAP = 3             # Max 3 tranches on any single underlying (staggered)
@@ -473,8 +473,9 @@ def run_dynamic_screening() -> Dict[str, Any]:
         fee_drag = sp.get("fee_drag_pct")
         if fee_drag is not None and fee_drag > 15.0:
             reasons.append(f"fee drag {fee_drag:.1f}% > 15.0% (DIR-01 micro-credit fee trap: ${sp.get('round_trip_fee', 1.40):.2f} fee on ${sp.get('gross_cash', (credit_mid or 0)*100):.1f} credit)")
-        if roc_pct is not None and roc_pct < MIN_ROC_PCT:
-            reasons.append(f"ROC {roc_pct:.1f}% < {MIN_ROC_PCT}% (DIR-01 floor)")
+        min_roc_floor = 7.5 if (width and width >= 20.0) else (10.0 if (width and width >= 15.0) else MIN_ROC_PCT)
+        if roc_pct is not None and roc_pct < min_roc_floor:
+            reasons.append(f"ROC {roc_pct:.1f}% < {min_roc_floor:.1f}% (DIR-01 adaptive floor)")
         if safety_buffer_pct is not None and safety_buffer_pct < effective_min_otm:
             reasons.append(f"only {safety_buffer_pct}% OTM (< {effective_min_otm:.1f}%)")
         if dte_est and not (DTE_MIN <= dte_est <= DTE_MAX):

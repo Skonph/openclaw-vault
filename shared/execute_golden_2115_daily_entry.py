@@ -102,16 +102,16 @@ def calculate_conviction_tiered_sizing(
 
     if score >= 85.0 or is_broad_index:
         tier_label = "TIER 3: APEX CONVICTION / INDEX ENVELOPE (MAX 3C TRANCHE 🚀)" if is_broad_index else "TIER 3: APEX CONVICTION (SWEET SPOT MAX 3C TRANCHE 🚀)"
-        # 3 contracts on $10w = $3,000 risk (~9.5% capital); up to $6,000 max tranche on $20w
-        max_tranche = min(6000.0, single_asset_cap) if is_live_alpaca else (500.0 if is_tradier else 3000.0)
+        # Scale defined risk up to 35% single-asset cap ($10.5k max) with hard cap of max 3 contracts
+        max_tranche = min(10500.0, single_asset_cap) if is_live_alpaca else (500.0 if is_tradier else 3000.0)
         max_contracts = 3 if is_live_alpaca else (1 if width >= 5.0 else 2)
     elif score >= 75.0:
         tier_label = "TIER 2: SOLID PRODUCTION (STANDARD 2-3C TRANCHE ⚖️)"
-        max_tranche = min(3500.0, single_asset_cap) if is_live_alpaca else (350.0 if is_tradier else 1500.0)
+        max_tranche = min(7500.0, single_asset_cap) if is_live_alpaca else (350.0 if is_tradier else 1500.0)
         max_contracts = 3 if is_live_alpaca else (1 if width >= 5.0 else 2)
     else:
         tier_label = "TIER 1: DEFENSIVE PILOT (CONTROLLED 1C PROBE 🛡️)"
-        max_tranche = min(1500.0, single_asset_cap) if is_live_alpaca else (150.0 if is_tradier else 1000.0)
+        max_tranche = min(3000.0, single_asset_cap) if is_live_alpaca else (150.0 if is_tradier else 1000.0)
         max_contracts = 1 if is_live_alpaca else 1
 
     # Absolute bounds: Never exceed 35% single-asset cap, 65% total cash envelope, or buying power

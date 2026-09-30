@@ -169,8 +169,8 @@ def _candidate_expiries(sym: str, prefer: str | None = None, dte_min: int = 8, d
         if pref_match:
             return [{"expiration": pref_match[0][0], "dte": pref_match[0][1], "target_tenor": "prefer"}]
 
-    # 14 to 30 DTE Sweet Spot Tenor Focus (strictly eliminates <14 DTE gamma noise and >32 DTE drag)
-    TARGET_TENORS = [14, 21, 28, 30]
+    # 8 to 30 DTE Horizon: Covers Rapid Theta Acceleration (8-13 DTE) to Steady Harvest (14-30 DTE)
+    TARGET_TENORS = [8, 10, 14, 21, 28, 30]
     selected = []
     seen = set()
     for t in TARGET_TENORS:
@@ -190,14 +190,14 @@ def _choose_expiry(sym: str, prefer: str | None = None, dte_min: int = 8, dte_ma
     return cands[0], None
 
 
-def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: float = 0.20,
+def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: float = 0.18,
                          prefer_exp: str | None = None, dte_min: int = 8, dte_max: int = 55,
                          min_otm_pct: float = 4.0):
-    """LIVE bull-put-spread strike selection evaluating across 10, 14, 30, and 45 DTE tenors.
+    """LIVE bull-put-spread strike selection evaluating across 8, 10, 14, 21, 28, and 30 DTE tenors.
 
     Ranks valid liquid candidates by Daily Cash Velocity Rate (CVR = ROC% / DTE) so shorter DTE
     sprints delivering superior cash flow velocity win over slow anchors, while strictly preserving
-    the OTM safety floor.
+    the OTM safety floor and high win-rate confidence (>80%).
     """
     spot_info = get_spot(sym)
     spot = spot_info.get("price")
@@ -225,37 +225,28 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         if not puts:
             continue
 
-        # short leg: |delta| closest to target, never inside the OTM safety floor
+        # short leg: |delta| closest to target (0.18 delta gives ~82% OTM probability), never inside the OTM safety floor
         floor = spot * (1 - min_otm_pct / 100.0)
         eligible = [o for o in puts if o["strike"] <= floor] or puts
-        short = min(eligible, key=lambda o: abs(abs(o.get("delta") or 0.20) - target_delta))
+        short = min(eligible, key=lambda o: abs(abs(o.get("delta") or 0.18) - target_delta))
 
-        # Executive Efficiency Principle: Calibrate width by underlying spot price
-        # Spot < $75: $1.00 (XLF/SLV) or $2.00
-        # $75 <= Spot < $250: $5.00
-        # Executive Efficiency Principle: Calibrate width by underlying spot price
-        # Spot < $75: $2.00 (DIR-11 minimum floor)
-        # $75 <= Spot < $200: $5.00
-        # $200 <= Spot < $800: $10.00 (Mega-caps & Index ETFs: NVDA, SPY, QQQ, MSFT, META, LMT, UNH, AVGO)
-        # Spot >= $800: $20.00 (Ultra-high priced: COST, CAT)
+        # High Win-Rate & High Capital Efficiency Calibration:
+        # Scale spread width so 3 contracts approach ~30-35% of capital on broad indexes/mega-caps.
+        # Broad Index ETFs (QQQ, SPY) & Mega-Caps >= $500: $30.00 width (3C = $9,000 risk = ~29.5% capital)
+        # Large-Caps $200-$500 (NVDA, AVGO, MSFT, META): $25.00-$30.00 width (3C = $7,500-$9,000 risk)
+        # Mid-Caps $75-$200 (TSM, AMD): $10.00-$15.00 width
+        # Micro/Sector ETFs < $75 (XLF, SLV): $2.00-$5.00 width
         if width is None:
             if spot < 75:
-                w = 2.0  # DIR-11: Enforce minimum $2.00 width (ban $1.00 micro-spreads on XLF/SLV/IBIT)
+                w = 2.0  # DIR-11: Enforce minimum $2.00 width
             elif spot < 200:
-                w = 5.0
-            elif spot < 800:
                 w = 10.0
+            elif spot < 400:
+                w = 25.0
             else:
-                w = 20.0
+                w = 30.0
         else:
-            if spot >= 800 and width < 20.0:
-                w = 20.0
-            elif spot >= 200 and width < 10.0:
-                w = 10.0
-            elif spot < 75 and width < 2.0:
-                w = 2.0
-            else:
-                w = width
+            w = width
         grid = sorted({o["strike"] for o in puts})
         step = round(min(b - a for a, b in zip(grid, grid[1:])), 2) if len(grid) > 1 else 1.0
         w = max(w, step, 2.0)  # DIR-11: hard floor at $2.00 width
@@ -331,10 +322,13 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         tenor_candidates[f"{t_tag}dte"] = spread_candidate
         all_evaluated.append(spread_candidate)
 
-        # Fee Drag Gate & Minimum ROC Gate (DIR-01 12.5% ROC floor)
+        # Fee Drag Gate & Adaptive Minimum ROC Gate (DIR-01):
+        # For standard widths (<= $10): >= 12.0% ROC
+        # For wide spreads (>= $20w): >= 7.5% ROC (e.g. $30w @ 8.5% ROC yields $255/contract = 138% annualized with >80% win rate)
+        min_net_roc = 7.5 if width_real >= 20.0 else (10.0 if width_real >= 15.0 else 12.0)
         is_fee_efficient = (fee_drag_pct <= 15.0)
         min_credit_req = 0.12 if width_real <= 1.0 else 0.20
-        if liquid and credit >= min_credit_req and (net_roc or 0) >= 12.5 and otm_pct >= min_otm_pct and is_fee_efficient:
+        if liquid and credit >= min_credit_req and (net_roc or 0) >= min_net_roc and otm_pct >= min_otm_pct and is_fee_efficient:
             valid_liquid_candidates.append(spread_candidate)
 
     if valid_liquid_candidates:

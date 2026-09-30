@@ -5,7 +5,7 @@
       "name": "NVIDIA Corp",
       "short_strike": 210.0,
       "long_strike": 205.0,
-      "width": 5.0,
+      "width": 25.0,
       "expiration": "2026-10-16"
     },
     {
@@ -13,7 +13,7 @@
       "name": "Broadcom Inc",
       "short_strike": 345.0,
       "long_strike": 335.0,
-      "width": 10.0,
+      "width": 30.0,
       "expiration": "2026-10-16"
     },
     {
@@ -225,7 +225,7 @@
       "name": "SPDR S&P 500 ETF Trust",
       "short_strike": 580.0,
       "long_strike": 570.0,
-      "width": 10.0,
+      "width": 30.0,
       "expiration": "2026-10-09"
     },
     {
@@ -233,7 +233,7 @@
       "name": "Invesco QQQ Trust",
       "short_strike": 560.0,
       "long_strike": 550.0,
-      "width": 10.0,
+      "width": 30.0,
       "expiration": "2026-10-09"
     },
     {
@@ -251,7 +251,7 @@
       "name": "Microsoft Corp",
       "short_strike": 430.0,
       "long_strike": 420.0,
-      "width": 10.0,
+      "width": 25.0,
       "expiration": "2026-10-16"
     },
     {
@@ -283,7 +283,7 @@
       "name": "Meta Platforms Inc",
       "short_strike": 580.0,
       "long_strike": 570.0,
-      "width": 10.0,
+      "width": 25.0,
       "expiration": "2026-10-16"
     },
     {
