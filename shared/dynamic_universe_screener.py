@@ -44,7 +44,7 @@ MIN_SPREAD_WIDTH = 2.0      # DIR-11: enforce >= $2.00 spread width; ban $1.00 m
 MIN_ROC_PCT = 12.5          # DIR-01: minimum 12.5% ROC floor
 MIN_OTM_PCT = 5.0           # RULE-072: short strike must sit >= 5% below live spot (92% win rate floor)
 TARGET_DELTA = 0.20          # Institutional 20-delta target (~80% OTM probability)
-DTE_MIN, DTE_MAX = 8, 52     # Multi-Tenor Barbell: 10 DTE / 14 DTE Sprints to 30 DTE / 45 DTE Anchors
+DTE_MIN, DTE_MAX = 14, 32    # 14 to 30 DTE Sweet Spot Focus (strictly bans gamma traps < 14 DTE and slow anchors > 32 DTE)
 THEME_CONCENTRATION_CAP = 3        # RULE-072: Max 3 active spreads per sector theme
 INDEX_THEME_CONCENTRATION_CAP = 4  # Broad Index (SPY/QQQ/IWM) allowed up to 4 spreads
 MAX_PER_TICKER_CAP = 3             # Max 3 tranches on any single underlying (staggered)

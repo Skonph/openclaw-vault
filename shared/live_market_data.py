@@ -169,7 +169,8 @@ def _candidate_expiries(sym: str, prefer: str | None = None, dte_min: int = 8, d
         if pref_match:
             return [{"expiration": pref_match[0][0], "dte": pref_match[0][1], "target_tenor": "prefer"}]
 
-    TARGET_TENORS = [10, 14, 30, 45]
+    # 14 to 30 DTE Sweet Spot Tenor Focus (strictly eliminates <14 DTE gamma noise and >32 DTE drag)
+    TARGET_TENORS = [14, 21, 28, 30]
     selected = []
     seen = set()
     for t in TARGET_TENORS:
@@ -330,10 +331,10 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         tenor_candidates[f"{t_tag}dte"] = spread_candidate
         all_evaluated.append(spread_candidate)
 
-        # Fee Drag Gate: reject if fees consume > 15% of the total credit (anti micro-credit trap)
+        # Fee Drag Gate & Minimum ROC Gate (DIR-01 12.5% ROC floor)
         is_fee_efficient = (fee_drag_pct <= 15.0)
         min_credit_req = 0.12 if width_real <= 1.0 else 0.20
-        if liquid and credit >= min_credit_req and (net_roc or 0) >= 10.0 and otm_pct >= min_otm_pct and is_fee_efficient:
+        if liquid and credit >= min_credit_req and (net_roc or 0) >= 12.5 and otm_pct >= min_otm_pct and is_fee_efficient:
             valid_liquid_candidates.append(spread_candidate)
 
     if valid_liquid_candidates:
