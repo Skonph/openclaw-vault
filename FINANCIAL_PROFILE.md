@@ -72,3 +72,24 @@ The AI Assistant acts as a **Senior International Financial Consultant** special
 1. **Thai Revenue Department 2024 Rule:** Foreign-sourced income (trading profits and dividends) repatriated to Thailand is subject to Thai Personal Income Tax in the tax year it is brought back into the country. Maintain a clear ledger of original principal vs. realized profit.
 2. **US Withholding Tax:** Dividends received from SGOV and US equities will have 15% withheld at source by the IRS. Capital gains are exempt from US withholding for non-resident aliens.
 3. **Bank of Thailand Remittance:** Retail overseas portfolio investments are permitted up to $5M USD/year.
+
+---
+
+## 6. Official Monthly Performance Benchmark & Accounting Standard
+
+### A. Performance Targets (Calibrated on ~$32,000 Combined Live Equity)
+- **Primary Monthly Target (18%+ / month):** **+$5,766.00 USD / month** in **Net Realized PnL ($)**.
+- **Monthly Safe Floor (12%+ / month):** **+$3,844.00 USD / month** in **Net Realized PnL ($)**.
+- **Weekly Run-Rate Speedometer:** Target **$1,441.50 / week** | Floor **$961.00 / week** (18%+ Velocity).
+
+### B. Accounting Cycle & Official Conclusion Date
+- **Measurement Window:** Standard calendar month, from Day 1 (00:00 ICT) through the final calendar day (23:59 ICT).
+- **Official Conclusion Date:** **1st date of the subsequent month**.
+  * **October 2026 Period:** Runs from October 1 to October 31, 2026 $\to$ **Officially concluded, audited, and finalized on November 1, 2026**.
+  * **November 2026 Period:** Runs from November 1 to November 30, 2026 $\to$ **Officially concluded on December 1, 2026**.
+
+### C. Cash Flow vs. Realized PnL Ground Truth
+1. **Upfront Option Premium (Bank Cash Balance):** Short sale credits are injected into liquid cash immediately upon order execution. This strengthens the **$\ge$30% permanent cash defense floor** ($9,720 min unencumbered cash).
+2. **Target Accounting Metric (Realized PnL):** The 18% monthly target is tallied **strictly from Realized PnL ($)** recorded when positions are closed (via FastHarvest 30%–50% take profit, express harvests, rollover liquidations, or full expiration worthless OTM).
+3. **Turnover Velocity:** At an average 50% FastHarvest take profit (~$1,300 net profit per fleet cycle), recycling vacated slots 4 to 5 times across a 30-day window fully supports the **+$5,766.00 Realized PnL** monthly milestone.
+

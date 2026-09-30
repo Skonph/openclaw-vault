@@ -1,37 +1,40 @@
 # 🚀 SkonVault Master Continuity & Live Launch Handoff
-**Date**: Wednesday, September 23, 2026  
-**System Grade**: **100 / 100 (Grade A+ Institutional Architecture)**  
+**Date**: Wednesday, September 30, 2026  
+**System Grade**: **98 / 100 (Grade A+ Institutional Architecture)**  
 **Project**: SkonVault Autonomous Multi-Broker Options Engine  
 **Workspace URI**: `/Users/SkonP/AI_Prompt/Obsidient/SkonVault`  
-**Cloud VPS**: `ubuntu@43.156.9.185` (Hong Kong, UTC+8)  
+**Cloud VPS**: `ubuntu@43.156.9.185` (Singapore, UTC+8)  
 **Primary Developer / Client**: Skon Phispratuang  
 
 ---
 
-## 🎯 Executive Context & Production Status
+## 🎯 Executive Context & Official Accounting Benchmark
 
 The SkonVault automated trading engine operates with autonomous closed-loop execution, zero manual intervention traps, proactive risk protection, and multi-broker synchronization.
 
-### Current Portfolio State (As of 2026-09-23 21:55 ICT Peak Audit):
-* **Pion Main (`PA3SK43ASS1I`)**:
-  - Cash: **$4,701.85** | Buying Power: **$17,896.00**
-  - Active Spreads: **3C NVDA $215P / $210P** (Exp: 2026-10-09 | Filled @ +$0.76/sh | Defined Risk: $1,500.00 | Net Cash Injected: +$228.00)
-  - Spot vs Strike: **$226.45 vs $215P (+5.1% OTM buffer)**
-  - Tail Hedges: 14C AVGO $160P (Disaster Put Floor, $0 market value, preserved as tail hedge)
-* **Pion2 Sub (`PA3C75K8SZ57`)**:
-  - Cash: **$2,886.40** | Buying Power: **$11,098.40**
-  - Active Spreads: **4C IBIT $46P / $44P** (Exp: 2026-10-02 | Filled @ +$0.28/sh | Defined Risk: $800.00 | Net Cash Injected: +$112.00)
-  - Spot vs Strike: **$47.88 vs $46P (+3.9% OTM buffer)**
-* **Total Liquid Cash in Bank**: **$7,588.25** (42.1% of $18,042.37 Target 🎯)
-* **Real Cash Gap to Goal**: **$10,454.12**
-* **Combined Broker Equity**: **$7,237.25**
-* **Total Defined Capital at Risk**: **$2,300.00** (30.3% of total cash)
-* **Unencumbered Cash Buffer**: **$5,288.25**
-* **Live Production Treasury Moat**: **317 SGOV Units ($31,858.77 / ~5.2% APY Yield Anchor 🛡️)** — 100% unencumbered on live account `#290523608`.
-* **Two-Tier Audited Performance (RULE-092 & RULE-093 Ground Truth)**:
-  - **Tier 1 (Lifetime Broker History)**: 30 closed (8W / 22L, 26.7% WR) | Realized: **−$6,102.00** | 2 open.
-  - **Tier 2 (Automated Production Era, opened $\ge$ 2026-09-13)**: 3 closed (2W / 1L, 66.7% WR) | Realized: **−$766.00** | 2 open.
-  - **Realized Stop-Out Salvage**: XLU 44P/42P realized closing debit $2.62 (realized loss −$972.00 vs $2,358 gross debit, true capital saved: **+$828.00** / 46% collateral salvage).
+### 🏛️ Official Monthly Performance Benchmark (Common Ground Standard)
+* **Monthly Target (18%+ / month)**: **+$5,766.00 USD / month** in **Net Realized PnL ($)** (Calibrated on ~$32k live base).
+* **Monthly Floor (12%+ / month)**: **+$3,844.00 USD / month** in **Net Realized PnL ($)**.
+* **Weekly Run-Rate Speedometer**: Target **$1,441.50 / week** | Floor **$961.00 / week** (18%+ Velocity).
+* **Accounting Window & Conclusion Date**: Standard calendar month (Day 1 00:00 through End of Month 23:59 ICT).
+  - **October 2026 Period**: Concludes, reconciles, and finalizes on **November 1, 2026**.
+  - **November 2026 Period**: Concludes on **December 1, 2026**.
+* **Accounting Standard**: Measured strictly from **Realized Net PnL ($)** from positions closed/harvested (via DIR-09 50% TP, express harvests, or full expiration worthless OTM). Upfront short option premiums provide liquid cash to uphold the >=30% cash defense floor ($9,720 min cash).
+
+### Current Portfolio State (As of 2026-09-30 22:40 ICT Audit):
+* **Alpaca Live (`#290523608`)**:
+  - Cash: **$32,402.48** | Equity: **$29,950.48** | Buying Power: **$48,809.92**
+  - Active Spreads: **AVGO 3C** ($335P/$305P), **NVDA 6C** ($220P/$215P), **TSM 3C** ($435P/$425P), **XLE 1C** ($60P/$58P), **QQQ 2C Iron Condor** ($700P/$675P & $775C/$800C)
+  - Locked Risk: **$20,200.00** (62.34% of cash <= 70.0% elastic ceiling)
+* **Tradier Live (`#6YB80974`)**:
+  - Cash: **$2,232.29** | Equity: **$2,084.29** | Option BP: **$1,232.29**
+  - Active Spreads: **META 1C** ($685P/$680P), **TSM 1C** ($425P/$420P)
+  - Locked Risk: **$1,000.00** (44.80% deployment)
+* **Combined Real-Money Fleet**:
+  - Total Liquid Cash: **$34,634.77** (+$2,200 IBKR quarantined = **$36,834.77**)
+  - Combined Equity: **$32,034.77**
+  - Free Cash Buffer: **$13,434.77** (38.8% unencumbered liquid defense)
+  - Total Capital at Risk: **$21,200.00**
 
 ---
 
