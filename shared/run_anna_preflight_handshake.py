@@ -88,7 +88,39 @@ def load_candidate_pool(base_dir: Path) -> Tuple[List[Dict[str, Any]], str]:
     source = "UNKNOWN"
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
-    # Priority 1: 20:50 ICT Live Liquidity Matrix
+    # Priority 1: Multi-Factor Dynamic Screener Target (RULE-098 & FastHarvest Priority)
+    dyn_file = base_dir / "tonight_selected_target.json"
+    if dyn_file.exists():
+        try:
+            dyndata = json.loads(dyn_file.read_text(encoding="utf-8"))
+            dyn_ts = dyndata.get("timestamp") or ""
+            file_age_sec = datetime.datetime.now().timestamp() - dyn_file.stat().st_mtime
+            if today_str in dyn_ts or file_age_sec < 86400:
+                prim = dyndata.get("primary") or dyndata.get("primary_selection")
+                sec = dyndata.get("secondary")
+                falls = dyndata.get("fallbacks") or dyndata.get("waterfall_fallbacks", [])
+                raw_list = ([prim] if prim else []) + ([sec] if sec else []) + (falls if isinstance(falls, list) else [])
+                for item in raw_list:
+                    if isinstance(item, dict) and item.get("symbol"):
+                        cands.append({
+                            "symbol": item.get("symbol"),
+                            "short_strike": float(item.get("short_strike", 0)),
+                            "long_strike": float(item.get("long_strike", 0)),
+                            "width": float(item.get("width", 5.0)),
+                            "expiration": item.get("expiration") or item.get("exp_date"),
+                            "total_score": float(item.get("total_score", 85.0)),
+                            "natural_credit": float(item.get("natural_credit", 0.0) or 0.0),
+                            "mid_credit": float(item.get("mid_credit", 0.0) or 0.0),
+                            "roc_pct": float(item.get("roc_pct", 0.0) or 0.0),
+                            "theme": item.get("theme", "Bull Put Spread")
+                        })
+                if cands:
+                    source = "TONIGHT_SELECTED_TARGET"
+                    return cands, source
+        except Exception as ex:
+            print(f"  ℹ️ Notice loading tonight_selected_target: {ex}")
+
+    # Priority 2: 20:50 ICT Live Liquidity Matrix (Fallback)
     matrix_file = base_dir / "live_liquidity_matrix.json"
     if matrix_file.exists():
         try:
@@ -119,34 +151,6 @@ def load_candidate_pool(base_dir: Path) -> Tuple[List[Dict[str, Any]], str]:
                     return cands, source
         except Exception as ex:
             print(f"  ℹ️ Notice loading liquidity matrix: {ex}")
-
-    # Priority 2: Pre-Market Dynamic Screener Target
-    dyn_file = base_dir / "tonight_selected_target.json"
-    if dyn_file.exists():
-        try:
-            dyndata = json.loads(dyn_file.read_text(encoding="utf-8"))
-            prim = dyndata.get("primary") or dyndata.get("primary_selection")
-            falls = dyndata.get("fallbacks") or dyndata.get("waterfall_fallbacks", [])
-            raw_list = ([prim] if prim else []) + (falls if isinstance(falls, list) else [])
-            for item in raw_list:
-                if isinstance(item, dict) and item.get("symbol"):
-                    cands.append({
-                        "symbol": item.get("symbol"),
-                        "short_strike": float(item.get("short_strike", 0)),
-                        "long_strike": float(item.get("long_strike", 0)),
-                        "width": float(item.get("width", 5.0)),
-                        "expiration": item.get("expiration") or item.get("exp_date"),
-                        "total_score": float(item.get("total_score", 85.0)),
-                        "natural_credit": float(item.get("natural_credit", 0.0) or 0.0),
-                        "mid_credit": float(item.get("mid_credit", 0.0) or 0.0),
-                        "roc_pct": float(item.get("roc_pct", 0.0) or 0.0),
-                        "theme": item.get("theme", "Bull Put Spread")
-                    })
-            if cands:
-                source = "TONIGHT_SELECTED_TARGET"
-                return cands, source
-        except Exception as ex:
-            print(f"  ℹ️ Notice loading tonight_selected_target: {ex}")
 
     # Priority 3: Fallback Universe
     fallback_syms = ["META", "MSFT", "V", "IWM", "GE", "LMT", "NVDA", "XLF", "XLE", "XLU"]

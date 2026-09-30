@@ -868,7 +868,28 @@ def run_2115_golden_execution():
 
     today_str = datetime.date.today().strftime("%Y-%m-%d")
 
-    # PRIORITY 1: Ingest 20:50 ICT Live Liquidity Matrix (if preflight didn't populate)
+    # PRIORITY 1: Ingest Multi-Factor Dynamic Screener Target (RULE-098 & FastHarvest Priority)
+    if not cands and dyn_file.exists():
+        try:
+            dyndata = json.loads(dyn_file.read_text(encoding="utf-8"))
+            dyn_ts = dyndata.get("timestamp") or dyndata.get("scanned_at") or ""
+            is_dyn_fresh = today_str in dyn_ts or (time.time() - dyn_file.stat().st_mtime < 86400)
+            if not is_dyn_fresh:
+                print(f"  ⚠️ Stale dynamic screener file detected ({dyn_ts}). Falling back to live spot radar.")
+            else:
+                prim = dyndata.get("primary") or dyndata.get("primary_selection")
+                sec = dyndata.get("secondary")
+                falls = dyndata.get("fallbacks") or dyndata.get("waterfall_fallbacks", [])
+                cands_pool = ([prim] if prim else []) + ([sec] if sec else []) + (falls if isinstance(falls, list) else [])
+                if cands_pool:
+                    cands = cands_pool
+                    lead_sym = cands[0].get("symbol", "NVDA")
+                    lead_score = float(cands[0].get("total_score", 90.0))
+                    print(f"  🧠 Loaded Screener Target (RULE-098): {lead_sym} ({lead_score:.1f} pts)")
+        except Exception as ex_dyn:
+            print(f"  ℹ️ Target load notice: {ex_dyn}")
+
+    # PRIORITY 2: Fallback to 20:50 ICT Live Liquidity Matrix
     if not cands and matrix_file.exists():
         try:
             m_data = json.loads(matrix_file.read_text(encoding="utf-8"))
@@ -905,25 +926,6 @@ def run_2115_golden_execution():
                     print(f"     Top Live Liquid Lead: {lead_sym} (${cands[0]['short_strike']:.0f}P/${cands[0]['long_strike']:.0f}P | Score: {lead_score:.1f} pts | Nat: ${cands[0].get('natural_credit', 0):.2f})")
         except Exception as ex_mat:
             print(f"  ℹ️ Live liquidity matrix load notice: {ex_mat}")
-
-    # PRIORITY 2: Fallback to Pre-Market Dynamic Screener Target
-    if not cands and dyn_file.exists():
-        try:
-            dyndata = json.loads(dyn_file.read_text(encoding="utf-8"))
-            dyn_ts = dyndata.get("timestamp") or dyndata.get("scanned_at") or ""
-            is_dyn_fresh = today_str in dyn_ts or (time.time() - dyn_file.stat().st_mtime < 86400)
-            if not is_dyn_fresh:
-                print(f"  ⚠️ Stale dynamic screener file detected ({dyn_ts}). Falling back to live spot radar.")
-            else:
-                prim = dyndata.get("primary") or dyndata.get("primary_selection")
-                falls = dyndata.get("fallbacks") or dyndata.get("waterfall_fallbacks", [])
-                if prim:
-                    cands = [prim] + falls
-                    lead_sym = prim.get("symbol", "NVDA")
-                    lead_score = float(prim.get("total_score", 90.0))
-                    print(f"  🧠 Loaded Screener Target: {lead_sym} ({lead_score:.1f} pts)")
-        except Exception as ex_dyn:
-            print(f"  ℹ️ Target load notice: {ex_dyn}")
 
     # PRIORITY 3: Dynamic Waterfall fallback if screener not found (RULE-048 & RULE-049)
     if not cands:
