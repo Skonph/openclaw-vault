@@ -30,8 +30,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
 BASE_DIR = Path(__file__).resolve().parent
-MIN_SAFE_BUFFER_PCT = 3.50   # Anna's Pre-Flight Safety Standard (>= 3.50% OTM)
-MIN_ABSOLUTE_BUFFER_PCT = 2.00 # Hard Floor (RULE-087 minimum OTM gate)
+MIN_SAFE_BUFFER_PCT = 5.00     # RULE-098: Reproducibility Standard (>= 5.00% OTM Buffer Floor)
+MIN_ABSOLUTE_BUFFER_PCT = 4.50 # Hard Institutional Floor (RULE-087 minimum OTM gate)
 
 TELEGRAM_GROUP_ID = "-1004375899205"
 ANNA_BOT_TOKEN = "8632069800:AAGl63rQuntU9-a84u0X37bsky4CppB-GhM"
@@ -242,13 +242,6 @@ def run_preflight_handshake(
 
         buf_pct = ((spot - short_strike) / spot) * 100.0
 
-        if buf_pct >= MIN_SAFE_BUFFER_PCT:
-            gate_status = "SAFE"
-        elif buf_pct >= MIN_ABSOLUTE_BUFFER_PCT:
-            gate_status = "CAUTION"
-        else:
-            gate_status = "BREACHED"
-
         exp_val = c.get("expiration") or c.get("exp_date")
         dte_val = c.get("dte")
         if not dte_val and exp_val:
@@ -257,6 +250,14 @@ def run_preflight_handshake(
                 dte_val = (exp_dt - datetime.date.today()).days
             except Exception:
                 pass
+
+        req_safe_buf = 7.00 if (dte_val and dte_val < 14) else MIN_SAFE_BUFFER_PCT
+        if buf_pct >= req_safe_buf:
+            gate_status = "SAFE"
+        elif buf_pct >= MIN_ABSOLUTE_BUFFER_PCT:
+            gate_status = "CAUTION"
+        else:
+            gate_status = "BREACHED"
         credit_val = c.get("mid_credit") or c.get("credit_mid") or c.get("natural_credit")
 
         cand_record = dict(c)
@@ -303,17 +304,19 @@ def run_preflight_handshake(
     lead_rerouted = False
     new_lead = original_lead
 
-    if orig_buf >= MIN_SAFE_BUFFER_PCT:
+    orig_dte = original_lead.get("dte")
+    req_lead_buf = 7.00 if (orig_dte and orig_dte < 14) else MIN_SAFE_BUFFER_PCT
+    if orig_buf >= req_lead_buf:
         handshake_status = "PASSED_STABLE"
-        print(f"  🟢 LEAD CANDIDATE CONFIRMED SAFE: {orig_sym} buffer {orig_buf:+.2f}% >= {MIN_SAFE_BUFFER_PCT:.2f}% ✅")
+        print(f"  🟢 LEAD CANDIDATE CONFIRMED SAFE: {orig_sym} buffer {orig_buf:+.2f}% >= {req_lead_buf:.2f}% ✅")
     else:
-        print(f"  ⚠️ LEAD CANDIDATE BUFFER DEGRADED: {orig_sym} buffer {orig_buf:+.2f}% < {MIN_SAFE_BUFFER_PCT:.2f}%!")
+        print(f"  ⚠️ LEAD CANDIDATE BUFFER DEGRADED: {orig_sym} buffer {orig_buf:+.2f}% < {req_lead_buf:.2f}%!")
         print(f"     Initiating Anna Dynamic Reroute Protocol across fallbacks...")
 
-        # Search fallbacks with buffer >= MIN_SAFE_BUFFER_PCT, sorted by total_score desc
+        # Search fallbacks with buffer >= required threshold, sorted by total_score desc
         safe_fallbacks = [
             c for c in verified_cands[1:]
-            if c["buffer_pct"] >= MIN_SAFE_BUFFER_PCT
+            if c["buffer_pct"] >= (7.00 if (c.get("dte") and c.get("dte") < 14) else MIN_SAFE_BUFFER_PCT)
         ]
         safe_fallbacks.sort(key=lambda x: -float(x.get("total_score", 0.0)))
 

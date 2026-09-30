@@ -137,6 +137,16 @@
         "RULE-088",
         "RULE-093"
       ]
+    },
+    {
+      "directive_id": "DIR-13",
+      "title": "The 4 Reproducibility Rules & High-Win-Rate Wide Spread Standard (RULE-096, RULE-097, RULE-098)",
+      "summary": "Institutionalize the 4 pillars of consistent spread wins: (1) OTM Buffer Floor >= 5.0% (>= 7.0% for DTE < 14); (2) 14-30 DTE Gamma Shield; (3) 18-Delta target on $25w-$30w wide spreads with max 3 contracts and up to 35% capital scaling; (4) SMA20 uptrend & institutional Put Wall alignment.",
+      "consolidates": [
+        "RULE-096",
+        "RULE-097",
+        "RULE-098"
+      ]
     }
   ],
   "rules": [
@@ -583,6 +593,24 @@
       "rule_id": "RULE-095",
       "title": "Dynamic Regime-Adaptive Tuning, Market-Aware Barbell & Elastic Margin Protocol",
       "category": "DYNAMIC_REGIME_AND_ELASTIC_MARGIN",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-096",
+      "title": "Closing Micro-Walk & Penny-Pilot Fill Accelerator Protocol",
+      "category": "EXECUTION_LIFECYCLE_AND_DATA_INTEGRITY",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-097",
+      "title": "Profit High-Water Mark Ratchet & Velocity Protection Protocol",
+      "category": "CAPITAL_VELOCITY_AND_POSITION_LIFECYCLE",
+      "status": "ACTIVE"
+    },
+    {
+      "rule_id": "RULE-098",
+      "title": "The 4 Reproducibility Rules & High-Win-Rate Wide Spread Capital Scaling Protocol",
+      "category": "REPRODUCIBILITY_AND_HIGH_WIN_RATE_STANDARDS",
       "status": "ACTIVE"
     }
   ]

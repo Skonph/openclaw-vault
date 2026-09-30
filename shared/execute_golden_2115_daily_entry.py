@@ -262,8 +262,10 @@ def execute_account_entry(
 
         if cur_spot > 0:
             buf_pct = ((cur_spot - s_strike) / cur_spot) * 100.0
-            if s_strike >= (cur_spot * 0.98) or buf_pct < 2.0:
-                print(f"  🛑 RULE-087 SANITY REJECTED {sym} on {account_name}: Short strike ${s_strike:.2f} vs live spot ${cur_spot:.2f} (Buffer: {buf_pct:+.1f}% < 2.0% min OTM)!")
+            cand_dte = int(c.get("dte", 21))
+            min_required_buf = 7.0 if cand_dte < 14 else 4.5  # RULE-098: Reproducibility Standard (>=4.5% std, >=7.0% for short DTE)
+            if buf_pct < min_required_buf:
+                print(f"  🛑 RULE-098 SANITY REJECTED {sym} on {account_name}: Short strike ${s_strike:.2f} vs live spot ${cur_spot:.2f} (Buffer: {buf_pct:+.1f}% < {min_required_buf:.1f}% min OTM)!")
                 continue
 
             # DIR-11: Hard pre-selection width & credit floors
