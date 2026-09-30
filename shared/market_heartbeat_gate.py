@@ -171,10 +171,63 @@ def sync_heartbeat_files(is_active: bool, reason: str, meta: Dict[str, Any]):
         except Exception:
             pass
 
+    # 4. Synchronize OpenClaw v2026.9+ Cron Scratch (Database & CLI)
+    scratch_updated = sync_openclaw_cron_scratch(heartbeat_content)
+
     status_icon = "🟢 ARMED (Market Open)" if is_active else "🛑 DISARMED (Market Closed)"
-    print(f"[{now_str}] Gatekeeper: {status_icon} -> {reason} ({len(updated_files)} HEARTBEAT.md files updated)")
+    print(f"[{now_str}] Gatekeeper: {status_icon} -> {reason} ({len(updated_files)} HEARTBEAT.md files updated, scratch: {'✅ updated' if scratch_updated else 'n/a'})")
     for uf in updated_files:
         print(f"  • {uf}")
+
+def sync_openclaw_cron_scratch(heartbeat_content: str) -> bool:
+    """Updates OpenClaw 2026.9+ database cron_job_scratch table and live CLI scratch."""
+    import sqlite3
+    import time
+    import subprocess
+    
+    db_path = Path("/home/ubuntu/.openclaw/state/openclaw.sqlite")
+    if not db_path.exists():
+        return False
+
+    job_id = "8e8859d2-b4f1-4719-af20-9d636a76a9e1"
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=10.0)
+        cur = conn.cursor()
+        cur.execute("SELECT job_id FROM cron_jobs WHERE declaration_key = 'heartbeat:main' OR name = 'heartbeat-main'")
+        row = cur.fetchone()
+        if row and row[0]:
+            job_id = row[0]
+            
+        now_ms = int(time.time() * 1000)
+        cur.execute("""
+            INSERT INTO cron_job_scratch (store_key, job_id, content, revision, updated_at_ms)
+            VALUES ('/home/ubuntu/.openclaw/cron/jobs.json', ?, ?, 1, ?)
+            ON CONFLICT(store_key, job_id) DO UPDATE SET
+                content = excluded.content,
+                revision = revision + 1,
+                updated_at_ms = excluded.updated_at_ms
+        """, (job_id, heartbeat_content, now_ms))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: Failed to update cron_job_scratch directly in SQLite: {e}")
+
+    # Also notify running OpenClaw gateway via CLI if available
+    try:
+        node_bin = "/home/ubuntu/.nvm/versions/node/v24.16.0/bin/node"
+        openclaw_bin = "/home/ubuntu/.nvm/versions/node/v24.16.0/bin/openclaw"
+        if os.path.exists(node_bin) and os.path.exists(openclaw_bin):
+            subprocess.run(
+                [node_bin, openclaw_bin, "cron", "scratch", job_id, "--set", heartbeat_content],
+                check=False,
+                timeout=15,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+    except Exception:
+        pass
+
+    return True
 
 def main():
     is_active, reason, meta = evaluate_market_status()

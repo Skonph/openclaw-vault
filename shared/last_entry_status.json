@@ -1,5 +1,5 @@
 {
   "timestamp": "2026-09-29 21:46 ICT",
   "subject": "ORDER_RESOLVED_STANDOFF_CLOSED_AVGO",
-  "message": "Fallback Stand Down: Zero viable candidates above MAC floor. Portfolio in 100% SGOV cash."
+  "message": "Fallback Stand Down: Zero viable candidates above MAC floor. Portfolio in settled USD cash reserve (>=35% floor)."
 }
