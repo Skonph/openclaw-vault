@@ -743,8 +743,20 @@ def run_stage2_conviction_trigger():
             if file_age_sec <= 2700:
                 udata = json.loads(uoa_file.read_text(encoding="utf-8"))
                 uoa_ratio = float(udata.get("volume_oi_ratio") or udata.get("vol_oi_ratio", 0.0))
-                uoa_confirmed = uoa_ratio >= 1.5
-                print(f"  📡 Fresh UOA Flow Conviction Verified: {uoa_ratio:.2f}x Vol/OI (Age: {int(file_age_sec/60)}m)")
+                bias = str(udata.get("institutional_bias", "")).upper()
+                sweeps = udata.get("sweeps", [])
+                sweeps_cnt = int(udata.get("institutional_sweeps_count") or len(sweeps))
+
+                # Institutional Conviction Gate (RULE-075 / Tumbler 4):
+                # Whole-chain volume/OI ratio typically ranges 0.10x-0.35x in morning sessions.
+                # Confirmed if institutional bias is supported above put wall / bullish / neutral (no breakdown)
+                # and market tape is active (uoa_ratio >= 0.05), OR if strike-level sweeps exist (>0).
+                # True flow divergence only triggers if there is genuine breakdown (spot below put wall) or dead tape (<0.03x).
+                is_breakdown = "BELOW" in bias or "BREAKDOWN" in bias or "BEARISH" in bias
+                tape_active = uoa_ratio >= 0.05
+                bias_supported = "SUPPORTED" in bias or "BULLISH" in bias or "NEUTRAL" in bias or not is_breakdown
+                uoa_confirmed = (bias_supported and tape_active) or sweeps_cnt > 0 or uoa_ratio >= 1.5
+                print(f"  📡 Fresh UOA Flow Conviction: {uoa_ratio:.2f}x Vol/OI | Bias: {bias} | Confirmed: {uoa_confirmed} (Age: {int(file_age_sec/60)}m)")
             else:
                 print(f"  ⚠️ UOA Flow Cache is STALE ({int(file_age_sec/60)}m old > 45m limit). Conviction unconfirmed.")
         except Exception as ex_uoa:
@@ -772,7 +784,7 @@ def run_stage2_conviction_trigger():
 
         # 2. Evaluate Conviction Gate
         if not uoa_confirmed:
-            print(f"  🛑 UOA Flow Diverged (Vol/OI {uoa_ratio:.2f}x < 1.5x). Aborting order to preserve capital.")
+            print(f"  🛑 UOA Flow Diverged (Bias: {bias} | Vol/OI {uoa_ratio:.2f}x). Aborting order to preserve capital.")
             _cancel_broker_order(order)
             order["status"] = "aborted_flow_diverged"
             save_pending_orders(orders)
@@ -781,11 +793,11 @@ def run_stage2_conviction_trigger():
                 last_entry_file.write_text(json.dumps({
                     "timestamp": now_ict,
                     "subject": f"ORDER_RESOLVED_ABORTED_FLOW_{sym}",
-                    "message": f"Stage 2 Abort: {sym} cancelled due to UOA flow divergence (Vol/OI {uoa_ratio:.2f}x < 1.5x). Order cancelled safely."
+                    "message": f"Stage 2 Abort: {sym} cancelled due to UOA flow breakdown ({bias} | Vol/OI {uoa_ratio:.2f}x). Order cancelled safely."
                 }, indent=2), encoding="utf-8")
                 if AgentBridge:
                     bridge = AgentBridge("hermes")
-                    bridge.send("anna", f"STAGE 2 ABORT: {sym} cancelled due to flow divergence. Capital safe.", channel="trade_execution", subject=f"ORDER_RESOLVED_ABORTED_FLOW_{sym}")
+                    bridge.send("anna", f"STAGE 2 ABORT: {sym} cancelled due to flow divergence ({bias}). Capital safe.", channel="trade_execution", subject=f"ORDER_RESOLVED_ABORTED_FLOW_{sym}")
                     print(f"  ⚡ Mirrored ORDER_RESOLVED_ABORTED_FLOW_{sym} to Anna via AgentBridge!")
             except Exception: pass
 
@@ -795,7 +807,7 @@ def run_stage2_conviction_trigger():
                 f"📅 Time: {now_ict}\n"
                 f"💼 Account: {acct.upper()}\n"
                 f"📦 Spread: {sym} ${order['short_strike']:.1f}P / ${order['long_strike']:.1f}P\n"
-                f"⚠️ Reason: UOA Sweep #2 showed volume died down (Vol/OI {uoa_ratio:.2f}x).\n"
+                f"⚠️ Reason: UOA Sweep #2 showed flow breakdown ({bias} | Vol/OI {uoa_ratio:.2f}x).\n"
                 f"🛡️ Action: Order cancelled. Capital 100% preserved in settled USD Cash Reserve."
             )
             # RULE-081: Autonomous Fallback Relay (skip if Tradier to maintain satellite isolation)
