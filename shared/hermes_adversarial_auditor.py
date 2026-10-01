@@ -95,7 +95,14 @@ def run_adversarial_audit(dispatch_tg: bool = False) -> dict:
         max_r = s.get("max_risk_usd", 0)
         acct = s.get("account", "")
 
-        desc = f"• {acct}/{root} ${short_k:.0f}P/${long_k:.0f}P ({s.get('contracts')}C, exp {exp}) | Spot: ${s.get('spot')} ({status}) | uPL: ${upl} | Max Risk: ${max_r}"
+        if s.get("strategy") == "IRON_CONDOR":
+            ps_k = s.get("put_short", 0)
+            pl_k = s.get("put_long", 0)
+            cs_k = s.get("call_short", 0)
+            cl_k = s.get("call_long", 0)
+            desc = f"• {acct}/{root} Put ${ps_k:.0f}P/${pl_k:.0f}P & Call ${cs_k:.0f}C/${cl_k:.0f}C ({s.get('contracts')}C Iron Condor, exp {exp}) | Spot: ${s.get('spot')} ({status}) | uPL: ${upl} | Max Risk: ${max_r}"
+        else:
+            desc = f"• {acct}/{root} ${short_k:.0f}P/${long_k:.0f}P ({s.get('contracts')}C, exp {exp}) | Spot: ${s.get('spot')} ({status}) | uPL: ${upl} | Max Risk: ${max_r}"
 
         if "ITM_SHORT_LEG" in flags or (otm is not None and otm < 0):
             critical_breaches.append({
