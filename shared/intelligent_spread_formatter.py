@@ -68,8 +68,15 @@ def lookup_active_trade_credit(underlying: str) -> float | None:
                 data = json.loads(p.read_text(encoding="utf-8"))
                 for acct in data.get("accounts", {}).values():
                     for pos in acct.get("positions", []):
-                        if pos.get("symbol") == underlying and pos.get("net_credit") is not None:
-                            return float(pos["net_credit"])
+                        if pos.get("symbol") == underlying:
+                            cr = pos.get("net_credit") or pos.get("credit") or pos.get("combined_credit")
+                            if cr is not None:
+                                return float(cr)
+                for pos in data.get("trades", []):
+                    if pos.get("symbol") == underlying:
+                        cr = pos.get("net_credit") or pos.get("credit") or pos.get("combined_credit")
+                        if cr is not None:
+                            return float(cr)
             except Exception:
                 pass
     return None
@@ -222,8 +229,111 @@ def format_intelligent_spread_report(pos_list: List[Dict[str, Any]], account_nam
         spot, spot_source = resolve_spot(underlying)
         spot_is_live = spot_source.startswith("live:")
 
-        # Check if paired spread
-        if len(legs) >= 2 and any(l["qty"] < 0 for l in legs) and any(l["qty"] > 0 for l in legs):
+        # Check if Iron Condor (both Put and Call spreads present)
+        put_shorts = [l for l in legs if l["qty"] < 0 and l.get("opt_type") == "P"]
+        put_longs = [l for l in legs if l["qty"] > 0 and l.get("opt_type") == "P"]
+        call_shorts = [l for l in legs if l["qty"] < 0 and l.get("opt_type") == "C"]
+        call_longs = [l for l in legs if l["qty"] > 0 and l.get("opt_type") == "C"]
+
+        if put_shorts and put_longs and call_shorts and call_longs:
+            # ──────────────────────────────────────────────────────────────────
+            # RULE-094: DUAL-WING IRON CONDOR UNIFIED RENDERING
+            # ──────────────────────────────────────────────────────────────────
+            p_short = put_shorts[0]
+            p_long = put_longs[0]
+            c_short = call_shorts[0]
+            c_long = call_longs[0]
+
+            contracts = min(abs(p_short["qty"]), abs(c_short["qty"]))
+            p_s = p_short["strike"]
+            p_l = p_long["strike"]
+            c_s = c_short["strike"]
+            c_l = c_long["strike"]
+            exp_date = p_short["exp_date"]
+
+            p_width = abs(p_s - p_l)
+            c_width = abs(c_s - c_l)
+            # OCC Single-Margin rule: wider wing defines max collateral
+            defined_risk = max(p_width, c_width) * 100.0 * contracts
+
+            p_s_entry = abs(p_short.get("avg_entry", 0))
+            p_l_entry = abs(p_long.get("avg_entry", 0))
+            c_s_entry = abs(c_short.get("avg_entry", 0))
+            c_l_entry = abs(c_long.get("avg_entry", 0))
+
+            # Unit scaling guard
+            if p_width > 0 and p_s_entry > p_width * 2.0: p_s_entry /= 100.0
+            if p_width > 0 and p_l_entry > p_width * 2.0: p_l_entry /= 100.0
+            if c_width > 0 and c_s_entry > c_width * 2.0: c_s_entry /= 100.0
+            if c_width > 0 and c_l_entry > c_width * 2.0: c_l_entry /= 100.0
+
+            gross_short_income = (p_s_entry + c_s_entry) * contracts * 100.0
+            long_hedge_cost = (p_l_entry + c_l_entry) * contracts * 100.0
+            net_credit_injected = gross_short_income - long_hedge_cost
+
+            if net_credit_injected <= 0:
+                trade_credit = lookup_active_trade_credit(underlying)
+                if trade_credit:
+                    net_credit_injected = trade_credit * contracts * 100.0
+                    gross_short_income = net_credit_injected
+                    long_hedge_cost = 0.0
+
+            tp_target = net_credit_injected * 0.50
+            express_tp = net_credit_injected * 0.30
+
+            today_date = datetime.date.today()
+            try:
+                exp_dt = datetime.datetime.strptime(exp_date, "%Y-%m-%d").date()
+                roll_dt = get_t_minus_trading_days(exp_dt, trading_days=3)
+                rollover_deadline = roll_dt.strftime("%b %d, %Y")
+                exp_display = exp_dt.strftime("%b %d, %Y")
+                dte_days = (exp_dt - today_date).days
+            except Exception:
+                rollover_deadline = "T-3 Trading Days"
+                exp_display = exp_date
+                dte_days = 30
+
+            # Dual Buffer Analysis
+            live_tag = "" if spot_is_live else " (STALE REFERENCE — verify!)"
+            if spot > 0:
+                p_dist = spot - p_s
+                p_buf_pct = (p_dist / spot) * 100.0
+                c_dist = c_s - spot
+                c_buf_pct = (c_dist / spot) * 100.0
+
+                p_str = f"+${p_dist:.2f} (+{p_buf_pct:.1f}%) OTM" if p_dist >= 0 else f"-${abs(p_dist):.2f} ({abs(p_buf_pct):.1f}%) ITM 🔴"
+                c_str = f"+${c_dist:.2f} (+{c_buf_pct:.1f}%) OTM" if c_dist >= 0 else f"-${abs(c_dist):.2f} ({abs(c_buf_pct):.1f}%) ITM 🔴"
+
+                if p_dist >= 0 and c_dist >= 0:
+                    min_buf = min(p_buf_pct, c_buf_pct)
+                    health = "100% SAFE (theta burning inside wings)" if min_buf >= 3.0 else "THIN BUFFER — WATCH CLOSELY ⚠️"
+                elif p_dist < 0:
+                    health = "🔴 DEFENSE REQUIRED — PUT WING BREACHED ITM"
+                else:
+                    health = "🔴 DEFENSE REQUIRED — CALL WING BREACHED ITM"
+                spot_summary = f"${spot:,.2f} [Put ${p_s:.0f}P: {p_str} | Call ${c_s:.0f}C: {c_str}]{live_tag}"
+            else:
+                spot_summary = "UNKNOWN — no live spot available ⚠️"
+                health = "STATUS UNKNOWN (data gap — do not assume safe)"
+
+            if dte_days <= 21 and "🔴" not in health:
+                health += f" | 21-DTE GAMMA ZONE ({dte_days} DTE)"
+
+            income_line = (f"+${gross_short_income:,.2f} Short Sale Credit (-${long_hedge_cost:,.2f} Hedge) "
+                           f"= +${net_credit_injected:,.2f} Net Bank Cash Injected 💵")
+            close_line = f"• Worst-Case Close: Rollover Deadline: {rollover_deadline} (T-3 DTE) | Expiration: {exp_display} ⏳"
+
+            block = f"""🛡️ {underlying} ${p_s:.0f}P/${p_l:.0f}P & ${c_s:.0f}C/${c_l:.0f}C ({contracts}C Iron Condor | {meta['theme']})
+  • Spot vs Strike  : {spot_summary} [src: {spot_source}]
+  • Real Cash Income: {income_line}
+  • Defined Risk Cap: ${defined_risk:,.2f} Max Risk (Collateral Locked)
+  • Profit Target   : RULE-077 Tiered Harvest (30% Express: +${express_tp:,.2f} | 50% Standard: +${tp_target:,.2f}) 🌾
+  {close_line}
+  • Strategy Status : {health}"""
+            report_blocks.append(block)
+
+        # Check if paired spread (Single-Wing: Bull Put or Bear Call)
+        elif len(legs) >= 2 and any(l["qty"] < 0 for l in legs) and any(l["qty"] > 0 for l in legs):
             short_leg = next(l for l in legs if l["qty"] < 0)
             long_leg = next(l for l in legs if l["qty"] > 0)
             
@@ -231,6 +341,9 @@ def format_intelligent_spread_report(pos_list: List[Dict[str, Any]], account_nam
             s_strike = short_leg["strike"]
             l_strike = long_leg["strike"]
             exp_date = short_leg["exp_date"]
+            is_put = short_leg.get("opt_type", "P") == "P"
+            strat_label = "Bull Put Spread" if is_put else "Bear Call Spread"
+            opt_lbl = "P" if is_put else "C"
             
             # Net Spread Valuation & Income Generated
             defined_risk = abs(s_strike - l_strike) * 100.0 * contracts
@@ -293,7 +406,6 @@ def format_intelligent_spread_report(pos_list: List[Dict[str, Any]], account_nam
 
             # Spot vs Strike Safety Buffer — derived from the LIVE spot only.
             dist_pct = 0.0
-            is_put = short_leg.get("type", "P") == "P"
             if spot > 0 and s_strike > 0:
                 dist = (spot - s_strike) if is_put else (s_strike - spot)
                 dist_pct = (dist / spot) * 100.0
@@ -303,7 +415,6 @@ def format_intelligent_spread_report(pos_list: List[Dict[str, Any]], account_nam
                     health = ("100% SAFE (theta burning)" if dist_pct >= 3.0
                               else "THIN BUFFER — WATCH CLOSELY ⚠️")
                 else:
-                    opt_lbl = "PUT" if is_put else "CALL"
                     safety_str = f"-${abs(dist):.2f} ({abs(dist_pct):.1f}%) IN-THE-MONEY{live_tag}"
                     health = f"🔴 DEFENSE REQUIRED — SHORT {opt_lbl} STRIKE IS ITM"
             else:
@@ -330,8 +441,8 @@ def format_intelligent_spread_report(pos_list: List[Dict[str, Any]], account_nam
             income_line = (f"+${gross_short_income:,.2f} Short Sale Credit (-${long_hedge_cost:,.2f} Hedge) "
                            f"= +${net_credit_injected:,.2f} Net Bank Cash Injected 💵" if credit_known
                            else "UNAVAILABLE — broker entry prices missing (not estimated)")
-            block = f"""🛡️ {underlying} ${s_strike:.0f}P / ${l_strike:.0f}P ({contracts}C Bull Put Spread | {meta['theme']})
-  • Spot vs Strike  : ${spot:,.2f} vs ${s_strike:.0f}P ({safety_str}) [src: {spot_source}]
+            block = f"""🛡️ {underlying} ${s_strike:.0f}{opt_lbl} / ${l_strike:.0f}{opt_lbl} ({contracts}C {strat_label} | {meta['theme']})
+  • Spot vs Strike  : ${spot:,.2f} vs ${s_strike:.0f}{opt_lbl} ({safety_str}) [src: {spot_source}]
   • Real Cash Income: {income_line}
   • Defined Risk Cap: ${defined_risk:,.2f} Max Risk (Collateral Locked)
   • Profit Target   : RULE-077 Tiered Harvest (30% Express: +${express_tp:,.2f} | 50% Standard: +${tp_target:,.2f}) 🌾

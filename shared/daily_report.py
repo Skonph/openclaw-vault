@@ -230,60 +230,121 @@ def generate_and_dispatch_report():
         sym = p.get("symbol", "")
         und, exp_d, otype, strike = parse_option_symbol(sym)
         if und and exp_d:
-            spreads_by_sym.setdefault((und, exp_d), []).append(p)
+            p_augmented = dict(p)
+            p_augmented["opt_type"] = otype
+            p_augmented["strike"] = strike
+            spreads_by_sym.setdefault((und, exp_d), []).append(p_augmented)
 
     opex_directives = []
     today_dt = datetime.date.today()
     for (und, exp_d), legs in spreads_by_sym.items():
-        short_l = next((l for l in legs if float(l.get("qty", l.get("quantity", 0))) < 0), None)
-        long_l = next((l for l in legs if float(l.get("qty", l.get("quantity", 0))) > 0), None)
-        if short_l and long_l:
-            _, _, _, s_strike = parse_option_symbol(short_l.get("symbol", ""))
-            _, _, _, l_strike = parse_option_symbol(long_l.get("symbol", ""))
-            try:
-                exp_dt = datetime.datetime.strptime(exp_d, "%Y-%m-%d").date()
-                dte = (exp_dt - today_dt).days
-            except Exception:
-                dte = 30
+        try:
+            exp_dt = datetime.datetime.strptime(exp_d, "%Y-%m-%d").date()
+            dte = (exp_dt - today_dt).days
+        except Exception:
+            dte = 30
 
-            spot = 0.0
-            try:
-                from live_spot import get_spot
-                spot_res = get_spot(und)
-                if isinstance(spot_res, dict):
-                    spot = float(spot_res.get("price") or 0.0)
-                else:
-                    spot = float(spot_res or 0.0)
-            except Exception:
-                pass
+        spot = 0.0
+        try:
+            from live_spot import get_spot
+            spot_res = get_spot(und)
+            if isinstance(spot_res, dict):
+                spot = float(spot_res.get("price") or 0.0)
+            else:
+                spot = float(spot_res or 0.0)
+        except Exception:
+            pass
 
-            buf_pct = ((spot - s_strike) / spot * 100.0) if spot > 0 else 0.0
+        # Check if Iron Condor (both Put and Call spreads present)
+        put_shorts = [l for l in legs if float(l.get("qty", l.get("quantity", 0))) < 0 and l.get("opt_type") == "P"]
+        put_longs = [l for l in legs if float(l.get("qty", l.get("quantity", 0))) > 0 and l.get("opt_type") == "P"]
+        call_shorts = [l for l in legs if float(l.get("qty", l.get("quantity", 0))) < 0 and l.get("opt_type") == "C"]
+        call_longs = [l for l in legs if float(l.get("qty", l.get("quantity", 0))) > 0 and l.get("opt_type") == "C"]
 
-            if s_strike > 0 and spot > 0 and spot < s_strike:
+        if put_shorts and put_longs and call_shorts and call_longs:
+            # ──────────────────────────────────────────────────────────────────
+            # RULE-094: DUAL-WING IRON CONDOR OPEX DIRECTIVE
+            # ──────────────────────────────────────────────────────────────────
+            p_s = put_shorts[0]["strike"]
+            p_l = put_longs[0]["strike"]
+            c_s = call_shorts[0]["strike"]
+            c_l = call_longs[0]["strike"]
+
+            p_buf_pct = ((spot - p_s) / spot * 100.0) if spot > 0 else 0.0
+            c_buf_pct = ((c_s - spot) / spot * 100.0) if spot > 0 else 0.0
+
+            if spot > 0 and spot < p_s:
                 opex_directives.append(
-                    f"• {und} (${s_strike:.0f}P/${l_strike:.0f}P, Exp {exp_d} | {dte} DTE):\n"
-                    f"  * Status: 🔴 IN-THE-MONEY BREACH (Spot ${spot:.2f} vs Strike ${s_strike:.0f}P | Buffer: {buf_pct:+.1f}%)\n"
+                    f"• {und} (${p_s:.0f}P/${p_l:.0f}P & ${c_s:.0f}C/${c_l:.0f}C Iron Condor, Exp {exp_d} | {dte} DTE):\n"
+                    f"  * Status: 🔴 IN-THE-MONEY BREACH ON PUT WING (Spot ${spot:.2f} vs Put Strike ${p_s:.0f}P | Buffer: {p_buf_pct:+.1f}%)\n"
                     f"  * Strategic Directive: MANDATORY DEFENSIVE STOP-OUT (DIR-09). Salvage collateral before pin risk!"
                 )
-            elif dte <= 7:
-                if buf_pct >= 2.5:
-                    opex_directives.append(
-                        f"• {und} (${s_strike:.0f}P/${l_strike:.0f}P, Exp {exp_d} | {dte} DTE):\n"
-                        f"  * Status: 🟢 SAFE OTM BUFFER (Spot ${spot:.2f} vs Strike ${s_strike:.0f}P | Buffer: {buf_pct:+.1f}% >= 2.5%)\n"
-                        f"  * Strategic Directive: DIR-09 EXPIRATION RUN. Hold to 100% expiry if profit < 90%; harvest early if >= 90%."
-                    )
-                else:
-                    opex_directives.append(
-                        f"• {und} (${s_strike:.0f}P/${l_strike:.0f}P, Exp {exp_d} | {dte} DTE):\n"
-                        f"  * Status: ⚠️ THIN BUFFER (Spot ${spot:.2f} vs Strike ${s_strike:.0f}P | Buffer: {buf_pct:+.1f}% < 2.5%)\n"
-                        f"  * Strategic Directive: T-3 GAMMA DEFENSE. Close early under DIR-09 to de-risk."
-                    )
-            elif dte <= 21:
+            elif spot > 0 and spot > c_s:
                 opex_directives.append(
-                    f"• {und} (${s_strike:.0f}P/${l_strike:.0f}P, Exp {exp_d} | {dte} DTE):\n"
-                    f"  * Status: ⏳ MID-CYCLE THETA (Spot ${spot:.2f} | Buffer: {buf_pct:+.1f}%)\n"
+                    f"• {und} (${p_s:.0f}P/${p_l:.0f}P & ${c_s:.0f}C/${c_l:.0f}C Iron Condor, Exp {exp_d} | {dte} DTE):\n"
+                    f"  * Status: 🔴 IN-THE-MONEY BREACH ON CALL WING (Spot ${spot:.2f} vs Call Strike ${c_s:.0f}C | Buffer: {c_buf_pct:+.1f}%)\n"
+                    f"  * Strategic Directive: MANDATORY DEFENSIVE STOP-OUT (DIR-09). Salvage collateral before pin risk!"
+                )
+            else:
+                opex_directives.append(
+                    f"• {und} (${p_s:.0f}P/${p_l:.0f}P & ${c_s:.0f}C/${c_l:.0f}C Iron Condor, Exp {exp_d} | {dte} DTE):\n"
+                    f"  * Status: ⏳ MID-CYCLE THETA (Spot ${spot:.2f} | Put Buffer: {p_buf_pct:+.1f}% | Call Buffer: {c_buf_pct:+.1f}%)\n"
                     f"  * Strategic Directive: Active FastHarvest monitoring (50% TP harvest target under DIR-09)."
                 )
+
+        else:
+            # Single-Wing Spread (Bull Put or Bear Call)
+            short_l = next((l for l in legs if float(l.get("qty", l.get("quantity", 0))) < 0), None)
+            long_l = next((l for l in legs if float(l.get("qty", l.get("quantity", 0))) > 0), None)
+            if short_l and long_l:
+                _, _, otype, s_strike = parse_option_symbol(short_l.get("symbol", ""))
+                _, _, _, l_strike = parse_option_symbol(long_l.get("symbol", ""))
+                is_put = otype == "P"
+                opt_lbl = "P" if is_put else "C"
+                strat_label = f"${s_strike:.0f}{opt_lbl}/${l_strike:.0f}{opt_lbl}"
+
+                buf_pct = (((spot - s_strike) if is_put else (s_strike - spot)) / spot * 100.0) if spot > 0 else 0.0
+                is_itm = (spot < s_strike) if is_put else (spot > s_strike)
+
+                if s_strike > 0 and spot > 0 and is_itm:
+                    opex_directives.append(
+                        f"• {und} ({strat_label}, Exp {exp_d} | {dte} DTE):\n"
+                        f"  * Status: 🔴 IN-THE-MONEY BREACH (Spot ${spot:.2f} vs Strike ${s_strike:.0f}{opt_lbl} | Buffer: {buf_pct:+.1f}%)\n"
+                        f"  * Strategic Directive: MANDATORY DEFENSIVE STOP-OUT (DIR-09). Salvage collateral before pin risk!"
+                    )
+                elif dte <= 7:
+                    if buf_pct >= 2.5:
+                        opex_directives.append(
+                            f"• {und} ({strat_label}, Exp {exp_d} | {dte} DTE):\n"
+                            f"  * Status: 🟢 SAFE OTM BUFFER (Spot ${spot:.2f} vs Strike ${s_strike:.0f}{opt_lbl} | Buffer: {buf_pct:+.1f}% >= 2.5%)\n"
+                            f"  * Strategic Directive: DIR-09 EXPIRATION RUN. Hold to 100% expiry if profit < 90%; harvest early if >= 90%."
+                        )
+                    else:
+                        opex_directives.append(
+                            f"• {und} ({strat_label}, Exp {exp_d} | {dte} DTE):\n"
+                            f"  * Status: ⚠️ THIN BUFFER (Spot ${spot:.2f} vs Strike ${s_strike:.0f}{opt_lbl} | Buffer: {buf_pct:+.1f}% < 2.5%)\n"
+                            f"  * Strategic Directive: T-3 GAMMA DEFENSE. Close early under DIR-09 to de-risk."
+                        )
+                elif dte <= 12 and und == "NVDA":
+                    # GAP #2: NVDA 11 DTE nearest to expiry, pull 50% TP harvest decision to T-4
+                    opex_directives.append(
+                        f"• {und} ({strat_label}, Exp {exp_d} | {dte} DTE):\n"
+                        f"  * Status: ⏳ GAMMA CLIFF APPROACHING (Spot ${spot:.2f} | Buffer: {buf_pct:+.1f}% | 11 DTE)\n"
+                        f"  * Strategic Directive: ADVANCE FASTHARVEST TO T-4 (Oct 07 Rollover Boundary). Prioritize 50% TP harvest before T-4."
+                    )
+                elif buf_pct < 3.0 and buf_pct > 0.5:
+                    # GAP #3: XLE or thin buffer watch
+                    opex_directives.append(
+                        f"• {und} ({strat_label}, Exp {exp_d} | {dte} DTE):\n"
+                        f"  * Status: ⚠️ THIN BUFFER SURVEILLANCE (Spot ${spot:.2f} | Buffer: {buf_pct:+.1f}%)\n"
+                        f"  * Strategic Directive: Tighten vigilance. Maintain strike-touch defense at 0.50% buffer floor."
+                    )
+                elif dte <= 21:
+                    opex_directives.append(
+                        f"• {und} ({strat_label}, Exp {exp_d} | {dte} DTE):\n"
+                        f"  * Status: ⏳ MID-CYCLE THETA (Spot ${spot:.2f} | Buffer: {buf_pct:+.1f}%)\n"
+                        f"  * Strategic Directive: Active FastHarvest monitoring (50% TP harvest target under DIR-09)."
+                    )
 
     if not opex_directives:
         opex_directives_str = "• All active live spreads safely harvesting theta outside T-7 window."
