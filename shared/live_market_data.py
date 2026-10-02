@@ -278,13 +278,22 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         iv_25d = min(ivd, key=lambda o: abs(abs(o["delta"]) - 0.25))["iv"] if ivd else None
 
         # Liquidity gate: Tiered for single stocks vs broad ETFs
-        short_spread = (short.get("ask", 0) or 0) - (short.get("bid", 0) or 0)
+        short_b = float(short.get("bid") or 0.0)
+        short_a = float(short.get("ask") or 0.0)
+        long_b = float(long_leg.get("bid") or 0.0)
+        long_a = float(long_leg.get("ask") or 0.0)
+        short_spread = round(short_a - short_b, 2)
+        long_spread = round(long_a - long_b, 2)
+        spread_friction = round(short_spread + long_spread, 2)
+        natural_credit = round(short_b - long_a, 2)
+        friction_ratio = round(spread_friction / credit, 2) if credit > 0 else 1.0
+
         if is_etf:
-            liquid = bool(short.get("bid") and long_leg.get("bid")
+            liquid = bool(short_b > 0 and long_b > 0
                           and ((short.get("oi") or 0) >= 100 or (short_spread <= 0.08 and (short.get("volume") or 0) >= 20))
                           and (long_leg.get("oi") or 0) >= 30)
         else:
-            liquid = bool(short.get("bid") and long_leg.get("bid")
+            liquid = bool(short_b > 0 and long_b > 0
                           and (short.get("oi") or 0) >= 100 and (long_leg.get("oi") or 0) >= 50)
 
         otm_pct = round((spot - short["strike"]) / spot * 100, 2)
@@ -292,13 +301,16 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
             "ok": True, "symbol": sym, "expiration": expiration, "dte": dte, "target_tenor": t_tag,
             "spot": spot, "spot_source": spot_info.get("source"), "spot_asof": spot_info.get("asof"),
             "strike_grid_step": step, "liquid": liquid,
-            "short_bid": short.get("bid"), "long_bid": long_leg.get("bid"),
-            "short_ask": short.get("ask"), "long_ask": long_leg.get("ask"),
+            "short_bid": short_b, "long_bid": long_b,
+            "short_ask": short_a, "long_ask": long_a,
+            "natural_credit": natural_credit,
+            "spread_friction": spread_friction,
+            "friction_ratio": friction_ratio,
             "atm_iv": atm_iv, "iv_25d_put": iv_25d, "hv20_live": round(hv, 2) if hv else None,
             "short_strike": short["strike"], "long_strike": long_leg["strike"], "width": width_real,
             "short_delta": short.get("delta"), "long_delta": long_leg.get("delta"),
             "short_mid": short["mid"], "long_mid": long_leg["mid"], "credit": credit,
-            "credit_bid_ask": f"{short.get('bid')}/{short.get('ask')} - {long_leg.get('bid')}/{long_leg.get('ask')}",
+            "credit_bid_ask": f"{short_b:.2f}/{short_a:.2f} - {long_b:.2f}/{long_a:.2f}",
             "gross_credit": credit,
             "gross_cash": gross_cash,
             "round_trip_fee": round_trip_fee,
@@ -328,7 +340,9 @@ def pick_bull_put_spread(sym: str, width: float | None = None, target_delta: flo
         min_net_roc = 7.5 if width_real >= 20.0 else (10.0 if width_real >= 15.0 else 12.0)
         is_fee_efficient = (fee_drag_pct <= 15.0)
         min_credit_req = 0.12 if width_real <= 1.0 else 0.20
-        if liquid and credit >= min_credit_req and (net_roc or 0) >= min_net_roc and otm_pct >= min_otm_pct and is_fee_efficient:
+        # Strict Liquidity Friction Pre-Gate: natural credit must be positive and friction <= 35% of mid credit
+        is_orderable = (natural_credit > 0.0) and (friction_ratio <= 0.35)
+        if liquid and credit >= min_credit_req and (net_roc or 0) >= min_net_roc and otm_pct >= min_otm_pct and is_fee_efficient and is_orderable:
             valid_liquid_candidates.append(spread_candidate)
 
     if valid_liquid_candidates:
@@ -375,13 +389,43 @@ def _sma(closes, n):
     return round(sum(closes[-n:]) / n, 2) if len(closes) >= n else None
 
 
-def trend_sma20(sym: str, lookback: int = 35) -> dict:
+def atr14(sym: str, lookback: int = 35) -> Optional[Dict[str, float]]:
     """
-    RULE-089: 20-Day Simple Moving Average & Trend Regime Analyzer.
-    Evaluates whether an underlying is trending above its 20-day SMA.
+    Calculates 14-day Average True Range (ATR) and ATR percentage of spot (BAM - Beta Adjusted Margin).
+    Returns {"atr": float, "atr_pct": float, "spot": float} or None.
+    """
+    try:
+        bars = daily_bars(sym, days=lookback)
+        if len(bars) < 15:
+            return None
+        trs = []
+        for i in range(1, len(bars)):
+            h = float(bars[i]["high"])
+            l = float(bars[i]["low"])
+            c_prev = float(bars[i - 1]["close"])
+            tr = max(h - l, abs(h - c_prev), abs(l - c_prev))
+            trs.append(tr)
+        if len(trs) < 14:
+            return None
+        atr = sum(trs[-14:]) / 14.0
+        spot_res = get_spot(sym)
+        spot = float(spot_res.get("price") or 0.0) if isinstance(spot_res, dict) else float(spot_res or 0.0)
+        if spot <= 0:
+            spot = float(bars[-1]["close"])
+        atr_pct = (atr / spot) * 100.0 if spot > 0 else 0.0
+        return {"atr": round(atr, 2), "atr_pct": round(atr_pct, 2), "spot": round(spot, 2)}
+    except Exception:
+        return None
+
+
+def trend_sma20(sym: str, lookback: int = 65) -> dict:
+    """
+    RULE-089 & RULE-075 (3R Rule): 20-Day & 50-Day Simple Moving Average & Trend Analyzer.
+    Evaluates whether an underlying is trending above its 20-day & 50-day SMA.
     Returns: {
-        "ok": bool, "symbol": str, "spot": float, "sma20": float, "ratio": float,
-        "is_above_sma20": bool, "slope_5d": float, "status": str
+        "ok": bool, "symbol": str, "spot": float, "sma20": float, "sma50": float, "ratio": float,
+        "is_above_sma20": bool, "is_above_sma50": bool, "is_golden_trend": bool,
+        "slope_5d": float, "status": str
     }
     """
     try:
@@ -391,6 +435,7 @@ def trend_sma20(sym: str, lookback: int = 35) -> dict:
 
         closes = [float(b["close"]) for b in bars]
         sma20 = round(sum(closes[-20:]) / 20.0, 2)
+        sma50 = round(sum(closes[-50:]) / 50.0, 2) if len(closes) >= 50 else None
 
         spot_res = get_spot(sym)
         spot = float(spot_res.get("price") or 0.0) if isinstance(spot_res, dict) else float(spot_res or 0.0)
@@ -403,11 +448,13 @@ def trend_sma20(sym: str, lookback: int = 35) -> dict:
 
         ratio = round((spot / sma20), 4) if sma20 > 0 else 1.0
         # 0.5% buffer tolerance: Spot >= SMA20 * 0.995 is considered holding trend
-        is_above = (spot >= round(sma20 * 0.995, 2))
+        is_above_20 = (spot >= round(sma20 * 0.995, 2))
+        is_above_50 = (spot >= sma50) if sma50 else True
+        is_golden = bool(is_above_20 and is_above_50 and (sma50 and sma20 > sma50))
 
-        if is_above and slope_5d >= 0.0:
+        if is_above_20 and slope_5d >= 0.0:
             status = "UPTREND"
-        elif is_above and slope_5d < 0.0:
+        elif is_above_20 and slope_5d < 0.0:
             status = "CONSOLIDATING"
         else:
             status = "DOWNTREND"
@@ -417,9 +464,12 @@ def trend_sma20(sym: str, lookback: int = 35) -> dict:
             "symbol": sym,
             "spot": round(spot, 2),
             "sma20": sma20,
+            "sma50": sma50,
             "ratio": ratio,
             "diff_pct": round((spot - sma20) / sma20 * 100.0, 2),
-            "is_above_sma20": is_above,
+            "is_above_sma20": is_above_20,
+            "is_above_sma50": is_above_50,
+            "is_golden_trend": is_golden,
             "slope_5d": slope_5d,
             "status": status,
             "data_asof": bars[-1]["date"]

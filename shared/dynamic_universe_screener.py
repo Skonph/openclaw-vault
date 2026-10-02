@@ -34,7 +34,7 @@ from typing import Dict, Any, List, Tuple, Optional, Set
 
 sys.path.insert(0, str(Path(__file__).parent))
 from alpaca_broker import AlpacaClient
-from live_market_data import prev_session_box, pick_bull_put_spread, refresh_market_context, trend_sma20
+from live_market_data import prev_session_box, pick_bull_put_spread, refresh_market_context, trend_sma20, atr14
 from live_spot import get_spot, _load_env, _get_json
 
 # ---- Eligibility gates (RULE: no fabricated lead) --------------------------------
@@ -228,7 +228,7 @@ def run_dynamic_screening() -> Dict[str, Any]:
     widths = {c["symbol"]: float(c.get("width", 5.0) or 5.0) for c in all_candidates}
 
     def _live(sym: str) -> Tuple[str, Dict[str, Any]]:
-        out: Dict[str, Any] = {"spread": {"ok": False, "reason": "not attempted"}, "box": {}, "trend": {}}
+        out: Dict[str, Any] = {"spread": {"ok": False, "reason": "not attempted"}, "box": {}, "trend": {}, "atr": None}
         try:
             out["box"] = prev_session_box(sym)
         except Exception as e:
@@ -237,6 +237,10 @@ def run_dynamic_screening() -> Dict[str, Any]:
             out["trend"] = trend_sma20(sym)
         except Exception as e:
             out["trend"] = {"ok": False, "reason": f"trend error: {e}"}
+        try:
+            out["atr"] = atr14(sym)
+        except Exception as e:
+            out["atr"] = None
         try:
             out["spread"] = pick_bull_put_spread(sym, width=widths.get(sym), target_delta=TARGET_DELTA,
                                                  dte_min=DTE_MIN, dte_max=DTE_MAX,
@@ -401,35 +405,59 @@ def run_dynamic_screening() -> Dict[str, Any]:
             par_roc = 7.5 if width >= 20.0 else 12.5
             roc_bonus = max(-4.0, min(6.0, (roc_pct - par_roc) * 0.4))
 
-        yield_score = max(0.0, min(30.0, base_yield_score + drag_score_adj + roc_bonus + gamma_shield_bonus))
+        # Natural Liquidity & Spread Friction Penalty (LFG - Liquidity Friction Gate)
+        f_ratio = sp.get("friction_ratio")
+        friction_penalty = 0.0
+        if f_ratio is not None and f_ratio > 0.18:
+            friction_penalty = -15.0  # Severe drag penalty for wide bid/ask gap (>18% friction)
+        elif f_ratio is not None and f_ratio > 0.10:
+            friction_penalty = -6.0
+
+        yield_score = max(0.0, min(30.0, base_yield_score + drag_score_adj + roc_bonus + gamma_shield_bonus + friction_penalty))
 
         # ---- Factor 5: Reproducible OTM Safety Buffer from LIVE spot (0-25 pts)
         safety_buffer_pct = (round((spot_price - target_s) / spot_price * 100, 2)
                              if (spot_price and target_s) else None)
+
+        # Pillar A: Beta-Adjusted Margin (BAM) Dynamic Buffer Standard (ATR x 2.5)
+        atr_info = live.get("atr") or {}
+        daily_atr_pct = atr_info.get("atr_pct")
+        if not daily_atr_pct:
+            hv_val = sp.get("hv20") or sp.get("hv20_live") or 20.0
+            daily_atr_pct = round(hv_val / 15.87, 2)
+        beta_adjusted_min_otm = round(max(effective_min_otm, 2.5 * daily_atr_pct), 2)
+
         if safety_buffer_pct is None:
             safety_score = 0.0
-        elif safety_buffer_pct >= 7.0:
+        elif safety_buffer_pct >= (beta_adjusted_min_otm + 2.0):
             safety_score = 25.0  # Fortress safety buffer (eliminates 1-2% daily noise)
-        elif safety_buffer_pct >= 5.0:
-            safety_score = 20.0  # Institutional Standard floor
-        elif safety_buffer_pct >= 4.5:
-            safety_score = 12.0  # Marginal Institutional buffer
+        elif safety_buffer_pct >= beta_adjusted_min_otm:
+            safety_score = 20.0  # Beta-Adjusted Institutional Standard
+        elif safety_buffer_pct >= effective_min_otm:
+            safety_score = 12.0  # Marginal Standard buffer
         elif safety_buffer_pct >= 3.5:
             safety_score = 6.0   # Caution buffer
         else:
             safety_score = 0.0   # Unsafe
 
-        # ---- Factor 5b: Trend Momentum Alignment (Spot > SMA20) (0-8 pts)
+        # ---- Factor 5b: Trend Momentum & Macro Alignment (The 3R Rule) (0-10 pts)
         trend_info = live.get("trend", {})
         trend_diff_pct = trend_info.get("diff_pct") if trend_info else None
         if trend_diff_pct is None and spot_price and live.get("sma20"):
             trend_diff_pct = round((spot_price - live["sma20"]) / live["sma20"] * 100, 2)
-        if trend_diff_pct is not None and trend_diff_pct >= 2.0:
-            trend_momentum_bonus = 8.0  # Strong institutional buying tailwind
+        slope_5d = trend_info.get("slope_5d", 0.0) if trend_info else 0.0
+        is_golden = trend_info.get("is_golden_trend", False) if trend_info else False
+
+        if is_golden and slope_5d >= 0.0:
+            trend_momentum_bonus = 10.0  # 3R Rule Golden Trend Alignment (Spot > SMA20 > SMA50)
+        elif trend_diff_pct is not None and trend_diff_pct >= 1.0 and slope_5d >= 0.0:
+            trend_momentum_bonus = 6.0   # Strong uptrend above SMA20
         elif trend_diff_pct is not None and trend_diff_pct >= 0.0:
-            trend_momentum_bonus = 4.0  # Mild uptrend above SMA20
+            trend_momentum_bonus = 3.0   # Mild uptrend holding SMA20
+        elif slope_5d < -1.5:
+            trend_momentum_bonus = -10.0 # Downward-sloping SMA20 penalty (Falling knife guard)
         else:
-            trend_momentum_bonus = 0.0  # At or below SMA20 (quarantined)
+            trend_momentum_bonus = 0.0
 
         # ---- Factor 6: put skew + calendar velocity (10 pts) — real IV inputs where available
         iv_25d_f = iv_25d / 100.0 if iv_25d else 0.0
@@ -499,25 +527,41 @@ def run_dynamic_screening() -> Dict[str, Any]:
             reasons.append(f"RULE-050: earnings quarantine ({ern_date} before exp {exp_date})")
         if width is not None and width < MIN_SPREAD_WIDTH:
             reasons.append(f"spread width ${width:.2f} < ${MIN_SPREAD_WIDTH:.2f} (DIR-11 anti-friction width floor: $1 spreads banned)")
-        if credit_mid is not None and credit_mid < MIN_CREDIT:
-            reasons.append(f"credit ${credit_mid:.2f} < ${MIN_CREDIT:.2f} (DIR-01/11 hard credit floor)")
+
+        # Credit density floor: Single stocks >= $0.50, ETFs >= $0.30 (Kills the micro-credit trap!)
+        is_etf_sym = sym in {"SPY", "QQQ", "IWM", "SMH", "XLF", "XLU", "XLE", "XLV", "XLP", "GLD", "SLV", "IBIT"}
+        min_credit_gate = 0.30 if is_etf_sym else 0.50
+        if credit_mid is not None and credit_mid < min_credit_gate:
+            reasons.append(f"credit ${credit_mid:.2f} < ${min_credit_gate:.2f} (DIR-01/11 minimum credit density floor)")
+
+        # Liquidity Friction Gate (LFG): natural credit must be positive and friction <= 35% of mid credit
+        nat_credit = sp.get("natural_credit")
+        if nat_credit is not None and nat_credit <= 0.0:
+            reasons.append(f"negative natural credit (${nat_credit:.2f} <= $0.00: unfillable bid/ask gap)")
+        if f_ratio is not None and f_ratio > 0.35:
+            reasons.append(f"excessive bid-ask friction ({f_ratio*100:.1f}% > 35.0% of mid credit)")
+
         fee_drag = sp.get("fee_drag_pct")
         if fee_drag is not None and fee_drag > 15.0:
             reasons.append(f"fee drag {fee_drag:.1f}% > 15.0% (DIR-01 micro-credit fee trap: ${sp.get('round_trip_fee', 1.40):.2f} fee on ${sp.get('gross_cash', (credit_mid or 0)*100):.1f} credit)")
         min_roc_floor = 7.5 if (width and width >= 20.0) else (10.0 if (width and width >= 15.0) else MIN_ROC_PCT)
         if roc_pct is not None and roc_pct < min_roc_floor:
             reasons.append(f"ROC {roc_pct:.1f}% < {min_roc_floor:.1f}% (DIR-01 adaptive floor)")
-        if safety_buffer_pct is not None and safety_buffer_pct < effective_min_otm:
-            reasons.append(f"only {safety_buffer_pct}% OTM (< {effective_min_otm:.1f}%)")
+
+        # Beta-Adjusted Margin (BAM) Buffer Gate
+        if safety_buffer_pct is not None and safety_buffer_pct < beta_adjusted_min_otm:
+            reasons.append(f"buffer {safety_buffer_pct:.1f}% < beta-adjusted floor {beta_adjusted_min_otm:.1f}% (2.5x daily ATR: {daily_atr_pct:.2f}%/day)")
+
         if dte_est and not (DTE_MIN <= dte_est <= DTE_MAX):
             reasons.append(f"DTE {dte_est} outside {DTE_MIN}-{DTE_MAX}")
         
-        # RULE-089: SMA20 Trend Regime Gate (Reject Falling Knives)
-        trend_info = live.get("trend", {})
+        # RULE-089 & RULE-074: SMA20 Trend & Falling Knife Gate
         if trend_info and trend_info.get("ok"):
             if not trend_info.get("is_above_sma20"):
                 diff_pct = trend_info.get("diff_pct", 0.0)
                 reasons.append(f"RULE-089: DOWNTREND VETO (Spot ${spot_price:.2f} < SMA20 ${trend_info.get('sma20', 0):.2f} [{diff_pct:+.1f}%])")
+            elif slope_5d < -2.0:
+                reasons.append(f"RULE-074: FALLING KNIFE VETO (SMA20 slope {slope_5d:+.1f}% < -2.0% downward trajectory)")
 
         # RULE-094: Precision Index Iron Condor Protocol
         # Strictly restricted to Index ETFs (SPY, QQQ, IWM) during consolidation (box 35%-65%, VRP >= 1.10)
@@ -584,6 +628,13 @@ def run_dynamic_screening() -> Dict[str, Any]:
             "roc_pct": roc_pct,
             "net_roc_pct": sp.get("net_roc_pct", roc_pct),
             "fee_drag_pct": sp.get("fee_drag_pct"),
+            "natural_credit": sp.get("natural_credit"),
+            "spread_friction": sp.get("spread_friction"),
+            "friction_ratio": sp.get("friction_ratio"),
+            "daily_atr_pct": daily_atr_pct,
+            "beta_adjusted_min_otm": beta_adjusted_min_otm,
+            "slope_5d": slope_5d,
+            "is_golden_trend": is_golden,
             "tenor_candidates": sp.get("tenor_candidates", {}),
             "short_delta": short_delta,
             "credit_mid": credit_mid,

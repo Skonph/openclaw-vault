@@ -148,20 +148,26 @@ def update_and_check_profit_ratchet(
         rec["symbol"] = target_symbol
         rec["account"] = account_type
         rec["updated_at_ict"] = now_ict
-        if hwm >= 30.0 and not rec.get("ratchet_active"):
+        # Tier 1 Ratchet: Arm at 25% profit with +15.0% floor
+        if hwm >= 25.0 and not rec.get("ratchet_active"):
             rec["ratchet_active"] = True
-            rec["ratchet_floor_pct"] = 20.0
+            rec["ratchet_floor_pct"] = 15.0
             rec["activated_at_ict"] = now_ict
-            print(f"  🔒 RATCHET ARMED: {target_symbol} touched {hwm:.1f}% profit! +20.0% Hard Profit Floor locked in.")
+            print(f"  🔒 RATCHET ARMED: {target_symbol} touched {hwm:.1f}% profit! +15.0% Hard Profit Floor locked in.")
+        # Tier 2 Ratchet: Upgrade to +20.0% floor if touched 30%
+        if hwm >= 30.0 and rec.get("ratchet_floor_pct", 0) < 20.0:
+            rec["ratchet_floor_pct"] = 20.0
+            print(f"  🔒 RATCHET UPGRADED: {target_symbol} touched {hwm:.1f}% profit! +20.0% Hard Profit Floor locked in.")
         ratchets[spread_key] = rec
         save_harvest_ratchets(ratchets)
 
     # 2. Check if ratchet floor is breached on a pullback
     if rec.get("ratchet_active"):
-        # If profit pulled back below or near the 20% floor (e.g. <= 21.0% but >= 15.0% and PnL > 0)
-        if profit_pct <= 21.0 and tot_pnl > 0:
+        floor_pct = float(rec.get("ratchet_floor_pct", 20.0))
+        # If profit pulled back below or near the floor (within +1.0% of floor and PnL > 0)
+        if profit_pct <= (floor_pct + 1.0) and tot_pnl > 0:
             reason = (f"DIR-09 Profit Ratchet Protection (+${tot_pnl:,.2f} | {profit_pct:.1f}% | "
-                      f"Peak {hwm:.1f}% -> Protected at +20% Floor 🔒)")
+                      f"Peak {hwm:.1f}% -> Protected at +{floor_pct:.0f}% Floor 🔒)")
             return True, reason
 
     return False, ""
@@ -796,7 +802,7 @@ def harvest_spread_positions(
             else:
                 print(f"  🚀 DIR-09 TERMINAL SURGE: {target_symbol} is {buf_pct:+.1f}% OTM with only {dte}d left.")
                 print(f"     Holding daily rate is ${holding_daily_rate:.2f}/day ({holding_daily_roc:.2f}%/day ROC)! Letting theta burn to full expiry.")
-        elif days_held <= 2 and (profit_pct >= 30.0 or tot_pnl >= (total_initial_credit * 0.30)):
+        elif days_held <= 2 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
             should_harvest = True
             harvest_reason = f"DIR-09 48h Express FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
         elif days_held <= 3 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
@@ -805,6 +811,9 @@ def harvest_spread_positions(
         elif days_held <= 5 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
             should_harvest = True
             harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
+        elif dte >= 7 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
+            should_harvest = True
+            harvest_reason = f"DIR-09 Mid-Cycle Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Freeing Collateral 🚀)"
         elif profit_pct >= 50.0 or tot_pnl >= (total_initial_credit * 0.50):
             should_harvest = True
             harvest_reason = f"DIR-09 Standard 50% FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Day {days_held} held 🌾)"
@@ -1251,7 +1260,7 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
                 harvest_reason = f"DIR-09 Terminal 90%+ Theta Capture (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
             else:
                 print(f"  🚀 DIR-09 TERMINAL SURGE: {und} is {buf_pct:+.1f}% OTM with only {dte}d left. Holding to full expiry!")
-        elif days_held <= 2 and (profit_pct >= 30.0 or current_pnl >= (initial_credit_total * 0.30)):
+        elif days_held <= 2 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
             should_harvest = True
             harvest_reason = f"DIR-09 48h Express FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
         elif days_held <= 3 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
@@ -1260,6 +1269,9 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
         elif days_held <= 5 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
             should_harvest = True
             harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
+        elif dte >= 7 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
+            should_harvest = True
+            harvest_reason = f"DIR-09 Mid-Cycle Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Freeing Collateral 🚀)"
         elif profit_pct >= 50.0 or current_pnl >= (initial_credit_total * 0.50):
             should_harvest = True
             harvest_reason = f"DIR-09 Standard 50% FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Day {days_held} held 🌾)"
