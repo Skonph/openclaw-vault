@@ -580,6 +580,137 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
 
     return res_data
 
+def _scan_tradier_catalog_fallback(client, portfolio_tickers: set, base_dir: Path) -> List[Dict[str, Any]]:
+    """
+    Autonomous Tradier Catalog Fallback Sweep (RULE-098 & DIR-04):
+    When the pre-flight candidate list is empty or completely claimed by Alpaca,
+    Tradier independently scans the master verified_universe_catalog.json with live order books,
+    targeting high-velocity 7-DTE weekly sprints (or 14-DTE) with zero earnings overlap.
+    """
+    cat_file = base_dir / "verified_universe_catalog.json"
+    if not cat_file.exists():
+        cat_file = Path("/home/ubuntu/shared/verified_universe_catalog.json")
+    if not cat_file.exists():
+        cat_file = Path(__file__).resolve().parent / "verified_universe_catalog.json"
+    if not cat_file.exists():
+        return []
+
+    try:
+        catalog = json.loads(cat_file.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+    theme_weights = {
+        "1. AI Chips & Hardware": 95.0,
+        "2. Data Center Power & Cooling": 88.0,
+        "3. Inflation Defense & Hard Assets": 80.0,
+        "4. Longevity & Healthcare": 85.0,
+        "5. Consumer Staples & National Defense": 90.0,
+        "6. Financial Services & Payment Rails": 92.0,
+        "7. Broad Index & Market Hedging": 92.0,
+        "8. Mega-Cap Cloud & Software Platform": 94.0
+    }
+
+    today = datetime.date.today()
+    viable = []
+
+    for theme, cands in catalog.items():
+        for cand in cands:
+            sym = cand.get("symbol", "").upper()
+            if not sym or sym in portfolio_tickers:
+                continue
+
+            try:
+                exps = client.get_option_expirations(sym)
+                if not exps:
+                    continue
+
+                # Prioritize front-week weekly sprint (6-12 DTE, e.g. Oct 9), then 13-28 DTE
+                valid_exps = []
+                for e in exps:
+                    try:
+                        d = (datetime.datetime.strptime(e, "%Y-%m-%d").date() - today).days
+                        if 6 <= d <= 28:
+                            valid_exps.append((e, d))
+                    except Exception:
+                        pass
+
+                if not valid_exps:
+                    continue
+
+                # Sort by closest to 7 DTE (weekly sprint), then 14 DTE
+                valid_exps.sort(key=lambda x: (abs(x[1] - 7), x[1]))
+                target_exp, target_dte = valid_exps[0]
+
+                # Check spot price
+                quotes = client.get_quotes([sym])
+                sp = float(quotes[0].get("last", 0.0)) if quotes else 0.0
+                if sp <= 0:
+                    continue
+
+                # Strike and width sizing (cap width at $5.0 for Tradier $500 risk limit)
+                step = 1.0 if sp < 100 else 5.0
+                w = 2.0 if sym in ["XLF", "SLV", "GLD", "XLU"] else (5.0 if sp > 200 else 3.0)
+                # 95% spot target for ~5.0% OTM buffer
+                s = round((sp * 0.95) / step) * step
+                l = s - w
+                if s <= 0 or l <= 0:
+                    continue
+
+                buffer_pct = round((sp - s) / sp * 100.0, 2)
+                if buffer_pct < 4.5:
+                    continue
+
+                chain = client.get_option_chain(sym, target_exp, greeks=True)
+                s_opt = next((o for o in chain if o.get("option_type") == "put" and abs(float(o.get("strike", 0)) - s) < 0.05), None)
+                l_opt = next((o for o in chain if o.get("option_type") == "put" and abs(float(o.get("strike", 0)) - l) < 0.05), None)
+                if not s_opt or not l_opt:
+                    continue
+
+                s_bid = float(s_opt.get("bid") or 0.0)
+                l_ask = float(l_opt.get("ask") or 0.0)
+                if s_bid <= 0 or l_ask <= 0:
+                    continue
+
+                net_credit = round(s_bid - l_ask, 2)
+                mac_floor = 0.20 if w <= 2.0 else 0.35
+                if net_credit < mac_floor or net_credit < 0.25:
+                    continue
+
+                roc_pct = round((net_credit / w) * 100.0, 1)
+                if roc_pct < 8.0:
+                    continue
+
+                # 5-factor score
+                t_score = theme_weights.get(theme, 80.0)
+                score = round(t_score * 0.4 + roc_pct * 2.0 + buffer_pct * 3.0, 2)
+                if sym in ["VRT", "AMD", "META", "TSLA", "GE", "LMT"]:
+                    score += 10.0  # High velocity sprint bonus
+
+                viable.append({
+                    "symbol": sym,
+                    "name": cand.get("name", sym),
+                    "theme": theme,
+                    "short_strike": s,
+                    "long_strike": l,
+                    "width": w,
+                    "expiration": target_exp,
+                    "dte": target_dte,
+                    "natural_credit": net_credit,
+                    "credit_mid": round(((s_bid + float(s_opt.get("ask", s_bid))) / 2.0) - ((l_ask + float(l_opt.get("bid", l_ask))) / 2.0), 2),
+                    "roc_pct": roc_pct,
+                    "total_score": score,
+                    "buffer_pct": buffer_pct,
+                    "short_occ": s_opt.get("symbol"),
+                    "long_occ": l_opt.get("symbol"),
+                    "source": "TRADIER_AUTONOMOUS_CATALOG_SWEEP"
+                })
+            except Exception:
+                continue
+
+    viable.sort(key=lambda x: -x["total_score"])
+    return viable
+
 def execute_tradier_live_entry(
     candidate_list: List[Dict[str, Any]],
     now_ict: str,
@@ -636,8 +767,16 @@ def execute_tradier_live_entry(
         sprint_cands = [c for c in candidate_list if c.get("symbol") not in portfolio_tickers]
 
     if not sprint_cands:
-        print("  ℹ️ TRADIER_LIVE: Zero eligible Sprint candidates available. Standing down cleanly.")
-        return None
+        print("  🔄 TRADIER_LIVE: Zero pre-flight sprint candidates. Activating Autonomous Live Catalog Sweep (RULE-098 & DIR-04)...")
+        fallback_cands = _scan_tradier_catalog_fallback(client, portfolio_tickers, base_dir)
+        if fallback_cands:
+            print(f"  🏆 TRADIER AUTONOMOUS SWEEP FOUND {len(fallback_cands)} VIABLE SPRINT SETUPS!")
+            for fc in fallback_cands[:3]:
+                print(f"     • {fc['symbol']} ({fc['theme']}): {fc['short_strike']}P/{fc['long_strike']}P Exp: {fc['expiration']} ({fc['dte']} DTE) | Credit: ${fc['natural_credit']} | ROC: {fc['roc_pct']}% | Score: {fc['total_score']}")
+            sprint_cands = fallback_cands
+        else:
+            print("  ℹ️ TRADIER_LIVE: Zero eligible Sprint candidates available across entire live catalog. Standing down cleanly.")
+            return None
 
     sprint_cands = sorted(sprint_cands, key=lambda c: -float(c.get("total_score", 0.0)))
     target_cand = sprint_cands[0]
