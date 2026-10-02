@@ -629,20 +629,119 @@ def update_excel_journal():
 </worksheet>"""
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SHEET 3: External_PnL_Revenue_Report (Strictly Closed Taxable Events)
+    # SHEET 3: Wise_Capital_Deposits (Historical Wise Inbound Wire & ACH Ledger)
     # ──────────────────────────────────────────────────────────────────────────
     s3_rows = []
-    s3_rows.append('<row r="1"><c r="A1" t="inlineStr" s="1"><is><t>EXTERNAL REVENUE DEPARTMENT &amp; TAX COMPLIANCE REPORT</t></is></c></row>')
-    s3_rows.append('<row r="2"><c r="A2" t="inlineStr" s="2"><is><t>Official Corporate Options Trading Revenue Ledger (Foreign Currency &amp; THB Translation)</t></is></c></row>')
+    s3_rows.append('<row r="1"><c r="A1" t="inlineStr" s="1"><is><t>SKONVAULT INBOUND CAPITAL DEPOSIT &amp; WISE FX REMITTANCE AUDIT TRAIL</t></is></c></row>')
+    s3_rows.append('<row r="2"><c r="A2" t="inlineStr" s="2"><is><t>Cross-Border Capital Infusion Log — Reconciled with Bank Receipts, Wise Transfers, &amp; Clearing Brokers</t></is></c></row>')
 
-    s3_headers = [
+    dep_headers = [
+        "Transfer Date", "Receiving Brokerage", "Target Account", "Platform / Account Type",
+        "Injected Principal (USD)", "THB Principal Debited (THB)", "Effective FX Rate (THB/USD)",
+        "Remittance Rail", "Clearing Status", "Strategic Allocation Memo"
+    ]
+    s3_hdr_cells = "".join([f'<c r="{chr(65+i)}4" t="inlineStr" s="4"><is><t>{escape_xml(h)}</t></is></c>' for i, h in enumerate(dep_headers)])
+    s3_rows.append(f'<row r="4">{s3_hdr_cells}</row>')
+
+    wise_deposits = [
+        {
+            "date": "2026-09-10", "broker": "Alpaca Securities LLC", "account_id": "290523608",
+            "platform": "Alpaca Live (Margin)", "usd_amount": 10431.65, "thb_amount": 345000.00,
+            "fx_rate": 345000.00 / 10431.65, "rail": "Wise ACH to BMO Harris (Alpaca)",
+            "status": "SETTLED / CREDITED 🟢", "memo": "Trading Capital Batch 4 (Bought 60 SGOV)"
+        },
+        {
+            "date": "2026-09-09", "broker": "Alpaca Securities LLC", "account_id": "290523608",
+            "platform": "Alpaca Live (Margin)", "usd_amount": 10596.10, "thb_amount": 351000.00,
+            "fx_rate": 351000.00 / 10596.10, "rail": "Wise ACH to BMO Harris (Alpaca)",
+            "status": "SETTLED / CREDITED 🟢", "memo": "Trading Capital Batch 3 (Bought 194 SGOV)"
+        },
+        {
+            "date": "2026-09-04", "broker": "Alpaca Securities LLC", "account_id": "290523608",
+            "platform": "Alpaca Live (Margin)", "usd_amount": 4492.24, "thb_amount": 148944.27,
+            "fx_rate": 148944.27 / 4492.24, "rail": "Wise ACH / Domestic Wire",
+            "status": "SETTLED / CLEARED 🟢", "memo": "Trading Capital Batch 2"
+        },
+        {
+            "date": "2026-09-01", "broker": "Alpaca Securities LLC", "account_id": "290523608",
+            "platform": "Alpaca Live (Margin)", "usd_amount": 4498.33, "thb_amount": 150000.00,
+            "fx_rate": 150000.00 / 4498.33, "rail": "Wise ACH / Domestic Wire",
+            "status": "SETTLED / CLEARED 🟢", "memo": "Trading Capital Batch 1 (Bought 44 SGOV)"
+        },
+        {
+            "date": "2026-05-11", "broker": "Tradier (Apex Clearing Inc.)", "account_id": "6YB80974",
+            "platform": "Tradier Live (Margin L4)", "usd_amount": 2000.00, "thb_amount": 64879.26,
+            "fx_rate": 64879.26 / 2000.00, "rail": "Wise Wire to Apex Clearing",
+            "status": "SETTLED / CLEARED 🟢", "memo": "POC Options Capital (Bought 19 SGOV)"
+        },
+        {
+            "date": "2026-05-06", "broker": "Interactive Brokers LLC", "account_id": "U25439978",
+            "platform": "IBKR Pro (Margin)", "usd_amount": 2200.00, "thb_amount": 71915.03,
+            "fx_rate": 71915.03 / 2200.00, "rail": "Wise Wire to Citi NY (IBKR)",
+            "status": "SETTLED / CLEARED 🟢", "memo": "IBKR Strategic Reserve Capital"
+        },
+    ]
+
+    for idx, d in enumerate(wise_deposits, start=5):
+        s3_rows.append(
+            f'<row r="{idx}">'
+            f'<c r="A{idx}" t="inlineStr" s="0"><is><t>{d["date"]}</t></is></c>'
+            f'<c r="B{idx}" t="inlineStr" s="0"><is><t>{escape_xml(d["broker"])}</t></is></c>'
+            f'<c r="C{idx}" t="inlineStr" s="0"><is><t>{d["account_id"]}</t></is></c>'
+            f'<c r="D{idx}" t="inlineStr" s="0"><is><t>{escape_xml(d["platform"])}</t></is></c>'
+            f'<c r="E{idx}" s="6"><v>{d["usd_amount"]}</v></c>'
+            f'<c r="F{idx}" s="9"><v>{d["thb_amount"]}</v></c>'
+            f'<c r="G{idx}" s="0"><v>{round(d["fx_rate"], 4)}</v></c>'
+            f'<c r="H{idx}" t="inlineStr" s="0"><is><t>{escape_xml(d["rail"])}</t></is></c>'
+            f'<c r="I{idx}" t="inlineStr" s="10"><is><t>{escape_xml(d["status"])}</t></is></c>'
+            f'<c r="J{idx}" t="inlineStr" s="0"><is><t>{escape_xml(d["memo"])}</t></is></c>'
+            f'</row>'
+        )
+
+    tot_row_dep = len(wise_deposits) + 5
+    tot_dep_usd = round(sum(d["usd_amount"] for d in wise_deposits), 2)
+    tot_dep_thb = round(sum(d["thb_amount"] for d in wise_deposits), 2)
+    eff_fx = round(tot_dep_thb / tot_dep_usd, 4)
+
+    s3_rows.append(
+        f'<row r="{tot_row_dep}">'
+        f'<c r="A{tot_row_dep}" t="inlineStr" s="5"><is><t>CUMULATIVE CAPITAL INFLOW</t></is></c>'
+        f'<c r="B{tot_row_dep}" t="inlineStr" s="5"><is><t>{len(wise_deposits)} TRANSFERS</t></is></c>'
+        f'<c r="C{tot_row_dep}" s="5"/><c r="D{tot_row_dep}" s="5"/>'
+        f'<c r="E{tot_row_dep}" s="11"><f>SUM(E5:E{tot_row_dep-1})</f><v>{tot_dep_usd}</v></c>'
+        f'<c r="F{tot_row_dep}" s="12"><f>SUM(F5:F{tot_row_dep-1})</f><v>{tot_dep_thb}</v></c>'
+        f'<c r="G{tot_row_dep}" s="11"><f>F{tot_row_dep}/E{tot_row_dep}</f><v>{eff_fx}</v></c>'
+        f'<c r="H{tot_row_dep}" t="inlineStr" s="5"><is><t>100% WISE DIRECT</t></is></c>'
+        f'<c r="I{tot_row_dep}" t="inlineStr" s="5"><is><t>ALL CLEARED 🟢</t></is></c>'
+        f'<c r="J{tot_row_dep}" t="inlineStr" s="5"><is><t>FULLY CREDITED TO BROKERS</t></is></c>'
+        f'</row>'
+    )
+
+    sheet3_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+    <cols>
+        <col min="1" max="1" width="16"/><col min="2" max="2" width="28"/><col min="3" max="3" width="16"/><col min="4" max="4" width="26"/>
+        <col min="5" max="5" width="24"/><col min="6" max="6" width="26"/><col min="7" max="7" width="26"/><col min="8" max="8" width="32"/>
+        <col min="9" max="9" width="24"/><col min="10" max="10" width="40"/>
+    </cols>
+    <sheetData>{"".join(s3_rows)}</sheetData>
+</worksheet>"""
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # SHEET 4: External_PnL_Revenue_Report (Strictly Closed Taxable Events)
+    # ──────────────────────────────────────────────────────────────────────────
+    s4_rows = []
+    s4_rows.append('<row r="1"><c r="A1" t="inlineStr" s="1"><is><t>EXTERNAL REVENUE DEPARTMENT &amp; TAX COMPLIANCE REPORT</t></is></c></row>')
+    s4_rows.append('<row r="2"><c r="A2" t="inlineStr" s="2"><is><t>Official Corporate Options Trading Revenue Ledger (Foreign Currency &amp; THB Translation)</t></is></c></row>')
+
+    s4_headers = [
         "Tax Event ID", "Execution Date", "Broker Entity", "Account Number", "Asset / Ticker",
         "Gross Option Premium Received ($)", "Option Premium Paid / Closing ($)",
         "Net Realized Capital Gain ($)", "Official BOT Exchange Rate (USD/THB)",
         "Gross Taxable Revenue (THB)", "Withholding Tax Base (THB)", "Compliance Audit Reference"
     ]
-    s3_hdr_cells = "".join([f'<c r="{chr(65+i)}4" t="inlineStr" s="4"><is><t>{escape_xml(h)}</t></is></c>' for i, h in enumerate(s3_headers)])
-    s3_rows.append(f'<row r="4">{s3_hdr_cells}</row>')
+    s4_hdr_cells = "".join([f'<c r="{chr(65+i)}4" t="inlineStr" s="4"><is><t>{escape_xml(h)}</t></is></c>' for i, h in enumerate(s4_headers)])
+    s4_rows.append(f'<row r="4">{s4_hdr_cells}</row>')
 
     rate_thb = 36.50
     # Strictly filter for CLOSED trades with verified close date (OPEN trades are unearned liabilities, not taxable revenue)
@@ -673,7 +772,7 @@ def update_excel_journal():
 
         pnl_style = "7" if pnl >= 0 else "6"
 
-        s3_rows.append(
+        s4_rows.append(
             f'<row r="{idx}">'
             f'<c r="A{idx}" t="inlineStr" s="0"><is><t>TAX-{t["id"][4:]}</t></is></c>'
             f'<c r="B{idx}" t="inlineStr" s="0"><is><t>{t["close_date"]}</t></is></c>'
@@ -690,34 +789,34 @@ def update_excel_journal():
             f'</row>'
         )
 
-    # Sheet 3 Totals Row
-    tot_row_s3 = max(len(closed_trades) + 5, 6)
-    last_s3_data = tot_row_s3 - 1
+    # Sheet 4 Totals Row
+    tot_row_s4 = max(len(closed_trades) + 5, 6)
+    last_s4_data = tot_row_s4 - 1
     if closed_trades:
-        tot_s3_f = round(sum(float(t.get("tot_credit") or 0.0) for t in closed_trades), 2)
-        tot_s3_g = round(sum(float(t.get("tot_debit") or 0.0) for t in closed_trades), 2)
-        tot_s3_h = round(sum(float(t.get("realized_pnl") or 0.0) for t in closed_trades), 2)
-        tot_s3_j = round(sum(max(0.0, float(t.get("realized_pnl") or 0.0) * rate_thb) for t in closed_trades), 2)
-        tot_s3_k = tot_s3_j
+        tot_s4_f = round(sum(float(t.get("tot_credit") or 0.0) for t in closed_trades), 2)
+        tot_s4_g = round(sum(float(t.get("tot_debit") or 0.0) for t in closed_trades), 2)
+        tot_s4_h = round(sum(float(t.get("realized_pnl") or 0.0) for t in closed_trades), 2)
+        tot_s4_j = round(sum(max(0.0, float(t.get("realized_pnl") or 0.0) * rate_thb) for t in closed_trades), 2)
+        tot_s4_k = tot_s4_j
 
-        s3_rows.append(
-            f'<row r="{tot_row_s3}">'
-            f'<c r="A{tot_row_s3}" t="inlineStr" s="5"><is><t>TOTAL CLOSED REVENUE</t></is></c>'
-            f'<c r="B{tot_row_s3}" s="5"/><c r="C{tot_row_s3}" s="5"/><c r="D{tot_row_s3}" s="5"/><c r="E{tot_row_s3}" s="5"/>'
-            f'<c r="F{tot_row_s3}" s="11"><f>SUM(F5:F{last_s3_data})</f><v>{tot_s3_f}</v></c>'
-            f'<c r="G{tot_row_s3}" s="11"><f>SUM(G5:G{last_s3_data})</f><v>{tot_s3_g}</v></c>'
-            f'<c r="H{tot_row_s3}" s="11"><f>SUM(H5:H{last_s3_data})</f><v>{tot_s3_h}</v></c>'
-            f'<c r="I{tot_row_s3}" s="5"/>'
-            f'<c r="J{tot_row_s3}" s="12"><f>SUM(J5:J{last_s3_data})</f><v>{tot_s3_j}</v></c>'
-            f'<c r="K{tot_row_s3}" s="12"><f>SUM(K5:K{last_s3_data})</f><v>{tot_s3_k}</v></c>'
-            f'<c r="L{tot_row_s3}" t="inlineStr" s="5"><is><t>AUDITED COMPLIANT ✅</t></is></c>'
+        s4_rows.append(
+            f'<row r="{tot_row_s4}">'
+            f'<c r="A{tot_row_s4}" t="inlineStr" s="5"><is><t>TOTAL CLOSED REVENUE</t></is></c>'
+            f'<c r="B{tot_row_s4}" s="5"/><c r="C{tot_row_s4}" s="5"/><c r="D{tot_row_s4}" s="5"/><c r="E{tot_row_s4}" s="5"/>'
+            f'<c r="F{tot_row_s4}" s="11"><f>SUM(F5:F{last_s4_data})</f><v>{tot_s4_f}</v></c>'
+            f'<c r="G{tot_row_s4}" s="11"><f>SUM(G5:G{last_s4_data})</f><v>{tot_s4_g}</v></c>'
+            f'<c r="H{tot_row_s4}" s="11"><f>SUM(H5:H{last_s4_data})</f><v>{tot_s4_h}</v></c>'
+            f'<c r="I{tot_row_s4}" s="5"/>'
+            f'<c r="J{tot_row_s4}" s="12"><f>SUM(J5:J{last_s4_data})</f><v>{tot_s4_j}</v></c>'
+            f'<c r="K{tot_row_s4}" s="12"><f>SUM(K5:K{last_s4_data})</f><v>{tot_s4_k}</v></c>'
+            f'<c r="L{tot_row_s4}" t="inlineStr" s="5"><is><t>AUDITED COMPLIANT ✅</t></is></c>'
             f'</row>'
         )
     else:
-        s3_rows.append(
+        s4_rows.append(
             f'<row r="5"><c r="A5" t="inlineStr" s="0"><is><t>NO TAXABLE EVENTS</t></is></c><c r="B5" t="inlineStr" s="0"><is><t>-</t></is></c><c r="C5" t="inlineStr" s="0"><is><t>-</t></is></c><c r="D5" t="inlineStr" s="0"><is><t>-</t></is></c><c r="E5" t="inlineStr" s="0"><is><t>No closed taxable trades in period</t></is></c></row>'
         )
-        s3_rows.append(
+        s4_rows.append(
             f'<row r="6">'
             f'<c r="A6" t="inlineStr" s="5"><is><t>TOTAL CLOSED REVENUE</t></is></c>'
             f'<c r="F6" s="11"><v>0.00</v></c>'
@@ -729,13 +828,13 @@ def update_excel_journal():
             f'</row>'
         )
 
-    sheet3_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    sheet4_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
     <cols>
         <col min="1" max="1" width="20"/><col min="2" max="2" width="16"/><col min="3" max="3" width="22"/><col min="4" max="4" width="18"/><col min="5" max="5" width="14"/>
         <col min="6" max="7" width="24"/><col min="8" max="9" width="24"/><col min="10" max="10" width="26"/><col min="11" max="11" width="24"/><col min="12" max="12" width="38"/>
     </cols>
-    <sheetData>{"".join(s3_rows)}</sheetData>
+    <sheetData>{"".join(s4_rows)}</sheetData>
 </worksheet>"""
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -746,7 +845,8 @@ def update_excel_journal():
     <sheets>
         <sheet name="Active_Spread_Income_Tracker" sheetId="1" r:id="rId1"/>
         <sheet name="Internal_PnL_Journal" sheetId="2" r:id="rId2"/>
-        <sheet name="External_PnL_Revenue_Report" sheetId="3" r:id="rId3"/>
+        <sheet name="Wise_Capital_Deposits" sheetId="3" r:id="rId3"/>
+        <sheet name="External_PnL_Revenue_Report" sheetId="4" r:id="rId4"/>
     </sheets>
 </workbook>"""
 
@@ -758,6 +858,7 @@ def update_excel_journal():
     <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
     <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
     <Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+    <Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
     <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>"""
 
@@ -771,7 +872,8 @@ def update_excel_journal():
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
     <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
     <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>
-    <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+    <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>
+    <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>"""
 
     styles_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -863,10 +965,11 @@ def update_excel_journal():
                 zf.writestr("xl/worksheets/sheet1.xml", sheet1_xml)
                 zf.writestr("xl/worksheets/sheet2.xml", sheet2_xml)
                 zf.writestr("xl/worksheets/sheet3.xml", sheet3_xml)
+                zf.writestr("xl/worksheets/sheet4.xml", sheet4_xml)
         except Exception as ex_w:
             print(f"  ℹ️ Write notice for {t_path}: {ex_w}")
 
-    print(f"  ✅ 3-Sheet Live Excel Transaction Journal synchronized to: {live_vault}")
+    print(f"  ✅ 4-Sheet Live Excel Transaction Journal synchronized to: {live_vault}")
 
 if __name__ == "__main__":
     update_excel_journal()

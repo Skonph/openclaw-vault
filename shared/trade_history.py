@@ -200,97 +200,75 @@ def spread_round_trips(accounts=ACCOUNTS) -> List[Dict[str, Any]]:
             continue
         live = _live_option_symbols(acct)
 
-        # per-symbol position + cash walk
-        per_sym: Dict[str, Dict[str, Any]] = {}
+        fills = sorted(fetch_fills(acct), key=lambda f: f.get("transaction_time", ""))
+        live = _live_option_symbols(acct)
+
+        # per-symbol position cycles
+        sym_cycles: Dict[str, List[Dict[str, Any]]] = {}
         for f in fills:
             sym = f.get("symbol") or ""
-            if not OCC(sym):
-                continue
-            rec = per_sym.setdefault(sym, {"qty": 0.0, "cash": 0.0, "fills": []})
-            rec["qty"] += _signed_qty(f)
-            rec["cash"] += _cash(f)
-            rec["fills"].append(f)
-
-        groups: Dict[tuple, Dict[str, Any]] = {}
-        for sym, rec in per_sym.items():
             parsed = OCC(sym)
             if not parsed:
                 continue
             root, exp, right, strike = parsed
-            still_held = sym in live
-            for f in rec["fills"]:
-                g = groups.setdefault((acct, root, exp, right), {
-                    "account": acct, "root": root, "exp": exp, "right": right,
-                    "legs": {}, "cash": 0.0, "fills": [], "net_qty": 0.0, "still_held": False,
-                })
-                g["cash"] += _cash(f)
-                g["fills"].append(f)
-                leg = g["legs"].setdefault(strike, {"qty": 0.0, "open_price": None, "close_price": None,
-                                                    "open_time": None, "close_time": None,
-                                                    "open_qty": 0.0, "open_side": None,
-                                                    "close_qty": 0.0, "entries": 0})
-                sgn = _side_sign(f)
-                qty = _num(f.get("qty"))
-                px = _num(f.get("price"))
-                ts = f.get("transaction_time", "")
-                opening = (leg["qty"] == 0.0
-                           or (leg["qty"] > 0 and sgn > 0)
-                           or (leg["qty"] < 0 and sgn < 0))
-                if opening:
-                    if leg["open_price"] is None:
-                        leg["open_price"] = px
-                        leg["open_time"] = ts
-                        leg["open_side"] = "SELL" if sgn < 0 else "BUY"
-                    leg["open_qty"] += qty
-                    leg["entries"] += 1
-                else:
-                    leg["close_price"] = px          # last closing fill wins
-                    leg["close_time"] = ts
-                    leg["close_qty"] += qty
-                leg["qty"] += sgn * qty
-                g["net_qty"] += sgn * qty
-                g["still_held"] = g["still_held"] or still_held
-            opening_sizes = [abs(l.get("open_qty") or 0) for l in g["legs"].values()
-                             if abs(l.get("open_qty") or 0) > 0]
-            g["contracts"] = max(1, int(max(opening_sizes))) if opening_sizes else 1
+            qty = _signed_qty(f)
+            px = _num(f.get("price"))
+            cash_flow = _cash(f)
+            ts = f.get("transaction_time", "")
 
-        for (acct_, root, exp, right), g in sorted(groups.items(), key=lambda kv: kv[0][2]):
-            legs = g["legs"]
+            cycles = sym_cycles.setdefault(sym, [])
+            if not cycles or cycles[-1]["closed"]:
+                cycles.append({
+                    "sym": sym, "root": root, "exp": exp, "right": right, "strike": strike,
+                    "open_time": ts, "close_time": None, "qty": qty, "open_qty": abs(qty),
+                    "open_price": px, "close_price": None, "cash": cash_flow,
+                    "closed": False, "open_side": "SELL" if qty < 0 else "BUY", "fills": [f]
+                })
+            else:
+                c = cycles[-1]
+                c["qty"] += qty
+                c["cash"] += cash_flow
+                c["fills"].append(f)
+                if (c["open_side"] == "SELL" and qty < 0) or (c["open_side"] == "BUY" and qty > 0):
+                    c["open_qty"] += abs(qty)
+                if abs(c["qty"]) < 1e-5:
+                    c["closed"] = True
+                    c["close_time"] = ts
+                    c["close_price"] = px
+                else:
+                    c["close_price"] = px
+
+        # Group cycles by (root, exp, right, open_minute) to form discrete spread lifecycles
+        spread_groups: Dict[tuple, List[Dict[str, Any]]] = {}
+        for sym, cycles in sym_cycles.items():
+            for c in cycles:
+                # Key by open timestamp truncated to minute: YYYY-MM-DDTHH:MM
+                k = (c["root"], c["exp"], c["right"], c["open_time"][:16])
+                spread_groups.setdefault(k, []).append(c)
+
+        for (root, exp, right, op_min), legs in spread_groups.items():
             if len(legs) < 2:
                 continue
-            def _is_short(v):
-                # Classify by OPENING side: residual qty is 0 for every closed spread, so sign-based
-                # classification silently dropped all realized round trips.
-                return (v.get("open_side") == "SELL") if v.get("open_side") else (v["qty"] < 0)
-
-            shorts = {k: v for k, v in legs.items() if _is_short(v)}
-            longs = {k: v for k, v in legs.items() if not _is_short(v)}
+            shorts = [l for l in legs if l["open_side"] == "SELL"]
+            longs = [l for l in legs if l["open_side"] == "BUY"]
             if not shorts or not longs:
                 continue
-            s_strike = max(shorts) if right == "PUT" else min(shorts)
-            l_strike = min(longs) if right == "PUT" else max(longs)
-            contracts = g["contracts"]
-            short_leg, long_leg = legs[s_strike], legs[l_strike]
-            credit_sh = round((short_leg["open_price"] or 0) - (long_leg["open_price"] or 0), 2)
-            closed_by_fill = bool(short_leg.get("close_price") or long_leg.get("close_price"))
-            debit_sh = (round((short_leg["close_price"] or 0) - (long_leg["close_price"] or 0), 2)
-                        if closed_by_fill else 0.0)
-            realized = round(g["cash"], 2)
+            s_leg, l_leg = shorts[0], longs[0]
+            contracts = int(max(abs(s_leg["open_qty"]), abs(l_leg["open_qty"])))
+            s_strike, l_strike = s_leg["strike"], l_leg["strike"]
             width = abs(s_strike - l_strike)
-            max_risk = round(width * contracts * 100, 2)
-            open_ts = min([l["open_time"] for l in legs.values() if l["open_time"]] or [""])
-            close_ts = max([l["close_time"] for l in legs.values() if l["close_time"]] or [""])
-            if g["still_held"]:
-                status, exit_reason = "OPEN", "Active with broker (live position)"
-            elif closed_by_fill:
-                status = ("CLOSED_HARVESTED" if realized > 0 else "CLOSED_DEFENSIVE")
-                base = ("Take-profit close (verified fill)" if realized > 0
-                        else "Defensive stop-out / loss close (verified fill)")
-                ec = max(short_leg.get("entries", 1), long_leg.get("entries", 1))
-                exit_reason = (f"{base} — rolled / re-entered {ec}x" if ec > 1 else base)
-            else:
-                status = "EXPIRED"
-                exit_reason = "Expired with no closing fill (premium retained / protection cost)"
+            max_risk = round(width * contracts * 100.0, 2)
+            credit_sh = round((s_leg["open_price"] or 0) - (l_leg["open_price"] or 0), 2)
+            tot_credit = round(credit_sh * contracts * 100.0, 2)
+
+            is_closed = all(l["closed"] for l in legs)
+            tot_cash = sum(l["cash"] for l in legs)
+            realized = round(tot_cash, 2) if is_closed else 0.0
+            tot_debit = round(tot_credit - realized, 2) if is_closed else 0.0
+            debit_sh = round(tot_debit / (contracts * 100.0), 2) if (is_closed and contracts) else 0.0
+
+            open_ts = s_leg["open_time"]
+            close_ts = max([l["close_time"] for l in legs if l["close_time"]] or [None])
 
             def _dt(ts):
                 try:
@@ -298,19 +276,22 @@ def spread_round_trips(accounts=ACCOUNTS) -> List[Dict[str, Any]]:
                 except Exception:
                     return None
 
-            o, c = _dt(open_ts), _dt(close_ts)
+            o, c = _dt(open_ts), _dt(close_ts) if close_ts else None
             hold_hours = round((c - o).total_seconds() / 3600.0, 1) if (o and c) else None
-            entry_count = max(short_leg.get("entries", 1), long_leg.get("entries", 1))
-            net_per_share = round(realized / (contracts * 100), 2) if contracts else None
-            ambiguous = (len(shorts) > 1 or len(longs) > 1)
+
+            status = ("CLOSED_HARVESTED" if realized > 0 else "CLOSED_DEFENSIVE") if is_closed else "OPEN"
+            exit_reason = (
+                "Take-profit close (verified fill)" if realized > 0
+                else "Defensive stop-out / loss close (verified fill)"
+            ) if is_closed else "Active with broker (live position)"
+
             trips.append({
                 "id": f"TRD-{open_ts[:10].replace('-', '')}-{root}-{int(s_strike)}/{int(l_strike)}",
-                "entry_count": entry_count,
-                "multiple_entries": entry_count > 1,
-                "ambiguous_pairing": ambiguous,
-                "pairing_note": ("Multiple strike pairs share this expiry (rolls) — cash-flow P&L is "
-                                 "exact, strike labels are the dominant pair" if ambiguous else None),
-                "net_per_share": net_per_share,
+                "entry_count": 1,
+                "multiple_entries": False,
+                "ambiguous_pairing": False,
+                "pairing_note": None,
+                "net_per_share": round(realized / (contracts * 100.0), 2) if (is_closed and contracts) else None,
                 "source": "tradier_history" if acct == "tradier_live" else "alpaca_fills",
                 "verified": True,
                 "account": acct,
@@ -318,20 +299,20 @@ def spread_round_trips(accounts=ACCOUNTS) -> List[Dict[str, Any]]:
                 "exp": exp, "right": right,
                 "short_strike": s_strike, "long_strike": l_strike, "width": width,
                 "contracts": contracts,
-                "credit_sh": credit_sh, "tot_credit": round(credit_sh * contracts * 100, 2),
-                "debit_sh": debit_sh if status != "OPEN" else 0.0,
-                "tot_debit": round(debit_sh * contracts * 100, 2) if status != "OPEN" else 0.0,
+                "credit_sh": credit_sh, "tot_credit": tot_credit,
+                "debit_sh": debit_sh if is_closed else 0.0,
+                "tot_debit": tot_debit if is_closed else 0.0,
                 "max_risk": max_risk,
-                "realized_pnl": realized if status != "OPEN" else 0.0,
-                "roc": (round(realized / max_risk, 4) if max_risk else None) if status != "OPEN" else None,
+                "realized_pnl": realized if is_closed else 0.0,
+                "roc": round(realized / max_risk, 4) if (is_closed and max_risk) else None,
                 "open_date": open_ts[:10], "open_time": open_ts[11:19],
-                "close_date": close_ts[:10] if (close_ts and status != "OPEN") else None,
-                "close_time": close_ts[11:19] if (close_ts and status != "OPEN") else None,
+                "close_date": close_ts[:10] if (close_ts and is_closed) else None,
+                "close_time": close_ts[11:19] if (close_ts and is_closed) else None,
                 "hold_hours": hold_hours,
                 "exit_reason": exit_reason,
                 "status": status,
-                "order_id": (g["fills"][0].get("order_id") if g["fills"] else None),
-                "fill_count": len(g["fills"]),
+                "order_id": s_leg["fills"][0].get("order_id") if s_leg["fills"] else "",
+                "fill_count": sum(len(l["fills"]) for l in legs),
             })
     trips.sort(key=lambda t: (t.get("open_date") or "", t.get("root") or ""))
     return trips
