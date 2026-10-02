@@ -115,8 +115,8 @@ def run_redeployment_sweeper(is_live: bool = True):
     # 3. Synchronize Active Trades and Refresh Transaction Journal
     if dispatched_tradier:
         try:
-            from reconcile_active_trades import reconcile_and_save
-            reconcile_and_save(base_dir=base_dir)
+            from reconcile_active_trades import reconcile_active_trades
+            reconcile_active_trades()
             from generate_live_journal import generate_live_journal
             generate_live_journal()
             print("  📊 Reconciled active trades and updated SkonVault_Live_Transaction_Journal.xlsx!")
