@@ -604,10 +604,17 @@ def execute_tradier_live_entry(
         _broadcast_to_anna("AUTH_FAILURE", str(ex_auth), {"account": "tradier_live"})
         return None
 
-    # Audit active positions
+    # Audit active positions + pending working orders
     pos = client.get_positions()
     short_puts = [p for p in pos if float(p.get("quantity", 0)) < 0 and "P0" in p.get("symbol", "")]
     active_spread_count = len(short_puts)
+    try:
+        from order_fill_tracker import load_pending_orders
+        for po in load_pending_orders():
+            st = str(po.get("status", "")).lower()
+            if "tradier" in str(po.get("account", "")).lower() and st in ["working", "new", "pending", "resting"]:
+                active_spread_count += 1
+    except Exception: pass
     max_spreads = 2
     min_bp_required = 500.0
 
@@ -787,7 +794,33 @@ def execute_tradier_live_entry(
             "status": status,
             "limit_credit": limit_credit
         })
-        return {"symbol": sym, "order_id": order_id, "status": status, "credit": limit_credit, "account": "tradier_live"}
+        res_data = {"symbol": sym, "order_id": order_id, "status": status, "credit": limit_credit, "account": "tradier_live"}
+
+        # ── TRADIER MULTI-CANDIDATE DUAL DISPATCH (RULE-098 & Slot 2 Utilization) ──────
+        # If Tradier entered Candidate #1 and still has an open slot (< max_spreads)
+        # and sufficient Option Buying Power (>= $500), dispatch Candidate #2 from an uncorrelated asset.
+        try:
+            refreshed_info = client.get_account()
+            refreshed_bp = float(refreshed_info.get("option_buying_power", 0))
+            if (active_spread_count + 1) < max_spreads and refreshed_bp >= min_bp_required:
+                print(f"\n  📊 TRADIER DUAL DISPATCH HEADROOM CHECK: Buying Power: ${refreshed_bp:,.2f} >= ${min_bp_required:.2f} floor!")
+                c2_pool = [c for c in sprint_cands if c.get("symbol") != sym and c.get("symbol") not in portfolio_tickers]
+                c1_theme = target_cand.get("theme")
+                uncorrelated_c2 = [c for c in c2_pool if c.get("theme") != c1_theme]
+                ranked_c2 = uncorrelated_c2 if uncorrelated_c2 else c2_pool
+
+                if ranked_c2:
+                    c2 = ranked_c2[0]
+                    c2_sym = c2.get("symbol")
+                    print(f"  🚀 TRADIER FIRING CANDIDATE #2 (SLOT 2): {c2_sym} ({c2.get('theme')})")
+                    updated_tickers = set(portfolio_tickers) | {sym}
+                    sub_res2 = execute_tradier_live_entry(ranked_c2, now_ict, base_dir, updated_tickers)
+                    if sub_res2:
+                        res_data["secondary_trade"] = sub_res2
+        except Exception as ex_tr_dual:
+            print(f"  ℹ️ Tradier Dual Dispatch notice: {ex_tr_dual}")
+
+        return res_data
     except Exception as e:
         print(f"  🔴 Tradier Live Submission Error: {e}")
         return None

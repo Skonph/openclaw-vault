@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-29 21:46 ICT",
-  "subject": "ORDER_RESOLVED_STANDOFF_CLOSED_AVGO",
-  "message": "Fallback Stand Down: Zero viable candidates above MAC floor. Portfolio in settled USD cash reserve (>=35% floor)."
+  "timestamp": "2026-10-02 09:29 ICT",
+  "subject": "ORDER_SUBMITTED_FALLBACK_RELAY_XLF",
+  "message": "Fallback Deployed: 1C XLF ($48P/$46P) @ $0.35 in TRADIER_LIVE."
 }

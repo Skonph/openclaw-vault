@@ -454,7 +454,7 @@ def run_stage1_nudge():
             print(f"  🔴 Failed to replace order: {msg}")
 
 
-def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_order: Dict[str, Any]):
+def _execute_rule081_fallback_relay(client: Any, account: str, aborted_order: Dict[str, Any]):
     """
     RULE-081: Autonomous Fallback Relay Engine.
     When a candidate aborts due to MAC floor failure or flow drop:
@@ -463,21 +463,36 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
     3. Scans surviving candidates in verified_universe_catalog.json with live quotes.
     4. Enforces live Net Credit >= MAC floor.
     5. Weights and ranks using the 5-factor scoring model.
-    6. Automatically submits the #1 surviving fallback winner to prevent idle cash drag.
+    6. Automatically submits the #1 surviving fallback winner on Alpaca or Tradier Live
+       to eliminate idle cash drag.
     """
     now_ict = datetime.datetime.now().strftime("%Y-%m-%d %H:%M ICT")
     base_dir = _get_base_dir()
     aborted_sym = aborted_order.get("symbol", "").upper()
     contracts = int(aborted_order.get("contracts", 2))
+    is_tradier = _is_tradier_order(aborted_order) or "tradier" in account.lower()
 
-    print(f"\n🔄 RULE-081: ACTIVATING AUTONOMOUS FALLBACK RELAY (Quarantining {aborted_sym})...")
+    print(f"\n🔄 RULE-081: ACTIVATING AUTONOMOUS FALLBACK RELAY (Account: {account.upper()} | Quarantining {aborted_sym})...")
 
-    # 1. Quarantine aborted symbol + active portfolio positions
+    # 1. Quarantine aborted symbol + active portfolio positions across all accounts
     quarantine_symbols = {aborted_sym}
-    for acct_type in ["pion_main", "pion2_sub"]:
+    for acct_type in ["alpaca_live", "pion_main", "pion2_sub"]:
         try:
             cli = AlpacaClient(acct_type)
             for p in cli.get_positions():
+                sym_raw = p.get("symbol", "")
+                m = re.match(r"^([A-Z]+)", sym_raw)
+                if m:
+                    quarantine_symbols.add(m.group(1))
+                elif sym_raw:
+                    quarantine_symbols.add(sym_raw)
+        except Exception:
+            pass
+
+    if TradierClient:
+        try:
+            t_chk = TradierClient("live" if "live" in account.lower() else "sandbox")
+            for p in t_chk.get_positions():
                 sym_raw = p.get("symbol", "")
                 m = re.match(r"^([A-Z]+)", sym_raw)
                 if m:
@@ -509,77 +524,182 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
 
     viable_candidates = []
 
-    for theme, cands in catalog.items():
-        for cand in cands:
-            sym = cand.get("symbol", "").upper()
-            if sym in quarantine_symbols:
-                continue
+    if is_tradier:
+        t_client = client if hasattr(client, "execute_vertical_spread") else (TradierClient("live" if "live" in account.lower() else "sandbox") if TradierClient else None)
+        if not t_client:
+            print("  ⚠️ TradierClient unavailable for Tradier fallback relay.")
+            return
 
-            # Dynamically derive strikes from live spot (RULE-081)
-            cur_spot = 0.0
-            try:
-                from live_spot import get_spot
-                s_data = get_spot(sym)
-                cur_spot = float(s_data.get("price", 0.0)) if s_data else 0.0
-            except Exception:
+        for theme, cands in catalog.items():
+            for cand in cands:
+                sym = cand.get("symbol", "").upper()
+                if sym in quarantine_symbols:
+                    continue
+
                 cur_spot = 0.0
-            if cur_spot <= 0:
                 try:
-                    bbar = client.get_latest_bar(sym) if hasattr(client, 'get_latest_bar') else None
-                    cur_spot = float(bbar.get("c", 0.0)) if bbar else 0.0
+                    from live_spot import get_spot
+                    s_data = get_spot(sym)
+                    cur_spot = float(s_data.get("price", 0.0)) if s_data else 0.0
                 except Exception:
                     cur_spot = 0.0
+                if cur_spot <= 0:
+                    try:
+                        q_data = t_client.get_quotes([sym])
+                        if q_data:
+                            cur_spot = float(q_data[0].get("last") or q_data[0].get("bid") or 0.0)
+                    except Exception:
+                        cur_spot = 0.0
 
-            w = float(cand.get("width", 5.0))
-            if cur_spot > 0:
+                if cur_spot <= 0:
+                    continue
+
+                cand_w = float(cand.get("width", 5.0))
+                w = min(5.0, cand_w) if cand_w > 0 else 5.0
+                if sym in ["XLF", "SLV"]:
+                    w = 2.0
+
                 step = 1.0 if cur_spot < 100 else 5.0
                 s = round((cur_spot * 0.95) / step) * step
                 l = s - w
-            else:
-                print(f"  ⚠️ Skipping {sym} in fallback relay: live spot unavailable.")
-                continue
+                if s <= 0 or l <= 0:
+                    continue
 
-            if s <= 0:
-                continue
+                try:
+                    expirations = t_client.get_option_expirations(sym)
+                    if not expirations:
+                        continue
+                    today = datetime.date.today()
+                    dtes = []
+                    for e in expirations:
+                        try:
+                            d = (datetime.datetime.strptime(e, "%Y-%m-%d").date() - today).days
+                            if 8 <= d <= 35:
+                                dtes.append((e, d))
+                        except Exception: pass
+                    if not dtes:
+                        continue
+                    target_exp = min(dtes, key=lambda x: abs(x[1] - 14))[0]
 
-            # Target dynamic expiration: pass None so resolve_spread_pair resolves active 14-45 DTE Friday
-            resolved = client.resolve_spread_pair(sym, s, width=w, require_live_bid=False, target_expiration=None)
-            if not resolved:
-                continue
+                    chain = t_client.get_option_chain(sym, target_exp, greeks=True)
+                    s_opt = next((o for o in chain if o.get("option_type") == "put" and abs(float(o.get("strike", 0)) - s) < 0.05), None)
+                    l_opt = next((o for o in chain if o.get("option_type") == "put" and abs(float(o.get("strike", 0)) - l) < 0.05), None)
 
-            quotes = client.get_option_snapshot([resolved["short_sym"], resolved["long_sym"]])
-            s_bid = quotes.get(resolved["short_sym"], {}).get("bid", 0.0)
-            l_ask = quotes.get(resolved["long_sym"], {}).get("ask", 0.0)
-            net = round(s_bid - l_ask, 2)
-            mac = calculate_mac_floor(w)
+                    if not s_opt or not l_opt:
+                        continue
 
-            if net >= mac:
-                # 5-factor scoring model
-                box_score = 25.0
-                div_score = 20.0  # Zero overlap with active holdings
-                cot_score = round((theme_cot_scores.get(theme, 80.0) / 100.0) * 20.0, 1)
-                roc_pct = (net / w) * 100.0
-                is_core = sym in ["SPY", "QQQ", "XLF", "GLD", "NVDA"]
-                yield_score = 20.0 if (is_core or roc_pct >= 10.0) else 18.0
-                safety_score = 15.0
-                skew_bonus = 10.0 if sym in ["GE", "AMD", "TSM", "NVDA", "AVGO", "LMT"] else 5.0
+                    s_bid = float(s_opt.get("bid") or 0.0)
+                    s_ask = float(s_opt.get("ask") or s_bid)
+                    l_bid = float(l_opt.get("bid") or 0.0)
+                    l_ask = float(l_opt.get("ask") or 0.0)
+                    if s_bid <= 0 or l_ask <= 0:
+                        continue
 
-                total_score = round(box_score + div_score + cot_score + yield_score + safety_score + skew_bonus, 2)
+                    net = round(s_bid - l_ask, 2)
+                    mac = calculate_mac_floor(w)
 
-                viable_candidates.append({
-                    "symbol": sym,
-                    "theme": theme,
-                    "short_strike": s,
-                    "long_strike": l,
-                    "width": w,
-                    "exp_date": resolved["exp_date"],
-                    "short_sym": resolved["short_sym"],
-                    "long_sym": resolved["long_sym"],
-                    "net_credit": net,
-                    "mac_floor": mac,
-                    "total_score": total_score,
-                    "roc_pct": roc_pct
-                })
+                    if net >= mac:
+                        box_score = 25.0
+                        div_score = 20.0
+                        cot_score = round((theme_cot_scores.get(theme, 80.0) / 100.0) * 20.0, 1)
+                        roc_pct = (net / w) * 100.0
+                        is_core = sym in ["SPY", "QQQ", "XLF", "GLD", "NVDA"]
+                        yield_score = 20.0 if (is_core or roc_pct >= 10.0) else 18.0
+                        safety_score = 15.0
+                        skew_bonus = 10.0 if sym in ["GE", "AMD", "TSM", "NVDA", "AVGO", "LMT"] else 5.0
+                        total_score = round(box_score + div_score + cot_score + yield_score + safety_score + skew_bonus, 2)
+
+                        viable_candidates.append({
+                            "symbol": sym,
+                            "theme": theme,
+                            "short_strike": s,
+                            "long_strike": l,
+                            "width": w,
+                            "exp_date": target_exp,
+                            "short_sym": s_opt.get("symbol"),
+                            "long_sym": l_opt.get("symbol"),
+                            "net_credit": net,
+                            "mac_floor": mac,
+                            "total_score": total_score,
+                            "roc_pct": roc_pct,
+                            "s_bid": s_bid,
+                            "s_ask": s_ask,
+                            "l_bid": l_bid,
+                            "l_ask": l_ask
+                        })
+                except Exception:
+                    continue
+    else:
+        for theme, cands in catalog.items():
+            for cand in cands:
+                sym = cand.get("symbol", "").upper()
+                if sym in quarantine_symbols:
+                    continue
+
+                cur_spot = 0.0
+                try:
+                    from live_spot import get_spot
+                    s_data = get_spot(sym)
+                    cur_spot = float(s_data.get("price", 0.0)) if s_data else 0.0
+                except Exception:
+                    cur_spot = 0.0
+                if cur_spot <= 0:
+                    try:
+                        bbar = client.get_latest_bar(sym) if hasattr(client, 'get_latest_bar') else None
+                        cur_spot = float(bbar.get("c", 0.0)) if bbar else 0.0
+                    except Exception:
+                        cur_spot = 0.0
+
+                w = float(cand.get("width", 5.0))
+                if cur_spot > 0:
+                    step = 1.0 if cur_spot < 100 else 5.0
+                    s = round((cur_spot * 0.95) / step) * step
+                    l = s - w
+                else:
+                    print(f"  ⚠️ Skipping {sym} in fallback relay: live spot unavailable.")
+                    continue
+
+                if s <= 0:
+                    continue
+
+                # Target dynamic expiration: pass None so resolve_spread_pair resolves active 14-45 DTE Friday
+                resolved = client.resolve_spread_pair(sym, s, width=w, require_live_bid=False, target_expiration=None)
+                if not resolved:
+                    continue
+
+                quotes = client.get_option_snapshot([resolved["short_sym"], resolved["long_sym"]])
+                s_bid = quotes.get(resolved["short_sym"], {}).get("bid", 0.0)
+                l_ask = quotes.get(resolved["long_sym"], {}).get("ask", 0.0)
+                net = round(s_bid - l_ask, 2)
+                mac = calculate_mac_floor(w)
+
+                if net >= mac:
+                    # 5-factor scoring model
+                    box_score = 25.0
+                    div_score = 20.0  # Zero overlap with active holdings
+                    cot_score = round((theme_cot_scores.get(theme, 80.0) / 100.0) * 20.0, 1)
+                    roc_pct = (net / w) * 100.0
+                    is_core = sym in ["SPY", "QQQ", "XLF", "GLD", "NVDA"]
+                    yield_score = 20.0 if (is_core or roc_pct >= 10.0) else 18.0
+                    safety_score = 15.0
+                    skew_bonus = 10.0 if sym in ["GE", "AMD", "TSM", "NVDA", "AVGO", "LMT"] else 5.0
+
+                    total_score = round(box_score + div_score + cot_score + yield_score + safety_score + skew_bonus, 2)
+
+                    viable_candidates.append({
+                        "symbol": sym,
+                        "theme": theme,
+                        "short_strike": s,
+                        "long_strike": l,
+                        "width": w,
+                        "exp_date": resolved["exp_date"],
+                        "short_sym": resolved["short_sym"],
+                        "long_sym": resolved["long_sym"],
+                        "net_credit": net,
+                        "mac_floor": mac,
+                        "total_score": total_score,
+                        "roc_pct": roc_pct
+                    })
 
     if not viable_candidates:
         print(f"  🛡️ RULE-081: Zero alternative candidates meet MAC Floor. Standing down safely in cash.")
@@ -612,62 +732,102 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
 
     print(f"  🏆 RULE-081 FALLBACK WINNER: {winner['symbol']} ({winner['total_score']:.1f} pts | Credit: ${winner['net_credit']:.2f} | ROC: {winner['roc_pct']:.1f}%)")
 
-    # Sizing check for target account
-    target_risk = 1200.0 if account == "pion2_sub" else 4000.0
-    final_contracts = max(1, min(contracts, int(target_risk / (winner["width"] * 100.0))))
+    if is_tradier:
+        t_client = client if hasattr(client, "execute_vertical_spread") else (TradierClient("live" if "live" in account.lower() else "sandbox") if TradierClient else None)
+        final_contracts = 1
+        s_bid = winner.get("s_bid", 0.0)
+        s_ask = winner.get("s_ask", 0.0)
+        l_bid = winner.get("l_bid", 0.0)
+        l_ask = winner.get("l_ask", 0.0)
+        nat_credit = round(s_bid - l_ask, 2)
+        s_mid = (s_bid + s_ask) / 2.0
+        l_mid = (l_bid + l_ask) / 2.0
+        mid_credit = round(s_mid - l_mid, 2)
+        spread_gap = max(0.0, round(mid_credit - nat_credit, 2))
 
-    # Fetch live quotes for winner to calculate Optimal EV Limit (RULE-081 + RULE-075 Ladder Alignment)
-    quotes = client.get_option_snapshot([winner["short_sym"], winner["long_sym"]])
-    s_bid = quotes.get(winner["short_sym"], {}).get("bid", 0.0)
-    s_ask = quotes.get(winner["short_sym"], {}).get("ask", 0.0)
-    l_bid = quotes.get(winner["long_sym"], {}).get("bid", 0.0)
-    l_ask = quotes.get(winner["long_sym"], {}).get("ask", 0.0)
+        if spread_gap > 0.05 and nat_credit > 0:
+            optimal_fallback_limit = max(winner["mac_floor"], round(nat_credit + 0.40 * spread_gap, 2))
+        else:
+            optimal_fallback_limit = max(winner["mac_floor"], mid_credit)
 
-    nat_credit = round(s_bid - l_ask, 2)
-    s_mid = (s_bid + s_ask) / 2.0
-    l_mid = (l_bid + l_ask) / 2.0
-    mid_credit = round(s_mid - l_mid, 2)
-    spread_gap = max(0.0, round(mid_credit - nat_credit, 2))
+        print(f"  🎯 Submitting Fallback {winner['symbol']} to TRADIER LIVE at Optimal EV Limit: ${optimal_fallback_limit:.2f}")
 
-    # Apply identical RULE-075 Stage 1 EV Sweet Spot: Concede 60% gap, keep 40% price improvement
-    if spread_gap > 0.05 and nat_credit > 0:
-        optimal_fallback_limit = max(winner["mac_floor"], round(nat_credit + 0.40 * spread_gap, 2))
-    else:
-        optimal_fallback_limit = max(winner["mac_floor"], mid_credit)
-
-    print(f"  🎯 Submitting Fallback {winner['symbol']} at Optimal EV Limit: ${optimal_fallback_limit:.2f} (Mid: ${mid_credit:.2f} | Nat: ${nat_credit:.2f})")
-
-    # Atomic Multi-Leg Order Submission at Optimal EV Limit
-    mleg_payload = {
-        "order_class": "mleg",
-        "type": "limit",
-        "time_in_force": "day",
-        "legs": [
-            {"symbol": winner["short_sym"], "ratio_qty": 1, "side": "sell", "position_intent": "sell_to_open"},
-            {"symbol": winner["long_sym"], "ratio_qty": 1, "side": "buy", "position_intent": "buy_to_open"}
-        ],
-        "qty": str(final_contracts),
-        "limit_price": f"-{optimal_fallback_limit:.2f}"
-    }
-
-    try:
-        req_mleg = urllib.request.Request(
-            f"{client.base_url}/v2/orders",
-            data=json.dumps(mleg_payload).encode("utf-8"),
-            headers=client._headers()
-        )
-        with urllib.request.urlopen(req_mleg, context=client.ssl_ctx, timeout=10) as r_mleg:
-            resp_mleg = json.loads(r_mleg.read().decode())
-            new_oid = resp_mleg.get("id")
-            success = bool(new_oid)
-            oids = [new_oid] if new_oid else []
+        try:
+            res_tr = t_client.execute_vertical_spread(
+                symbol=winner["symbol"],
+                short_occ=winner["short_sym"],
+                long_occ=winner["long_sym"],
+                qty=final_contracts,
+                limit_credit=optimal_fallback_limit,
+                duration="day"
+            )
+            new_oid = str(res_tr.get("order_id", ""))
+            success = bool(new_oid and new_oid != "None")
+            oids = [new_oid] if success else []
             cred = optimal_fallback_limit
-            msg = f"Placed {final_contracts}C {winner['symbol']} Fallback @ ${optimal_fallback_limit:.2f}"
-    except Exception as ex_mleg:
-        success = False
-        oids = []
-        cred = optimal_fallback_limit
-        msg = f"Fallback submission failed: {ex_mleg}"
+            msg = f"Placed Tradier {final_contracts}C {winner['symbol']} Fallback @ ${optimal_fallback_limit:.2f}"
+        except Exception as ex_tr:
+            success = False
+            oids = []
+            cred = optimal_fallback_limit
+            msg = f"Tradier fallback submission failed: {ex_tr}"
+    else:
+        # Sizing check for target account (Alpaca)
+        target_risk = 1200.0 if account == "pion2_sub" else 4000.0
+        final_contracts = max(1, min(contracts, int(target_risk / (winner["width"] * 100.0))))
+
+        # Fetch live quotes for winner to calculate Optimal EV Limit (RULE-081 + RULE-075 Ladder Alignment)
+        quotes = client.get_option_snapshot([winner["short_sym"], winner["long_sym"]])
+        s_bid = quotes.get(winner["short_sym"], {}).get("bid", 0.0)
+        s_ask = quotes.get(winner["short_sym"], {}).get("ask", 0.0)
+        l_bid = quotes.get(winner["long_sym"], {}).get("bid", 0.0)
+        l_ask = quotes.get(winner["long_sym"], {}).get("ask", 0.0)
+
+        nat_credit = round(s_bid - l_ask, 2)
+        s_mid = (s_bid + s_ask) / 2.0
+        l_mid = (l_bid + l_ask) / 2.0
+        mid_credit = round(s_mid - l_mid, 2)
+        spread_gap = max(0.0, round(mid_credit - nat_credit, 2))
+
+        # Apply identical RULE-075 Stage 1 EV Sweet Spot: Concede 60% gap, keep 40% price improvement
+        if spread_gap > 0.05 and nat_credit > 0:
+            optimal_fallback_limit = max(winner["mac_floor"], round(nat_credit + 0.40 * spread_gap, 2))
+        else:
+            optimal_fallback_limit = max(winner["mac_floor"], mid_credit)
+
+        print(f"  🎯 Submitting Fallback {winner['symbol']} at Optimal EV Limit: ${optimal_fallback_limit:.2f} (Mid: ${mid_credit:.2f} | Nat: ${nat_credit:.2f})")
+
+        # Atomic Multi-Leg Order Submission at Optimal EV Limit
+        mleg_payload = {
+            "order_class": "mleg",
+            "type": "limit",
+            "time_in_force": "day",
+            "legs": [
+                {"symbol": winner["short_sym"], "ratio_qty": 1, "side": "sell", "position_intent": "sell_to_open"},
+                {"symbol": winner["long_sym"], "ratio_qty": 1, "side": "buy", "position_intent": "buy_to_open"}
+            ],
+            "qty": str(final_contracts),
+            "limit_price": f"-{optimal_fallback_limit:.2f}"
+        }
+
+        try:
+            req_mleg = urllib.request.Request(
+                f"{client.base_url}/v2/orders",
+                data=json.dumps(mleg_payload).encode("utf-8"),
+                headers=client._headers()
+            )
+            with urllib.request.urlopen(req_mleg, context=client.ssl_ctx, timeout=10) as r_mleg:
+                resp_mleg = json.loads(r_mleg.read().decode())
+                new_oid = resp_mleg.get("id")
+                success = bool(new_oid)
+                oids = [new_oid] if new_oid else []
+                cred = optimal_fallback_limit
+                msg = f"Placed {final_contracts}C {winner['symbol']} Fallback @ ${optimal_fallback_limit:.2f}"
+        except Exception as ex_mleg:
+            success = False
+            oids = []
+            cred = optimal_fallback_limit
+            msg = f"Fallback submission failed: {ex_mleg}"
 
     if success and oids:
         new_oid = oids[0]
@@ -682,7 +842,8 @@ def _execute_rule081_fallback_relay(client: AlpacaClient, account: str, aborted_
             contracts=final_contracts,
             exp_date=winner["exp_date"],
             order_id=new_oid,
-            limit_credit=cred
+            limit_credit=cred,
+            broker_type="tradier" if is_tradier else "alpaca"
         )
         roc_fallback = (cred / winner["width"]) * 100.0
         send_telegram(
@@ -810,8 +971,12 @@ def run_stage2_conviction_trigger():
                 f"⚠️ Reason: UOA Sweep #2 showed flow breakdown ({bias} | Vol/OI {uoa_ratio:.2f}x).\n"
                 f"🛡️ Action: Order cancelled. Capital 100% preserved in settled USD Cash Reserve."
             )
-            # RULE-081: Autonomous Fallback Relay (skip if Tradier to maintain satellite isolation)
-            if not _is_tradier_order(order):
+            # RULE-081: Autonomous Fallback Relay across Alpaca and Tradier Live
+            if _is_tradier_order(order):
+                t_cli = TradierClient("live" if "live" in acct.lower() else "sandbox") if TradierClient else None
+                if t_cli:
+                    _execute_rule081_fallback_relay(t_cli, acct, order)
+            else:
                 client = AlpacaClient(acct)
                 _execute_rule081_fallback_relay(client, acct, order)
             continue
@@ -856,8 +1021,12 @@ def run_stage2_conviction_trigger():
                 f"⚠️ Reason: Marketable Credit (${natural_credit:.2f}) < MAC Floor (${mac_floor:.2f}).\n"
                 f"🛡️ Action: Spread bid-ask blown out. Cancelled safely to prevent poor risk-reward."
             )
-            # RULE-081: Autonomous Fallback Relay (skip if Tradier)
-            if not _is_tradier_order(order):
+            # RULE-081: Autonomous Fallback Relay across Alpaca and Tradier Live
+            if _is_tradier_order(order):
+                t_cli = TradierClient("live" if "live" in acct.lower() else "sandbox") if TradierClient else None
+                if t_cli:
+                    _execute_rule081_fallback_relay(t_cli, acct, order)
+            else:
                 client = AlpacaClient(acct)
                 _execute_rule081_fallback_relay(client, acct, order)
             continue
