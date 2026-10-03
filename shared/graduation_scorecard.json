@@ -1,17 +1,36 @@
 {
-  "timestamp": "2026-10-02T00:15:01Z",
-  "updated_at_ict": "2026-10-02 07:15 ICT",
+  "timestamp": "2026-10-03T14:51:29Z",
+  "updated_at_ict": "2026-10-03 21:51 ICT",
   "mode": "OPTION_A_PURE_LIVE",
   "live_production_progress": {
-    "total_liquid_cash": 33986.02,
-    "current_combined_equity": 31548.02,
+    "total_liquid_cash": 33271.1,
+    "current_combined_equity": 32650.1,
     "monthly_target_net_cash": 5766.0,
     "monthly_target_pct": "18%+ Target (>=12% Floor)",
     "monthly_floor_net_cash": 3844.0,
     "weekly_velocity_target": 1441.5,
     "weekly_velocity_floor": 961.0,
-    "cash_defense_floor": 11249.0,
-    "max_margin_envelope": 20891.0,
+    "cash_defense_floor": 9981.33,
+    "max_margin_envelope": 23289.77,
+    "realized_pnl_benchmarks": {
+      "source": "live_broker_fills",
+      "wtd_realized_pnl": 671.0,
+      "wtd_pacing_target": 1441.5,
+      "wtd_target_pct": 46.5,
+      "wtd_floor_pct": 69.8,
+      "mtd_realized_pnl": 667.0,
+      "mtd_target_pct": 11.6,
+      "all_time_realized_pnl": 638.0,
+      "all_time_closed_trades": 10,
+      "all_time_wins": 8,
+      "all_time_losses": 2,
+      "all_time_win_rate_pct": 80.0,
+      "active_pipeline_credit": 559.0,
+      "projected_wtd_pnl": 1230.0,
+      "projected_target_pct": 85.3,
+      "projected_floor_pct": 128.0,
+      "velocity_badge": "\ud83d\udee1\ufe0f ON TRACK FOR FLOOR (PROJECTED \u226512.0%)"
+    },
     "quarantined_accounts": {
       "ibkr": {
         "account_number": "U25439978",
@@ -23,27 +42,21 @@
   },
   "accounts": {
     "alpaca_live": {
-      "equity": 29467.67,
-      "cash": 31821.67,
-      "positions_count": 8,
+      "equity": 30540.62,
+      "cash": 31077.62,
+      "positions_count": 2,
       "open_positions": [
-        "AVGO261016P00305000",
-        "AVGO261016P00335000",
-        "QQQ261016P00675000",
-        "QQQ261016P00700000",
-        "TSM261016P00425000",
         "TSM261016P00435000",
-        "XLE261016P00058000",
-        "XLE261016P00060000"
+        "TSM261016P00445000"
       ]
     },
     "tradier_live": {
-      "equity": 2080.35,
-      "cash": 2164.35,
+      "equity": 2109.48,
+      "cash": 2193.48,
       "positions_count": 2,
       "open_positions": [
-        "TSM261030P00420000",
-        "TSM261030P00425000"
+        "AMD261009P00600000",
+        "AMD261009P00605000"
       ]
     },
     "standby_paper": {

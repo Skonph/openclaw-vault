@@ -125,8 +125,12 @@ def run_e2e_test():
         # Enforce Width-Adaptive Rules:
         if p_w >= 30.0:
             assert p_contracts <= 3, f"Primary with width >= 30 ({p_w}) must not exceed 3 contracts"
+        elif p_w >= 20.0:
+            assert p_contracts <= 4, f"Primary with width >= 20 ({p_w}) must not exceed 4 contracts"
+        elif p_w >= 10.0:
+            assert p_contracts <= 5, f"Primary with width >= 10 ({p_w}) must not exceed 5 contracts"
         else:
-            assert p_contracts <= 4, f"Primary with width <= 25 ({p_w}) must not exceed 4 contracts"
+            assert p_contracts <= 6, f"Primary with width < 10 ({p_w}) must not exceed 6 contracts"
 
         # Enforce Single-Asset Cap (35%):
         assert p_defined_risk <= (cash * 0.35 + 1.0), f"Primary risk (${p_defined_risk}) exceeds 35% cap (${cash * 0.35})"
@@ -154,7 +158,7 @@ def run_e2e_test():
 
         # Secondary Sizing Logic from execute_golden_2115_daily_entry.py:
         s_max_allowed_risk = min(cash * 0.35, headroom)
-        s_max_c = 3 if s_w >= 30.0 else 4
+        s_max_c = 3 if s_w >= 30.0 else (4 if s_w >= 20.0 else (5 if s_w >= 10.0 else 6))
         s_contracts = min(s_max_c, int(s_max_allowed_risk // (s_w * 100.0)))
         s_defined_risk = s_contracts * s_w * 100.0
         s_cash_inflow = s_contracts * s_credit * 100.0
@@ -173,16 +177,16 @@ def run_e2e_test():
         print(f"  • Candidate #2 Rk: ${s_defined_risk:,.2f} ({s_defined_risk / cash * 100:.1f}% of Cash <= 35% Cap ✅)")
         print(f"  • Candidate #2 Up: +${s_cash_inflow:,.2f} (ROC: {s_roc:.1f}%)")
         print(f"  ────────────────────────────────────────────────────────────")
-        print(f"  • Total Deployed : ${total_risk:,.2f} ({total_pct:.1f}% of Cash <= 65% Ceiling ✅)")
-        print(f"  • Liquid Defense : ${free_cash:,.2f} ({free_pct:.1f}% Free Cash >= 35% Floor ✅)")
+        print(f"  • Total Deployed : ${total_risk:,.2f} ({total_pct:.1f}% of Cash <= 70% Ceiling ✅)")
+        print(f"  • Liquid Defense : ${free_cash:,.2f} ({free_pct:.1f}% Free Cash >= 30% Floor ✅)")
         print(f"  • Total Cash Flow: +${total_cash_inflow:,.2f} (+{portfolio_cash_yield:.2f}% Cash Yield in 1 Cycle 🚀)")
         print(f"  • FastHarvest 50%: +${fastharvest_50_tp:,.2f} Net Realized Gain Target")
 
-        assert total_risk <= margin_ceiling + 1.0, f"Total risk (${total_risk}) exceeds 65% ceiling (${margin_ceiling})"
-        assert free_cash >= cash_defense_floor - 1.0, f"Free cash (${free_cash}) below 35% defense floor (${cash_defense_floor})"
+        assert total_risk <= margin_ceiling + 1.0, f"Total risk (${total_risk}) exceeds 70% ceiling (${margin_ceiling})"
+        assert free_cash >= cash_defense_floor - 1.0, f"Free cash (${free_cash}) below 30% defense floor (${cash_defense_floor})"
 
         test_results.append(("Step 5: Dual-Dispatch Capital Envelope", "PASS", 
-                             f"Deployed: {total_pct:.1f}% <= 65% | Defense Floor: {free_pct:.1f}% >= 35% | Cash Inflow: +${total_cash_inflow:,.2f}"))
+                             f"Deployed: {total_pct:.1f}% <= 70% | Defense Floor: {free_pct:.1f}% >= 30% | Cash Inflow: +${total_cash_inflow:,.2f}"))
     except Exception as ex:
         print(f"  🔴 Step 5 Error: {ex}")
         test_results.append(("Step 5: Dual-Dispatch Capital Envelope", "FAIL", str(ex)))

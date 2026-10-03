@@ -83,9 +83,9 @@ def calculate_conviction_tiered_sizing(
     Sizing dynamically scales based on candidate score, asset class, and regime volatility,
     honoring the 30% Cash Defense Floor (70% Elastic Margin Ceiling under VIX < 22).
 
-    Tier 3 (Apex >= 90.0 pts): Full Tranche ($5,000-$6,500 Alpaca / $400-$500 Tradier)
-    Tier 2 (Solid 80.0-89.9 pts): Medium Tranche ($3,000-$3,500 Alpaca / $200-$300 Tradier)
-    Tier 1 (Defensive < 80.0 pts): Controlled Pilot ($1,500 Alpaca / $100 Tradier)
+    Tier 3 (Apex >= 85.0 pts or Broad Index): Max 3-6C Tranche (up to 32% single-asset cap)
+    Tier 2 (Solid 75.0-84.9 pts): Standard 2-5C Tranche (up to 25% single-asset cap)
+    Tier 1 (Defensive < 75.0 pts): Controlled 1C Pilot Probe
     """
     sym = candidate.get("symbol", "")
     score = float(candidate.get("effective_score") or candidate.get("total_score") or candidate.get("score") or 80.0)
@@ -101,26 +101,29 @@ def calculate_conviction_tiered_sizing(
     single_asset_cap = cash * 0.35
 
     if score >= 85.0 or is_broad_index:
-        tier_label = "TIER 3: APEX CONVICTION / INDEX ENVELOPE (MAX 3-4C TRANCHE 🚀)" if is_broad_index else "TIER 3: APEX CONVICTION (SWEET SPOT MAX 3-4C TRANCHE 🚀)"
-        # Scale defined risk up to 35% single-asset cap ($10.5k max) with width-adaptive cap:
-        # Width >= $30w: max 3 contracts ($9.0k risk = 29.5% capital)
-        # Width <= $25w: max 4 contracts ($10.0k risk = 32.8% capital <= 35% cap)
-        max_tranche = min(10500.0, single_asset_cap) if is_live_alpaca else (500.0 if is_tradier else 3000.0)
-        max_width_cap = 3 if width >= 30.0 else 4
+        tier_label = "TIER 3: APEX CONVICTION / INDEX ENVELOPE (MAX 3-6C TRANCHE 🚀)" if is_broad_index else "TIER 3: APEX CONVICTION (SWEET SPOT MAX 3-6C TRANCHE 🚀)"
+        # Scale defined risk up to 35% single-asset cap ($11.6k max on $33.2k) with width-adaptive cap:
+        # Width >= $30w: max 3 contracts ($9.0k risk)
+        # Width >= $20w: max 4 contracts ($8.0k - $10.0k risk)
+        # Width >= $10w: max 5 contracts ($5.0k - $7.5k risk)
+        # Width <  $10w: max 6 contracts ($1.2k - $3.0k risk)
+        max_tranche = min(11600.0, single_asset_cap) if is_live_alpaca else (500.0 if is_tradier else 3000.0)
+        max_width_cap = 3 if width >= 30.0 else (4 if width >= 20.0 else (5 if width >= 10.0 else 6))
         max_contracts = max_width_cap if is_live_alpaca else (1 if width >= 5.0 else 2)
     elif score >= 75.0:
-        tier_label = "TIER 2: SOLID PRODUCTION (STANDARD 2-3C TRANCHE ⚖️)"
-        max_tranche = min(7500.0, single_asset_cap) if is_live_alpaca else (350.0 if is_tradier else 1500.0)
-        max_contracts = 3 if is_live_alpaca else (1 if width >= 5.0 else 2)
+        tier_label = "TIER 2: SOLID PRODUCTION (STANDARD 2-5C TRANCHE ⚖️)"
+        max_tranche = min(8500.0, single_asset_cap) if is_live_alpaca else (350.0 if is_tradier else 1500.0)
+        max_width_cap = 2 if width >= 30.0 else (3 if width >= 20.0 else (4 if width >= 10.0 else 5))
+        max_contracts = max_width_cap if is_live_alpaca else (1 if width >= 5.0 else 2)
     else:
         tier_label = "TIER 1: DEFENSIVE PILOT (CONTROLLED 1C PROBE 🛡️)"
-        max_tranche = min(3000.0, single_asset_cap) if is_live_alpaca else (150.0 if is_tradier else 1000.0)
+        max_tranche = min(3500.0, single_asset_cap) if is_live_alpaca else (150.0 if is_tradier else 1000.0)
         max_contracts = 1 if is_live_alpaca else 1
 
-    # Absolute bounds: Never exceed 35% single-asset cap, 65% total cash envelope, or buying power
+    # Absolute bounds: Never exceed 35% single-asset cap, 70% total cash envelope, or buying power
     target_risk = min(max_tranche, single_asset_cap, cash * margin_ceiling_pct, bp)
     contracts = max(1, int(target_risk / (width * 100.0)))
-    hard_contract_ceiling = 3 if width >= 30.0 else 4
+    hard_contract_ceiling = 3 if width >= 30.0 else (4 if width >= 20.0 else (5 if width >= 10.0 else 6))
     contracts = min(contracts, max_contracts, hard_contract_ceiling)
     if is_tradier:
         # Sweet-Spot Fee Efficiency: 1 contract on $5w/$10w, max 2 contracts on $2w
@@ -175,9 +178,9 @@ def execute_account_entry(
         min_bp_required = 1500.0
     elif account_name == "tradier_live":
         max_spreads = 2
-        min_bp_required = 500.0
+        min_bp_required = 400.0
     elif account_name == "pion_main":
-        max_spreads = 4
+        max_spreads = 5  # Elevated to 5 concurrent active spreads for 70% multi-asset deployment
         min_bp_required = 1000.0
     else:  # pion2_sub
         max_spreads = 2
@@ -474,8 +477,8 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
         except Exception: pass
         print(f"  📢 Passive Handoff Telegram & Bridge Alert Dispatched for {account_name.upper()}!")
 
-    # ── MULTI-CANDIDATE DUAL DISPATCH (RULE-098 & 65% Portfolio Ceiling) ──────
-    # If Candidate #1 occupied up to 35% and total capital allocation is still < 65%,
+    # ── MULTI-CANDIDATE DUAL DISPATCH (RULE-098 & 70% Portfolio Ceiling) ──────
+    # If Candidate #1 occupied up to 35% and total capital allocation is still < 70%,
     # consider and dispatch Candidate #2 from an uncorrelated qualified asset.
     try:
         deployed_pct = total_risk / cash if cash > 0 else 0.0
@@ -485,7 +488,7 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
 
         if deployed_pct < margin_ceiling_pct and (active_spread_count + pending_count + 1) < max_spreads:
             available_headroom = (margin_ceiling_pct * cash) - total_risk
-            print(f"     • Capital Headroom Available to 65% Ceiling: ${available_headroom:,.2f}")
+            print(f"     • Capital Headroom Available to 70% Ceiling: ${available_headroom:,.2f}")
 
             # Filter remaining candidates: different symbol, not currently held, and strictly passing all gates
             c1_theme = valid_otm_cands[0].get("theme")
@@ -505,9 +508,9 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
                 c2_short_strike = float(c2.get("short_strike", 0))
                 c2_long_strike = float(c2.get("long_strike", 0))
 
-                # Calculate sizing for Candidate #2: Width-Adaptive cap (3C if width >= 30, else 4C), capped by 35% single-asset cap & 65% ceiling
+                # Calculate sizing for Candidate #2: Width-Adaptive cap, capped by 35% single-asset cap & 70% ceiling headroom
                 c2_max_allowed_risk = min(cash * 0.35, available_headroom)
-                c2_max_c = 3 if c2_w >= 30.0 else 4
+                c2_max_c = 3 if c2_w >= 30.0 else (4 if c2_w >= 20.0 else (5 if c2_w >= 10.0 else 6))
                 c2_contracts = min(c2_max_c, int(c2_max_allowed_risk // (c2_w * 100.0)))
 
                 # Refresh BP from broker
@@ -563,8 +566,8 @@ Zero phantom trades logged. Awaiting confirmed broker fill! 🛡️"""
 • Expiration     : {c2_exp}
 • Current Limit  : +${c2_cred:.2f} Credit
 • Defined Risk   : ${c2_total_risk - c2_contracts * c2_cred * 100:,.2f}
-• Combined Risk  : ${combined_risk:,.2f} ({comb_pct:.1f}% Deployed <= 65% Ceiling ✅)
-• Liquid Defense : ${free_cash:,.2f} ({free_pct:.1f}% Free Cash >= 35% Floor ✅)
+• Combined Risk  : ${combined_risk:,.2f} ({comb_pct:.1f}% Deployed <= 70% Ceiling ✅)
+• Liquid Defense : ${free_cash:,.2f} ({free_pct:.1f}% Free Cash >= 30% Floor ✅)
 • Alpaca Order ID: {c2_oid}
 • Order Status   : WORKING / RESTING ON COMPLEX BOOK ⏳
 • Tracker Engine : Armed for Stage 1/2/3 Fill Tracking 🛡️"""
@@ -747,7 +750,7 @@ def execute_tradier_live_entry(
                 active_spread_count += 1
     except Exception: pass
     max_spreads = 2
-    min_bp_required = 500.0
+    min_bp_required = 400.0
 
     if active_spread_count >= max_spreads:
         print(f"  🛑 TRADIER_LIVE AT CAPACITY: {active_spread_count} active spreads >= {max_spreads} slot limit. Standing down.")
