@@ -230,7 +230,7 @@ def calculate_mac_floor(width: float) -> float:
     - Width < $20.00 : 12.5% ROC floor ($5w -> $0.62, $2w -> $0.25, $1w -> $0.12)
     """
     roc_rate = 0.075 if width >= 20.0 else 0.125
-    return max(0.25, round(width * roc_rate, 2))
+    return max(0.12, round(width * roc_rate, 2))
 
 def register_order(
     account: str,

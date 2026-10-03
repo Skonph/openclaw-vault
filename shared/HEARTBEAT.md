@@ -1,6 +1,6 @@
 # 🟢 HEARTBEAT — ACTIVE US TRADING SESSION
 **Status:** MARKET OPEN ✅
-**Last Verified:** 2026-09-30 22:57:00 ICT
+**Last Verified:** 2026-10-02 21:00:01 ICT
 **Regime:** Live Market Active (09:30–16:00 ET / 20:30–03:30 ICT)
 
 ## Instructions:

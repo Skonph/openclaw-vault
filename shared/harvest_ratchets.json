@@ -1,14 +1,17 @@
 {
   "alpaca_live:XLE:60.0P_58.0P_2026-10-16": {
-    "high_water_profit_pct": 16.67,
+    "high_water_profit_pct": 33.33,
     "symbol": "XLE",
     "account": "alpaca_live",
-    "updated_at_ict": "2026-09-28 22:50:09 ICT"
+    "updated_at_ict": "2026-10-02 20:55:11 ICT",
+    "ratchet_active": true,
+    "ratchet_floor_pct": 20.0,
+    "activated_at_ict": "2026-10-02 01:10:24 ICT"
   },
-  "tradier_live:TSM:425.0P_420.0P_2026-10-30": {
-    "high_water_profit_pct": 16.67,
-    "symbol": "TSM",
-    "account": "tradier_live",
-    "updated_at_ict": "2026-09-29 21:45:15 ICT"
+  "alpaca_live:AVGO:335.0P_305.0P_2026-10-16": {
+    "high_water_profit_pct": 11.07,
+    "symbol": "AVGO",
+    "account": "alpaca_live",
+    "updated_at_ict": "2026-10-02 20:50:11 ICT"
   }
 }

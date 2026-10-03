@@ -30,5 +30,47 @@
     "updated_at_ict": "2026-09-29 01:55:15 ICT",
     "cooldown_until_utc": 1790622315.993289,
     "order_id": "148225820"
+  },
+  "tradier_live:META:685.0P_680.0P_2026-10-09": {
+    "spread_key": "tradier_live:META:685.0P_680.0P_2026-10-09",
+    "status": "IN_PROGRESS",
+    "updated_at_ict": "2026-09-30 23:15:27 ICT",
+    "cooldown_until_utc": 1790785527.988037,
+    "order_id": "148586317"
+  },
+  "alpaca_live:QQQ:775.0C_800.0C_2026-10-16": {
+    "spread_key": "alpaca_live:QQQ:775.0C_800.0C_2026-10-16",
+    "status": "COMPLETED",
+    "updated_at_ict": "2026-10-01 21:20:28 ICT",
+    "cooldown_until_utc": 1790950828.695436,
+    "order_id": "abe7dbad-96cb-4692-9ce9-01db8bf721d6"
+  },
+  "alpaca_live:NVDA:220.0P_215.0P_2026-10-12": {
+    "spread_key": "alpaca_live:NVDA:220.0P_215.0P_2026-10-12",
+    "status": "COMPLETED",
+    "updated_at_ict": "2026-10-02 02:55:17 ICT",
+    "cooldown_until_utc": 1790970917.70396,
+    "order_id": "52a40909-cac9-4ac7-85c7-1be64f7809fd"
+  },
+  "alpaca_live:QQQ:700.0P_675.0P_2026-10-16": {
+    "spread_key": "alpaca_live:QQQ:700.0P_675.0P_2026-10-16",
+    "status": "COMPLETED",
+    "updated_at_ict": "2026-10-02 20:30:21 ICT",
+    "cooldown_until_utc": 1791034221.703544,
+    "order_id": "0c3fbb2c-eb8c-4eab-b572-87b25e297020"
+  },
+  "tradier_live:TSM:425.0P_420.0P_2026-10-30": {
+    "spread_key": "tradier_live:TSM:425.0P_420.0P_2026-10-30",
+    "status": "IN_PROGRESS",
+    "updated_at_ict": "2026-10-02 20:35:15 ICT",
+    "cooldown_until_utc": 1790948715.696085,
+    "order_id": "148957664"
+  },
+  "alpaca_live:TSM:435.0P_425.0P_2026-10-16": {
+    "spread_key": "alpaca_live:TSM:435.0P_425.0P_2026-10-16",
+    "status": "COMPLETED",
+    "updated_at_ict": "2026-10-02 20:50:17 ICT",
+    "cooldown_until_utc": 1791035417.599838,
+    "order_id": "5a367c7e-2b67-443c-b7a9-0a1c37bca926"
   }
 }

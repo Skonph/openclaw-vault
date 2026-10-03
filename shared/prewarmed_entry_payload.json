@@ -1,29 +1,29 @@
 {
   "version": "TIER_3_PREWARMED_V1",
-  "generated_at_ict": "2026-09-30 21:06:16 ICT",
-  "timestamp_epoch": 1790777176.336531,
+  "generated_at_ict": "2026-10-01 21:10:05 ICT",
+  "timestamp_epoch": 1790863805.471117,
   "status": "READY_FOR_EXECUTION",
   "account": "pion_main",
   "symbol": "QQQ",
-  "short_sym": "QQQ261016P00701000",
-  "long_sym": "QQQ261016P00691000",
-  "short_strike": 701.0,
-  "long_strike": 691.0,
-  "width": 10.0,
-  "exp_date": "2026-10-16",
+  "short_sym": "QQQ261015P00700000",
+  "long_sym": "QQQ261015P00670000",
+  "short_strike": 700.0,
+  "long_strike": 670.0,
+  "width": 30.0,
+  "exp_date": "2026-10-15",
   "min_dte": 14,
-  "baseline_spot": 744.35,
-  "prewarmed_snipe_credit": 1.26,
-  "prewarmed_mid_credit": 1.25,
-  "prewarmed_natural_credit": 1.25,
+  "baseline_spot": 740.33,
+  "prewarmed_snipe_credit": 2.26,
+  "prewarmed_mid_credit": 2.25,
+  "prewarmed_natural_credit": 2.25,
   "quotes": {
     "short": {
-      "bid": 1.0,
-      "ask": 1.5
+      "bid": 1.98,
+      "ask": 2.08
     },
     "long": {
-      "bid": 0.1,
-      "ask": 0.3
+      "bid": 0.75,
+      "ask": 0.78
     }
   }
 }

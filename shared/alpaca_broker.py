@@ -706,7 +706,12 @@ class AlpacaClient:
             baseline_spot = float(prewarmed_payload.get("baseline_spot", 0.0))
             width = abs(short_strike - long_strike)
             roc_rate = 0.075 if width >= 20.0 else 0.125
-            min_roc_credit = max(0.25, round(width * roc_rate, 2))  # Width-adaptive ROC floor (7.5% on >=$20w, 12.5% on narrower)
+            min_roc_credit = max(0.12, round(width * roc_rate, 2))  # Width-adaptive ROC floor (7.5% on >=$20w, 12.5% on narrower)
+
+            # Pre-warmed credit safety check: Reject if mid credit is below ROC floor during open market
+            if self.is_market_open() and mid_credit < min_roc_credit:
+                return False, [], f"Pre-warmed mid credit ${mid_credit:.2f} < ROC floor ${min_roc_credit:.2f}", 0.0, False
+
             snipe_offset = round(snipe_credit - mid_credit, 2)
             penny_pilot = {"SPY", "QQQ", "IWM", "XLF", "NVDA", "AMD", "TSM", "AAPL", "MSFT", "AMZN", "GOOGL"}
             is_penny = symbol in penny_pilot
@@ -726,7 +731,7 @@ class AlpacaClient:
 
             width = abs(short_strike - long_strike)
             roc_rate = 0.075 if width >= 20.0 else 0.125
-            min_roc_credit = max(0.25, round(width * roc_rate, 2)) # Width-adaptive ROC floor (7.5% on >=$20w, 12.5% on narrower)
+            min_roc_credit = max(0.12, round(width * roc_rate, 2)) # Width-adaptive ROC floor (7.5% on >=$20w, 12.5% on narrower)
 
             # Penny Pilot tick calibration
             penny_pilot = {"SPY", "QQQ", "IWM", "XLF", "NVDA", "AMD", "TSM", "AAPL", "MSFT", "AMZN", "GOOGL"}
@@ -735,29 +740,37 @@ class AlpacaClient:
 
             # Get initial quotes & baseline spot
             quotes = self.get_option_snapshot([short_sym, long_sym])
-            s_bid = quotes.get(short_sym, {}).get("bid", 1.00)
-            s_ask = quotes.get(short_sym, {}).get("ask", 1.50)
-            l_bid = quotes.get(long_sym, {}).get("bid", 0.10)
-            l_ask = quotes.get(long_sym, {}).get("ask", 0.30)
+            s_bid = quotes.get(short_sym, {}).get("bid", 0.0)
+            s_ask = quotes.get(short_sym, {}).get("ask", 0.0)
+            l_bid = quotes.get(long_sym, {}).get("bid", 0.0)
+            l_ask = quotes.get(long_sym, {}).get("ask", 0.0)
 
             # Microstructure Lever 2: Skewed Liquidity Midpoint (Leg-Asymmetry Weighting)
             s_spread = max(0.01, s_ask - s_bid)
             l_spread = max(0.01, l_ask - l_bid)
             smart_s_mid = s_bid + 0.60 * s_spread
             smart_l_mid = l_ask - 0.35 * l_spread
-            smart_mid_credit = max(min_roc_credit, round(smart_s_mid - smart_l_mid, 2))
+            raw_smart_mid = round(smart_s_mid - smart_l_mid, 2)
             
             # Arithmetic reference mid & natural floor
             s_arith_mid = (s_bid + s_ask) / 2.0
             l_arith_mid = (l_bid + l_ask) / 2.0
-            arith_mid_credit = max(min_roc_credit, round(s_arith_mid - l_arith_mid, 2))
-            natural_credit = max(min_roc_credit, round(s_bid - l_ask, 2))
+            raw_arith_mid = round(s_arith_mid - l_arith_mid, 2)
+            raw_natural = round(s_bid - l_ask, 2)
 
             # Blended Midpoint: 70% Smart Skew + 30% Arithmetic Mid for optimal fill probability
-            mid_credit = max(min_roc_credit, round(0.70 * smart_mid_credit + 0.30 * arith_mid_credit, 2))
+            raw_blended_mid = round(0.70 * raw_smart_mid + 0.30 * raw_arith_mid, 2)
+
+            # ROC Floor Gate: If the true market mid cannot satisfy the ROC floor during open market,
+            # reject immediately so the waterfall engine cascades to the next candidate!
+            if self.is_market_open() and (raw_blended_mid < min_roc_credit or s_bid < 0.10):
+                return False, [], f"Raw market mid credit ${raw_blended_mid:.2f} < ROC floor ${min_roc_credit:.2f} (short bid: ${s_bid:.2f})", 0.0, False
+
+            mid_credit = max(min_roc_credit, raw_blended_mid)
+            natural_credit = max(0.10, raw_natural)
 
             # Microstructure Lever 5: Opening Spread Quality Compression Gate
-            if mid_credit > 0:
+            if mid_credit > 0 and self.is_market_open():
                 spread_ratio = natural_credit / mid_credit
                 if spread_ratio < 0.40:
                     print(f"  ⚠️ Spread Quality Warning: Nat/Mid ratio {spread_ratio:.2f} < 0.40 (Quotes wide). Stabilizing quotes...")
@@ -771,8 +784,13 @@ class AlpacaClient:
                     l_spread = max(0.01, l_ask - l_bid)
                     smart_s_mid = s_bid + 0.60 * s_spread
                     smart_l_mid = l_ask - 0.35 * l_spread
-                    mid_credit = max(min_roc_credit, round(smart_s_mid - smart_l_mid, 2))
-                    natural_credit = max(min_roc_credit, round(s_bid - l_ask, 2))
+                    raw_smart_mid = round(smart_s_mid - smart_l_mid, 2)
+                    raw_arith_mid = round(((s_bid + s_ask) / 2.0) - ((l_bid + l_ask) / 2.0), 2)
+                    raw_blended_mid = round(0.70 * raw_smart_mid + 0.30 * raw_arith_mid, 2)
+                    if raw_blended_mid < min_roc_credit:
+                        return False, [], f"Stabilized mid credit ${raw_blended_mid:.2f} < ROC floor ${min_roc_credit:.2f}", 0.0, False
+                    mid_credit = max(min_roc_credit, raw_blended_mid)
+                    natural_credit = max(0.10, round(s_bid - l_ask, 2))
 
             # Microstructure Lever 3: Top-of-Book Queue Jump (Penny-Jumper Priority)
             is_round_nickel = (round(mid_credit * 100) % 5 == 0)
@@ -1096,39 +1114,84 @@ class AlpacaClient:
         if min_dte is None:
             min_dte = 9 if self.account_type == "pion2_sub" else 14
 
-        # Fast-Path: Ingest Tier 3 Pre-Warmed Payload at T+0.00s
+        vetoed_symbols = set()
+
+        # Fast-Path: Ingest Tier 3 Pre-Warmed Payload at T+0.00s with Live Re-Validation Gate
         if prewarmed_payload and candidate_list:
             top_sym = candidate_list[0].get("symbol")
             if prewarmed_payload.get("symbol") == top_sym:
                 s_strike = float(prewarmed_payload.get("short_strike", 0))
                 l_strike = float(prewarmed_payload.get("long_strike", 0))
+                short_sym = prewarmed_payload.get("short_sym")
+                long_sym = prewarmed_payload.get("long_sym")
                 exp_date = prewarmed_payload.get("exp_date")
-                print(f"  ⚡ Waterfall TIER 3 FAST-PATH: Firing pre-warmed {contracts}C {top_sym} Spread ({s_strike}/{l_strike} Exp: {exp_date}) at T+0.00s...")
-                success, order_ids, msg, limit_credit, is_filled = self.active_micro_walk_spread(
-                    top_sym, s_strike, l_strike, contracts, exp_date=exp_date, min_dte=min_dte, prewarmed_payload=prewarmed_payload
-                )
-                if success and order_ids:
-                    res = {
-                        "symbol": top_sym,
-                        "short_sym": prewarmed_payload.get("short_sym"),
-                        "long_sym": prewarmed_payload.get("long_sym"),
-                        "short_strike": s_strike,
-                        "long_strike": l_strike,
-                        "width": abs(s_strike - l_strike),
-                        "exp_date": exp_date,
-                        "order_ids": order_ids,
-                        "limit_credit": limit_credit,
-                        "is_filled_now": is_filled,
-                        "filled_avg_price": limit_credit if is_filled else 0.0
-                    }
-                    fill_tag = "FILLED 🟢" if is_filled else "RESTING ⏳"
-                    return True, res, f"Executed pre-warmed {contracts}C {top_sym} Bull Put Spread ({s_strike}/{l_strike}) on {self.account_type}! Status: {fill_tag} | Orders: {order_ids}"
+                width = abs(s_strike - l_strike)
+                roc_rate = 0.075 if width >= 20.0 else 0.125
+                min_roc_credit = max(0.12, round(width * roc_rate, 2))
+
+                # PRE-WARM-TO-FILL CREDIT RE-VALIDATION GATE (RULE-084 / Anna Morning Digest):
+                # Instantaneous (<50ms) snapshot quote check at market open before committing fast-path payload.
+                quotes = self.get_option_snapshot([short_sym, long_sym])
+                live_s_bid = quotes.get(short_sym, {}).get("bid", 0.0)
+                live_s_ask = quotes.get(short_sym, {}).get("ask", 0.0)
+                live_l_bid = quotes.get(long_sym, {}).get("bid", 0.0)
+                live_l_ask = quotes.get(long_sym, {}).get("ask", 0.0)
+
+                live_nat_credit = round(live_s_bid - live_l_ask, 2)
+                live_arith_mid = round(((live_s_bid + live_s_ask) / 2.0) - ((live_l_bid + live_l_ask) / 2.0), 2)
+
+                # Gate check: Live bid must exist AND live mid credit must meet MAC floor
+                # If market open bid is zero, or live mid is below MAC floor, pre-warmed credit assumption broke!
+                if self.is_market_open() and (live_s_bid <= 0 or live_arith_mid < min_roc_credit or live_nat_credit < 0.10):
+                    print(f"  🛑 PRE-WARM RE-VALIDATION GATE VETO: {top_sym} Live Mid ${live_arith_mid:.2f} (Nat ${live_nat_credit:.2f}) < MAC floor ${min_roc_credit:.2f} (short bid: ${live_s_bid:.2f})!")
+                    print(f"  ⚡ Immediate Waterfall Cascade: Bypassing {top_sym} fast-path, falling back to candidate universe at T+0.05s!")
+                    vetoed_symbols.add(top_sym)
                 else:
-                    print(f"  ℹ️ Pre-warmed fast-path notice: {msg}. Falling back to standard waterfall discovery.")
+                    # Update prewarmed payload with verified live market quotes if available
+                    if live_s_bid > 0 and live_arith_mid >= min_roc_credit:
+                        s_spread = max(0.01, live_s_ask - live_s_bid)
+                        l_spread = max(0.01, live_l_ask - live_l_bid)
+                        smart_s_mid = live_s_bid + 0.60 * s_spread
+                        smart_l_mid = live_l_ask - 0.35 * l_spread
+                        live_smart_mid = round(smart_s_mid - smart_l_mid, 2)
+                        live_blended_mid = round(0.70 * live_smart_mid + 0.30 * live_arith_mid, 2)
+                        penny_pilot = {"SPY", "QQQ", "IWM", "XLF", "NVDA", "AMD", "TSM", "AAPL", "MSFT", "AMZN", "GOOGL"}
+                        is_penny = top_sym in penny_pilot
+                        is_round_nickel = (round(live_blended_mid * 100) % 5 == 0)
+                        snipe_offset = 0.01 if (is_penny and is_round_nickel) else 0.02
+                        prewarmed_payload["prewarmed_mid_credit"] = live_blended_mid
+                        prewarmed_payload["prewarmed_natural_credit"] = live_nat_credit
+                        prewarmed_payload["prewarmed_snipe_credit"] = round(live_blended_mid + snipe_offset, 2)
+
+                    print(f"  ⚡ Waterfall TIER 3 FAST-PATH: Firing pre-warmed {contracts}C {top_sym} Spread ({s_strike}/{l_strike} Exp: {exp_date}) at T+0.00s...")
+                    success, order_ids, msg, limit_credit, is_filled = self.active_micro_walk_spread(
+                        top_sym, s_strike, l_strike, contracts, exp_date=exp_date, min_dte=min_dte, prewarmed_payload=prewarmed_payload
+                    )
+                    if success and order_ids:
+                        res = {
+                            "symbol": top_sym,
+                            "short_sym": prewarmed_payload.get("short_sym"),
+                            "long_sym": prewarmed_payload.get("long_sym"),
+                            "short_strike": s_strike,
+                            "long_strike": l_strike,
+                            "width": abs(s_strike - l_strike),
+                            "exp_date": exp_date,
+                            "order_ids": order_ids,
+                            "limit_credit": limit_credit,
+                            "is_filled_now": is_filled,
+                            "filled_avg_price": limit_credit if is_filled else 0.0
+                        }
+                        fill_tag = "FILLED 🟢" if is_filled else "RESTING ⏳"
+                        return True, res, f"Executed pre-warmed {contracts}C {top_sym} Bull Put Spread ({s_strike}/{l_strike}) on {self.account_type}! Status: {fill_tag} | Orders: {order_ids}"
+                    else:
+                        print(f"  ℹ️ Pre-warmed fast-path notice: {msg}. Falling back to standard waterfall discovery.")
+                        vetoed_symbols.add(top_sym)
 
         # Pass 1: Live Bid Validation
         for cand in candidate_list:
             sym = cand.get("symbol")
+            if sym in vetoed_symbols:
+                continue
             target_short = float(cand.get("short_strike", 0))
             width = float(cand.get("width", 5.0))
             
@@ -1148,10 +1211,14 @@ class AlpacaClient:
                     resolved["filled_avg_price"] = limit_credit if is_filled else 0.0
                     fill_tag = "FILLED 🟢" if is_filled else "RESTING ⏳"
                     return True, resolved, f"Executed {contracts}C {sym} Bull Put Spread ({s_strike}/{l_strike}) on {self.account_type}! Status: {fill_tag} | Orders: {order_ids}"
+                else:
+                    print(f"  ℹ️ Waterfall Pass 1 candidate {sym} notice: {msg}")
 
         # Pass 2: Robust OSI Contract Pair Fallback
         for cand in candidate_list:
             sym = cand.get("symbol")
+            if sym in vetoed_symbols:
+                continue
             target_short = float(cand.get("short_strike", 0))
             width = float(cand.get("width", 5.0))
             

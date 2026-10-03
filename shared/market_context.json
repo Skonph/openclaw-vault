@@ -1,40 +1,40 @@
 {
-  "timestamp": "2026-09-29 21:16:53 ICT",
+  "timestamp": "2026-10-02 19:40:05 ICT",
   "market_status": "LIVE_REFRESH",
   "regime": "DEFENSIVE_RANGE",
   "quotes": {
     "SPY": {
-      "last": 764.88,
+      "last": 763.99,
       "source": "tradier",
-      "asof": "2026-09-29T21:16:07",
-      "prev_close": 765.61,
-      "change_pct": -0.1,
-      "sma20": 764.98,
-      "sma50": 762.44,
+      "asof": "2026-10-02T19:40:05",
+      "prev_close": 763.99,
+      "change_pct": 0.0,
+      "sma20": 764.91,
+      "sma50": 763.04,
       "trend": "DOWN",
-      "data_asof": "2026-09-29"
+      "data_asof": "2026-10-01"
     },
     "QQQ": {
-      "last": 738.52,
+      "last": 742.03,
       "source": "tradier",
-      "asof": "2026-09-29T21:16:53",
-      "prev_close": 736.53,
-      "change_pct": 0.27,
-      "sma20": 722.97,
-      "sma50": 714.33,
+      "asof": "2026-10-02T19:40:05",
+      "prev_close": 742.03,
+      "change_pct": 0.0,
+      "sma20": 726.18,
+      "sma50": 715.66,
       "trend": "DOWN",
-      "data_asof": "2026-09-29"
+      "data_asof": "2026-10-01"
     },
     "VIX": {
-      "last": 15.88,
+      "last": 15.57,
       "source": "tradier",
-      "asof": "2026-09-29T21:16:53",
-      "prev_close": 16.07
+      "asof": "2026-10-02T19:40:05",
+      "prev_close": 16.39
     }
   },
-  "vix": 15.88,
+  "vix": 15.57,
   "_meta": {
-    "generated_at": "2026-09-29 21:16:53 ICT",
+    "generated_at": "2026-10-02 19:40:05 ICT",
     "source": "live_spot/live_market_data (Tradier PROD -> Finnhub -> Alpaca IEX)"
   }
 }

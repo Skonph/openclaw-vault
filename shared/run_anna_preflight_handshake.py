@@ -459,10 +459,10 @@ def prewarm_entry_payload(base_dir: Path, lead_cand: Dict[str, Any]) -> Optional
 
         # Fetch option snapshot quotes
         quotes = broker.get_option_snapshot([short_sym, long_sym])
-        s_bid = quotes.get(short_sym, {}).get("bid", 1.00)
-        s_ask = quotes.get(short_sym, {}).get("ask", 1.50)
-        l_bid = quotes.get(long_sym, {}).get("bid", 0.10)
-        l_ask = quotes.get(long_sym, {}).get("ask", 0.30)
+        s_bid = quotes.get(short_sym, {}).get("bid", 0.0)
+        s_ask = quotes.get(short_sym, {}).get("ask", 0.0)
+        l_bid = quotes.get(long_sym, {}).get("bid", 0.0)
+        l_ask = quotes.get(long_sym, {}).get("ask", 0.0)
 
         # Microstructure credit calculations
         roc_rate = 0.075 if width >= 20.0 else 0.125
@@ -471,10 +471,16 @@ def prewarm_entry_payload(base_dir: Path, lead_cand: Dict[str, Any]) -> Optional
         l_spread = max(0.01, l_ask - l_bid)
         smart_s_mid = s_bid + 0.60 * s_spread
         smart_l_mid = l_ask - 0.35 * l_spread
-        smart_mid_credit = max(min_roc_credit, round(smart_s_mid - smart_l_mid, 2))
-        arith_mid_credit = max(min_roc_credit, round(((s_bid + s_ask)/2.0) - ((l_bid + l_ask)/2.0), 2))
-        natural_credit = max(min_roc_credit, round(s_bid - l_ask, 2))
-        mid_credit = max(min_roc_credit, round(0.70 * smart_mid_credit + 0.30 * arith_mid_credit, 2))
+        raw_smart_mid = round(smart_s_mid - smart_l_mid, 2)
+        raw_arith_mid = round(((s_bid + s_ask)/2.0) - ((l_bid + l_ask)/2.0), 2)
+        raw_natural_credit = round(s_bid - l_ask, 2)
+        raw_blended_mid = round(0.70 * raw_smart_mid + 0.30 * raw_arith_mid, 2)
+
+        mid_credit = max(min_roc_credit, raw_blended_mid)
+        natural_credit = max(0.10, raw_natural_credit)
+        meets_roc_floor = (raw_blended_mid >= min_roc_credit and s_bid > 0)
+        if not meets_roc_floor and s_bid > 0:
+            print(f"  ⚠️ Pre-Flight Warning: {sym} indicative mid ${raw_blended_mid:.2f} < ROC floor ${min_roc_credit:.2f}. Flagging payload for 21:15 ICT re-validation gate.")
 
         penny_pilot = {"SPY", "QQQ", "IWM", "XLF", "NVDA", "AMD", "TSM", "AAPL", "MSFT", "AMZN", "GOOGL"}
         is_penny = sym in penny_pilot
@@ -492,10 +498,11 @@ def prewarm_entry_payload(base_dir: Path, lead_cand: Dict[str, Any]) -> Optional
 
         now_ict = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S ICT")
         payload = {
-            "version": "TIER_3_PREWARMED_V1",
+            "version": "TIER_3_PREWARMED_V2",
             "generated_at_ict": now_ict,
             "timestamp_epoch": datetime.datetime.now().timestamp(),
-            "status": "READY_FOR_EXECUTION",
+            "status": "READY_FOR_EXECUTION" if meets_roc_floor else "SUB_ROC_WARNING",
+            "meets_roc_floor": meets_roc_floor,
             "account": acct_name,
             "symbol": sym,
             "short_sym": short_sym,
@@ -505,10 +512,11 @@ def prewarm_entry_payload(base_dir: Path, lead_cand: Dict[str, Any]) -> Optional
             "width": width,
             "exp_date": exp_date,
             "min_dte": 14,
+            "min_roc_credit": min_roc_credit,
             "baseline_spot": baseline_spot,
             "prewarmed_snipe_credit": snipe_credit,
-            "prewarmed_mid_credit": mid_credit,
-            "prewarmed_natural_credit": natural_credit,
+            "prewarmed_mid_credit": raw_blended_mid if raw_blended_mid > 0 else mid_credit,
+            "prewarmed_natural_credit": raw_natural_credit,
             "quotes": {
                 "short": {"bid": s_bid, "ask": s_ask},
                 "long": {"bid": l_bid, "ask": l_ask}

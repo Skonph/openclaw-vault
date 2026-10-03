@@ -1,22 +1,22 @@
 {
-  "analyzed_at": "2026-09-29T14:16:54.861083+00:00",
+  "analyzed_at": "2026-10-02T12:36:33.616144+00:00",
   "symbol": "SPY",
   "spring_trap": {
-    "is_spring_trap": false,
-    "pierced_support": false,
+    "is_spring_trap": true,
+    "pierced_support": true,
     "reclaimed_support": true,
-    "support_level": 763.715,
-    "intraday_low": 764.6,
-    "penetration_pct": 0.0,
-    "signal_quality": "NEUTRAL"
+    "support_level": 762.18,
+    "intraday_low": 758.7901,
+    "penetration_pct": 0.44,
+    "signal_quality": "HIGH_CONVICTION_SPRING"
   },
   "supply_exhaustion": {
-    "is_supply_exhausted": true,
-    "sc_volume": 59217653.0,
-    "st_volume": 5968351.0,
-    "volume_ratio": 0.1008,
-    "volume_reduction_pct": 89.92,
-    "status": "EXHAUSTION_CONFIRMED"
+    "is_supply_exhausted": false,
+    "sc_volume": 62110041.0,
+    "st_volume": 47708058.0,
+    "volume_ratio": 0.7681,
+    "volume_reduction_pct": 23.19,
+    "status": "SELLING_PRESSURE_ACTIVE"
   },
   "wyckoff_trade_authorization": {
     "bull_put_spread_authorized": true,

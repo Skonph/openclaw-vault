@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-09-29T00:15:01Z",
-  "updated_at_ict": "2026-09-29 07:15 ICT",
+  "timestamp": "2026-10-02T00:15:01Z",
+  "updated_at_ict": "2026-10-02 07:15 ICT",
   "mode": "OPTION_A_PURE_LIVE",
   "live_production_progress": {
-    "total_liquid_cash": 32632.73,
-    "current_combined_equity": 31781.73,
+    "total_liquid_cash": 33986.02,
+    "current_combined_equity": 31548.02,
     "monthly_target_net_cash": 5766.0,
     "monthly_target_pct": "18%+ Target (>=12% Floor)",
     "monthly_floor_net_cash": 3844.0,
@@ -23,19 +23,23 @@
   },
   "accounts": {
     "alpaca_live": {
-      "equity": 29758.36,
-      "cash": 30497.36,
-      "positions_count": 4,
+      "equity": 29467.67,
+      "cash": 31821.67,
+      "positions_count": 8,
       "open_positions": [
-        "NVDA261012P00215000",
-        "NVDA261012P00220000",
+        "AVGO261016P00305000",
+        "AVGO261016P00335000",
+        "QQQ261016P00675000",
+        "QQQ261016P00700000",
+        "TSM261016P00425000",
+        "TSM261016P00435000",
         "XLE261016P00058000",
         "XLE261016P00060000"
       ]
     },
     "tradier_live": {
-      "equity": 2023.37,
-      "cash": 2135.37,
+      "equity": 2080.35,
+      "cash": 2164.35,
       "positions_count": 2,
       "open_positions": [
         "TSM261030P00420000",
