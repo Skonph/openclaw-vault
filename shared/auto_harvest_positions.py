@@ -23,6 +23,7 @@ import urllib.request
 import urllib.error
 import ssl
 import re
+import math
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -122,6 +123,55 @@ def save_harvest_ratchets(data: Dict[str, Any]):
     except Exception as e:
         print(f"  ⚠️ Error saving harvest_ratchets.json: {e}")
 
+def is_spread_runner(spread_key: str) -> bool:
+    """Returns True if the spread has undergone Tranche 1 scale-out and is an active runner."""
+    ratchets = load_harvest_ratchets()
+    return bool(ratchets.get(spread_key, {}).get("is_runner"))
+
+def get_runner_info(spread_key: str) -> Dict[str, Any]:
+    """Returns runner metadata if active, or empty dict."""
+    ratchets = load_harvest_ratchets()
+    return ratchets.get(spread_key, {})
+
+def register_scale_out_runner(
+    spread_key: str,
+    target_symbol: str,
+    account_type: str,
+    initial_contracts: int,
+    scaled_out_contracts: int,
+    remaining_runner_contracts: int,
+    profit_pct: float,
+    tot_pnl: float,
+    order_id: str
+):
+    """
+    Registers Tranche 1 Scale-Out (e.g. 50% TP closed) and arms Tranche 2 Runner
+    with 5-minute High-Water Mark trailing ratchet.
+    """
+    ratchets = load_harvest_ratchets()
+    now_ict = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S ICT")
+    rec = ratchets.get(spread_key, {})
+    rec.update({
+        "symbol": target_symbol,
+        "account": account_type,
+        "is_runner": True,
+        "initial_contracts": initial_contracts,
+        "scaled_out_contracts": scaled_out_contracts,
+        "runner_contracts": remaining_runner_contracts,
+        "scaled_out_order_id": order_id,
+        "scaled_out_at_ict": now_ict,
+        "scaled_out_pnl": round(tot_pnl * (scaled_out_contracts / max(1, initial_contracts)), 2),
+        "scaled_out_profit_pct": round(profit_pct, 2),
+        "high_water_profit_pct": round(profit_pct, 2),
+        # Trailing floor starts at profit_pct - 15.0% (e.g. 50% - 15% = 35% floor)
+        "runner_floor_pct": round(max(30.0, profit_pct - 15.0), 2),
+        "ratchet_active": True,
+        "updated_at_ict": now_ict
+    })
+    ratchets[spread_key] = rec
+    save_harvest_ratchets(ratchets)
+    print(f"  🏃‍♂️ RUNNER REGISTERED: {target_symbol} ({spread_key}) -> {remaining_runner_contracts} runner contract(s) armed with {rec['runner_floor_pct']:.1f}% trailing floor!")
+
 def update_and_check_profit_ratchet(
     spread_key: str,
     target_symbol: str,
@@ -131,40 +181,86 @@ def update_and_check_profit_ratchet(
 ) -> Tuple[bool, Optional[str]]:
     """
     RULE-097: Profit High-Water Mark Ratchet & Velocity Protection.
-    - If unrealized profit touches >= 30%, activates a +20.0% Hard Floor Ratchet.
-    - If market pulls back towards +20.0% floor, triggers an emergency profit-lock harvest,
-      preventing a 30%+ winner from vaporizing into a scratch or loss!
+    - If in RUNNER MODE (Tranche 2):
+      * Tracks peak profit HWM and raises trailing floor (HWM - 15%).
+      * If profit hits >= 85%: Triggers Terminal Runner Harvest.
+      * If profit dips below trailing floor: Triggers Trailing Dip Harvest.
+      * If held >= 5 days as runner: Triggers Time Decay Exhaustion Harvest.
+    - If in STANDARD MODE (Pre-scale-out or single contract):
+      * If unrealized profit touches >= 30%, activates a +20.0% Hard Floor Ratchet.
+      * If market pulls back towards +20.0% floor, triggers an emergency profit-lock harvest.
     Returns (should_ratchet_harvest: bool, reason: str)
     """
     ratchets = load_harvest_ratchets()
     rec = ratchets.get(spread_key, {})
-    hwm = float(rec.get("high_water_profit_pct", 0.0))
     now_ict = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S ICT")
 
-    # 1. Update High-Water Mark if new high
+    if rec.get("is_runner"):
+        # ──────────────────────────────────────────────────────────────
+        # ACTIVE RUNNER PROTOCOL (TRANCHE 2)
+        # ──────────────────────────────────────────────────────────────
+        hwm = float(rec.get("high_water_profit_pct", 50.0))
+        if profit_pct > hwm:
+            hwm = round(profit_pct, 2)
+            rec["high_water_profit_pct"] = hwm
+            # Trail by 15% below peak (minimum 30% floor)
+            rec["runner_floor_pct"] = round(max(float(rec.get("runner_floor_pct", 30.0)), hwm - 15.0), 2)
+            rec["updated_at_ict"] = now_ict
+            ratchets[spread_key] = rec
+            save_harvest_ratchets(ratchets)
+            print(f"  🏃‍♂️ RUNNER EXPANSION: {target_symbol} touched new peak {hwm:.1f}% profit! Trailing floor raised to {rec['runner_floor_pct']:.1f}%.")
+
+        runner_floor = float(rec.get("runner_floor_pct", 35.0))
+
+        # 1. Terminal Runner Capture: >= 85% profit
+        if profit_pct >= 85.0:
+            reason = f"DIR-09 RUNNER 85%+ TERMINAL HARVEST (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Full Capture 🚀)"
+            return True, reason
+
+        # 2. Trailing Dip Harvest: profit dips below the trailing floor
+        if profit_pct <= (runner_floor + 0.5) and tot_pnl > 0:
+            reason = (f"DIR-09 RUNNER TRAILING DIP HARVEST (+${tot_pnl:,.2f} | {profit_pct:.1f}% | "
+                      f"Peak {hwm:.1f}% -> Trailing Floor {runner_floor:.1f}% Locked 🔒)")
+            return True, reason
+
+        # 3. Time Decay Exhaustion: Held as runner for >= 5 days
+        scaled_out_at = rec.get("scaled_out_at_ict")
+        if scaled_out_at:
+            try:
+                dt_scale = datetime.datetime.strptime(scaled_out_at, "%Y-%m-%d %H:%M:%S ICT")
+                days_as_runner = (datetime.datetime.now() - dt_scale).days
+                if days_as_runner >= 5:
+                    reason = (f"DIR-09 RUNNER TIME DECAY EXHAUSTION (+${tot_pnl:,.2f} | {profit_pct:.1f}% | "
+                              f"Held {days_as_runner}d post-scale | Freeing Collateral 🌾)")
+                    return True, reason
+            except Exception:
+                pass
+
+        return False, ""
+
+    # ──────────────────────────────────────────────────────────────────
+    # STANDARD MODE: PRE-SCALE-OUT / SINGLE CONTRACT RATCHET
+    # ──────────────────────────────────────────────────────────────────
+    hwm = float(rec.get("high_water_profit_pct", 0.0))
     if profit_pct > hwm:
         hwm = profit_pct
         rec["high_water_profit_pct"] = round(hwm, 2)
         rec["symbol"] = target_symbol
         rec["account"] = account_type
         rec["updated_at_ict"] = now_ict
-        # Tier 1 Ratchet: Arm at 25% profit with +15.0% floor
         if hwm >= 25.0 and not rec.get("ratchet_active"):
             rec["ratchet_active"] = True
             rec["ratchet_floor_pct"] = 15.0
             rec["activated_at_ict"] = now_ict
             print(f"  🔒 RATCHET ARMED: {target_symbol} touched {hwm:.1f}% profit! +15.0% Hard Profit Floor locked in.")
-        # Tier 2 Ratchet: Upgrade to +20.0% floor if touched 30%
         if hwm >= 30.0 and rec.get("ratchet_floor_pct", 0) < 20.0:
             rec["ratchet_floor_pct"] = 20.0
             print(f"  🔒 RATCHET UPGRADED: {target_symbol} touched {hwm:.1f}% profit! +20.0% Hard Profit Floor locked in.")
         ratchets[spread_key] = rec
         save_harvest_ratchets(ratchets)
 
-    # 2. Check if ratchet floor is breached on a pullback
     if rec.get("ratchet_active"):
         floor_pct = float(rec.get("ratchet_floor_pct", 20.0))
-        # If profit pulled back below or near the floor (within +1.0% of floor and PnL > 0)
         if profit_pct <= (floor_pct + 1.0) and tot_pnl > 0:
             reason = (f"DIR-09 Profit Ratchet Protection (+${tot_pnl:,.2f} | {profit_pct:.1f}% | "
                       f"Peak {hwm:.1f}% -> Protected at +{floor_pct:.0f}% Floor 🔒)")
@@ -782,6 +878,8 @@ def harvest_spread_positions(
         # Stop out immediately! Salvages long put residual value and unfreezes 100% of collateral
         # ($1,000-$2,000 per slot) before trade turns into full maximum loss.
         days_held = _resolve_days_held(und, s_strike, account_type)
+        is_runner_active = is_spread_runner(spread_key)
+        runner_rec = get_runner_info(spread_key) if is_runner_active else {}
 
         should_harvest = False
         harvest_reason = ""
@@ -795,45 +893,71 @@ def harvest_spread_positions(
         elif dte <= 3 and buf_pct < 2.0 and tot_pnl > 0:
             should_harvest = True
             harvest_reason = f"DIR-09 T-3 Gamma Defense Harvest (Buffer {buf_pct:+.1f}% < 2.0% | +${tot_pnl:,.2f})"
-        elif dte <= 3 and buf_pct >= 2.5:
-            if profit_pct >= 90.0 or tot_pnl >= (total_initial_credit * 0.90):
+        elif is_runner_active:
+            # ──────────────────────────────────────────────────────────
+            # TRANCHE 2: ACTIVE RUNNER DECISION MATRIX
+            # (Allows profit to run past 50% until dip or >=85% terminal capture)
+            # ──────────────────────────────────────────────────────────
+            ratchet_triggered, ratchet_reason = update_and_check_profit_ratchet(
+                spread_key=spread_key,
+                target_symbol=target_symbol,
+                account_type=account_type,
+                profit_pct=profit_pct,
+                tot_pnl=tot_pnl
+            )
+            if ratchet_triggered:
                 should_harvest = True
-                harvest_reason = f"DIR-09 Terminal 90%+ Theta Capture (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
-            else:
-                print(f"  🚀 DIR-09 TERMINAL SURGE: {target_symbol} is {buf_pct:+.1f}% OTM with only {dte}d left.")
-                print(f"     Holding daily rate is ${holding_daily_rate:.2f}/day ({holding_daily_roc:.2f}%/day ROC)! Letting theta burn to full expiry.")
-        elif days_held <= 2 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 48h Express FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
-        elif days_held <= 3 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 72h Mid-Sprint FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
-        elif days_held <= 5 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
-        elif dte >= 7 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 Mid-Cycle Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Freeing Collateral 🚀)"
-        elif profit_pct >= 50.0 or tot_pnl >= (total_initial_credit * 0.50):
-            should_harvest = True
-            harvest_reason = f"DIR-09 Standard 50% FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Day {days_held} held 🌾)"
+                harvest_reason = ratchet_reason
+            elif dte <= 3 and buf_pct >= 2.5:
+                if profit_pct >= 85.0 or tot_pnl >= (total_initial_credit * 0.85):
+                    should_harvest = True
+                    harvest_reason = f"DIR-09 Terminal Runner 85%+ Theta Capture (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
+                else:
+                    print(f"  🏃‍♂️ DIR-09 RUNNER ACTIVE: {target_symbol} is {buf_pct:+.1f}% OTM with {dte}d left. Tracking trailing floor!")
+        else:
+            # ──────────────────────────────────────────────────────────
+            # TRANCHE 1 / STANDARD FASTHARVEST DECISION MATRIX (PRE-SCALE-OUT)
+            # ──────────────────────────────────────────────────────────
+            if dte <= 3 and buf_pct >= 2.5:
+                if profit_pct >= 90.0 or tot_pnl >= (total_initial_credit * 0.90):
+                    should_harvest = True
+                    harvest_reason = f"DIR-09 Terminal 90%+ Theta Capture (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
+                else:
+                    print(f"  🚀 DIR-09 TERMINAL SURGE: {target_symbol} is {buf_pct:+.1f}% OTM with only {dte}d left.")
+                    print(f"     Holding daily rate is ${holding_daily_rate:.2f}/day ({holding_daily_roc:.2f}%/day ROC)! Letting theta burn to full expiry.")
+            elif days_held <= 2 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 48h Express FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
+            elif days_held <= 3 and (profit_pct >= 35.0 or tot_pnl >= (total_initial_credit * 0.35)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 72h Mid-Sprint FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
+            elif days_held <= 5 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
+            elif dte >= 7 and (profit_pct >= 40.0 or tot_pnl >= (total_initial_credit * 0.40)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 Mid-Cycle Velocity FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Freeing Collateral 🚀)"
+            elif profit_pct >= 50.0 or tot_pnl >= (total_initial_credit * 0.50):
+                should_harvest = True
+                harvest_reason = f"DIR-09 Standard 50% FastHarvest (+${tot_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Day {days_held} held 🌾)"
 
-        # RULE-097: Profit High-Water Mark Ratchet & Velocity Protection
-        ratchet_triggered, ratchet_reason = update_and_check_profit_ratchet(
-            spread_key=spread_key,
-            target_symbol=target_symbol,
-            account_type=account_type,
-            profit_pct=profit_pct,
-            tot_pnl=tot_pnl
-        )
-        if ratchet_triggered and not should_harvest:
-            should_harvest = True
-            harvest_reason = ratchet_reason
+            # Standard pre-scale-out profit ratchet
+            ratchet_triggered, ratchet_reason = update_and_check_profit_ratchet(
+                spread_key=spread_key,
+                target_symbol=target_symbol,
+                account_type=account_type,
+                profit_pct=profit_pct,
+                tot_pnl=tot_pnl
+            )
+            if ratchet_triggered and not should_harvest:
+                should_harvest = True
+                harvest_reason = ratchet_reason
 
         if not should_harvest:
             check_and_emit_amber_alert(account_type, target_symbol, spot, s_strike, buf_pct, dte, opt_tag, spread_key)
-            print(f"  ⏳ HOLDING SPREAD: {target_symbol} Unrealized P/L is ${tot_pnl:+.2f} ({profit_pct:.1f}% of ${total_initial_credit:.2f} credit | DTE: {dte}d | Buffer: {buf_pct:+.1f}% | Day {days_held} held).")
-            print(f"     DIR-09 Policy: Sliding-Scale FastHarvest (30%@<=2d, 40%@<=5d, 50% std) | Terminal Theta (DTE<=3d & Buf>=2.5%) | Strike Defense (Buf<=0.50%) 🛡️")
+            status_tag = "RUNNER ACTIVE" if is_runner_active else "HOLDING SPREAD"
+            print(f"  ⏳ {status_tag}: {target_symbol} Unrealized P/L is ${tot_pnl:+.2f} ({profit_pct:.1f}% of ${total_initial_credit:.2f} credit | DTE: {dte}d | Buffer: {buf_pct:+.1f}% | Day {days_held} held).")
+            print(f"     DIR-09 Policy: Sliding-Scale FastHarvest (30%@<=2d, 40%@<=5d, 50% std) | Runner Trailing Floor | Strike Defense (Buf<=0.50%) 🛡️")
             return []
 
         # Initial cost basis estimation
@@ -846,6 +970,21 @@ def harvest_spread_positions(
         est_debit = max(0.01, round((s_val - l_val) / (contracts * 100), 2))
 
         is_defensive = ("DEFENSIVE" in harvest_reason) or ("GAMMA" in harvest_reason) or ("MAX-LOSS" in harvest_reason) or ("PROACTIVE" in harvest_reason)
+
+        # SCALE-OUT & TRAILING RUNNER SIZING ARCHITECTURE:
+        # 1. Multi-contract positions (e.g. 3C TSM) scale out 50% (ceil: 2 of 3 contracts closed, 1 runner kept).
+        # 2. Defensive stop-outs ALWAYS liquidate 100% immediately to prevent pin risk.
+        # 3. Indivisible single contracts (1C) liquidate 100%.
+        # 4. Existing active runners exiting trailing ratchet liquidate 100% of remaining runner contracts.
+        if not is_defensive and not is_runner_active and contracts > 1:
+            close_qty = max(1, math.ceil(contracts / 2.0))
+            runner_qty = contracts - close_qty
+            is_scale_out = (runner_qty > 0)
+        else:
+            close_qty = contracts
+            runner_qty = 0
+            is_scale_out = False
+
         if is_defensive:
             # Dynamically scale defensive slippage buffer to cross bid-ask spread and guarantee immediate fill
             spread_gap = 0.0
@@ -873,8 +1012,17 @@ def harvest_spread_positions(
                 print(f"     ⚡ {walk_desc}: Adjusted closing limit debit to guarantee immediate fill.")
 
         if not force_sequential:
-            print(f"\n  🎯 HARVEST / DEFENSE TRIGGERED: {harvest_reason}!")
-            print(f"     Submitting Atomic Multi-Leg Closing Order ({contracts}x {s_sym} / {l_sym} @ max debit ${est_debit:.2f})...")
+            if is_scale_out:
+                print(f"\n  🌾 TRANCHE 1 SCALE-OUT TRIGGERED: {harvest_reason}!")
+                print(f"     Submitting Atomic Multi-Leg Scale-Out Order ({close_qty} of {contracts} contracts {s_sym} / {l_sym} @ max debit ${est_debit:.2f})...")
+                print(f"     🏃‍♂️ Arming remaining {runner_qty} contract(s) as Trailing Runner!")
+            elif is_runner_active:
+                print(f"\n  🏃‍♂️ TRANCHE 2 RUNNER EXIT TRIGGERED: {harvest_reason}!")
+                print(f"     Submitting Atomic Multi-Leg Closing Order ({close_qty} runner contract(s) {s_sym} / {l_sym} @ max debit ${est_debit:.2f})...")
+            else:
+                print(f"\n  🎯 HARVEST / DEFENSE TRIGGERED: {harvest_reason}!")
+                print(f"     Submitting Atomic Multi-Leg Closing Order ({contracts}x {s_sym} / {l_sym} @ max debit ${est_debit:.2f})...")
+
             mleg_close_payload = {
                 "order_class": "mleg",
                 "type": "limit",
@@ -884,7 +1032,7 @@ def harvest_spread_positions(
                     {"symbol": s_sym, "ratio_qty": 1, "side": "buy", "position_intent": "buy_to_close"},
                     {"symbol": l_sym, "ratio_qty": 1, "side": "sell", "position_intent": "sell_to_close"}
                 ],
-                "qty": str(contracts)
+                "qty": str(close_qty)
             }
 
             try:
@@ -893,23 +1041,51 @@ def harvest_spread_positions(
                     res_m = json.loads(rm.read().decode())
                     oid_m = res_m.get("id")
                     status_m = res_m.get("status", "accepted")
-                    print(f"     🎉 ATOMIC SPREAD HARVEST / DEFENSE SUBMITTED! Order ID: {oid_m} (Status: {status_m})")
-                    closed_orders.append({"symbol": f"{s_sym}/{l_sym}", "order_id": oid_m, "pnl": tot_pnl, "type": "mleg"})
+                    action_tag = "SCALE-OUT" if is_scale_out else ("RUNNER EXIT" if is_runner_active else "HARVEST / DEFENSE")
+                    print(f"     🎉 ATOMIC SPREAD {action_tag} SUBMITTED! Order ID: {oid_m} (Status: {status_m})")
+                    scaled_pnl = round(tot_pnl * (close_qty / contracts), 2)
+                    closed_orders.append({
+                        "symbol": f"{s_sym}/{l_sym}",
+                        "order_id": oid_m,
+                        "pnl": scaled_pnl,
+                        "type": "mleg",
+                        "is_scale_out": is_scale_out,
+                        "is_runner": is_runner_active,
+                        "close_qty": close_qty,
+                        "runner_qty": runner_qty
+                    })
                     if spread_key:
-                        set_harvest_lockout(spread_key, "IN_PROGRESS", order_id=oid_m, cooldown_hours=24)
-                        clear_harvest_ratchet(spread_key)
+                        if is_scale_out:
+                            register_scale_out_runner(
+                                spread_key=spread_key,
+                                target_symbol=target_symbol,
+                                account_type=account_type,
+                                initial_contracts=contracts,
+                                scaled_out_contracts=close_qty,
+                                remaining_runner_contracts=runner_qty,
+                                profit_pct=profit_pct,
+                                tot_pnl=tot_pnl,
+                                order_id=oid_m
+                            )
+                            # 5-min cooldown to avoid duplicate order spam while poller awaits fill
+                            set_harvest_lockout(spread_key, "SCALE_OUT_IN_PROGRESS", order_id=oid_m, cooldown_hours=0.08)
+                        else:
+                            set_harvest_lockout(spread_key, "IN_PROGRESS", order_id=oid_m, cooldown_hours=24)
+                            clear_harvest_ratchet(spread_key)
                     # RULE-083 / RULE-098: Instant Slot Vacancy Broadcast for Same-Day Collateral Recycling
                     now_ict = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S ICT")
                     slot_event = {
-                        "event": "SLOT_VACATED",
+                        "event": "SLOT_VACATED" if not is_scale_out else "PARTIAL_SCALE_OUT",
                         "symbol": target_symbol,
                         "account": account_type,
-                        "realized_pnl": tot_pnl,
+                        "realized_pnl": scaled_pnl,
                         "profit_pct": profit_pct,
+                        "contracts_closed": close_qty,
+                        "contracts_remaining": runner_qty,
                         "timestamp": now_ict,
-                        "action": "READY_FOR_SAME_DAY_ROTATION"
+                        "action": "READY_FOR_SAME_DAY_ROTATION" if not is_scale_out else "RUNNER_MONITORING"
                     }
-                    broadcast_to_anna(f"SLOT_VACATED_{target_symbol}", json.dumps(slot_event), slot_event)
+                    broadcast_to_anna(f"SLOT_{action_tag}_{target_symbol}", json.dumps(slot_event), slot_event)
                     if is_defensive:
                         log_stopout_audit_event(
                             account=account_type, target_symbol=target_symbol,
@@ -1029,7 +1205,16 @@ def harvest_spread_positions(
 
         is_mleg = any(c.get("type") == "mleg" for c in closed_orders)
         is_residual = any(c.get("type") == "residual_long" for c in closed_orders)
-        if is_mleg:
+        is_scale_out_order = any(c.get("is_scale_out") for c in closed_orders)
+        is_runner_close = any(c.get("is_runner") for c in closed_orders)
+
+        if is_scale_out_order:
+            asset_title = f"{target_symbol} {'Bull Put Spread' if opt_tag == 'P' else 'Bear Call Spread'} [Tranche 1 Scale-Out]"
+            exec_title = f"Scale-Out ({close_qty}/{contracts} Contracts Closed | {runner_qty} Runner Riding) 🏃‍♂️"
+        elif is_runner_close:
+            asset_title = f"{target_symbol} {'Bull Put Spread' if opt_tag == 'P' else 'Bear Call Spread'} [Tranche 2 Runner Exit]"
+            exec_title = f"Trailing Runner Complete Liquidation ({close_qty} Contracts) 🏁"
+        elif is_mleg:
             asset_title = f"{target_symbol} {'Bull Put Spread' if opt_tag == 'P' else 'Bear Call Spread'}"
             exec_title = "Atomic Multi-Leg Zero-Margin Combo ✅"
         elif is_residual:
@@ -1043,10 +1228,23 @@ def harvest_spread_positions(
 
         if is_filled:
             if spread_key:
-                set_harvest_lockout(spread_key, "COMPLETED", cooldown_hours=24)
+                if is_scale_out_order:
+                    set_harvest_lockout(spread_key, "RUNNER_ACTIVE", cooldown_hours=0.08)
+                else:
+                    set_harvest_lockout(spread_key, "COMPLETED", cooldown_hours=24)
             if is_defensive:
                 header_str = f"🛡️ DEFENSIVE STOP-OUT / GAMMA DEFENSE FILLED (RULE-087) — {target_symbol}"
                 result_str = f"• Collateral Salvaged: ${tot_realized:+.2f} (Loss Contained / Max Loss Avoided 🛑)"
+            elif is_scale_out_order:
+                header_str = f"🌾 TRANCHE 1 SCALE-OUT FILLED (PROFIT BANKED) — {target_symbol}"
+                result_str = (
+                    f"• Banked Profit   : +${tot_realized:.2f} NET GAIN 💵\n"
+                    f"• Contracts Closed: {close_qty} of {contracts} ({close_qty * 100 / contracts:.0f}% Scaled Out)\n"
+                    f"• Runner Arming   : {runner_qty} Contract(s) Active with Trailing Ratchet 🏃‍♂️"
+                )
+            elif is_runner_close:
+                header_str = f"🏃‍♂️ TRANCHE 2 RUNNER HARVEST FILLED (TRAIL CLOSED) — {target_symbol}"
+                result_str = f"• Runner Profit Realized: +${tot_realized:.2f} NET GAIN 💵"
             else:
                 header_str = f"🔔 LIVE FAST-HARVEST FILLED & EXECUTED — {target_symbol}"
                 result_str = f"• Profit Realized: +${tot_realized:.2f} NET GAIN 💵"
@@ -1062,7 +1260,7 @@ def harvest_spread_positions(
 • Session State  : {session_str}
 • Time           : {now_ict}
 
-{account_type.upper()} collateral is 100% unlocked and available for new deployment! 🚀📈"""
+{account_type.upper()} collateral unlocked and optimized! 🚀📈"""
         else:
             # Order is resting on exchange book. Deduplicate to avoid 5-minute alert spam!
             cache_file = Path(__file__).parent / ".last_harvest_alert.json"
@@ -1082,7 +1280,15 @@ def harvest_spread_positions(
             except Exception:
                 pass
 
-            header_str = f"⏳ DEFENSIVE STOP-OUT SUBMITTED (WORKING ON BOOK) — {target_symbol}"
+            if is_scale_out_order:
+                header_str = f"🌾 TRANCHE 1 SCALE-OUT SUBMITTED (WORKING ON BOOK) — {target_symbol}"
+            elif is_runner_close:
+                header_str = f"🏃‍♂️ TRANCHE 2 RUNNER HARVEST SUBMITTED (WORKING ON BOOK) — {target_symbol}"
+            elif is_defensive:
+                header_str = f"⏳ DEFENSIVE STOP-OUT SUBMITTED (WORKING ON BOOK) — {target_symbol}"
+            else:
+                header_str = f"⏳ FAST-HARVEST SUBMITTED (WORKING ON BOOK) — {target_symbol}"
+
             alert_text = f"""{header_str}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🛡️ STRATEGY: {asset_title}
@@ -1198,6 +1404,11 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
             print(f"  🛑 SPREAD LOCKOUT / COOLDOWN ACTIVE (RULE-092): {spread_key}. Skipping harvest.")
             continue
 
+        is_runner_active = is_spread_runner(spread_key)
+        runner_info = get_runner_info(spread_key) if is_runner_active else {}
+        if is_runner_active:
+            print(f"  🏃‍♂️ TRADIER RUNNER ACTIVE: {und} ({spread_key}) -> {runner_info.get('runner_contracts', 1)} contract(s) under trailing floor!")
+
         # DTE
         dte = 14
         if exp_date_str:
@@ -1254,49 +1465,84 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
         elif dte <= 3 and buf_pct < 2.0 and current_pnl > 0:
             should_harvest = True
             harvest_reason = f"DIR-09 T-3 Gamma Defense Harvest (Buffer {buf_pct:+.1f}% < 2.0% | +${current_pnl:,.2f})"
-        elif dte <= 3 and buf_pct >= 2.5:
-            if profit_pct >= 90.0 or current_pnl >= (initial_credit_total * 0.90):
+        elif is_runner_active:
+            # ──────────────────────────────────────────────────────────
+            # ACTIVE RUNNER PROTOCOL (TRANCHE 2)
+            # ──────────────────────────────────────────────────────────
+            ratchet_triggered, ratchet_reason = update_and_check_profit_ratchet(
+                spread_key=spread_key,
+                target_symbol=und,
+                account_type="tradier_live",
+                profit_pct=profit_pct,
+                tot_pnl=current_pnl
+            )
+            if ratchet_triggered:
                 should_harvest = True
-                harvest_reason = f"DIR-09 Terminal 90%+ Theta Capture (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
-            else:
-                print(f"  🚀 DIR-09 TERMINAL SURGE: {und} is {buf_pct:+.1f}% OTM with only {dte}d left. Holding to full expiry!")
-        elif days_held <= 2 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 48h Express FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
-        elif days_held <= 3 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 72h Mid-Sprint FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
-        elif days_held <= 5 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
-        elif dte >= 7 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
-            should_harvest = True
-            harvest_reason = f"DIR-09 Mid-Cycle Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Freeing Collateral 🚀)"
-        elif profit_pct >= 50.0 or current_pnl >= (initial_credit_total * 0.50):
-            should_harvest = True
-            harvest_reason = f"DIR-09 Standard 50% FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Day {days_held} held 🌾)"
+                harvest_reason = ratchet_reason
+            elif dte <= 3 and buf_pct >= 2.5:
+                if profit_pct >= 85.0 or current_pnl >= (initial_credit_total * 0.85):
+                    should_harvest = True
+                    harvest_reason = f"DIR-09 Terminal Runner 85%+ Theta Capture (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
+                else:
+                    print(f"  🏃‍♂️ DIR-09 TRADIER RUNNER: {und} is {buf_pct:+.1f}% OTM with {dte}d left. Tracking trailing floor!")
+        else:
+            # ──────────────────────────────────────────────────────────
+            # TRANCHE 1 / STANDARD FASTHARVEST DECISION MATRIX
+            # ──────────────────────────────────────────────────────────
+            if dte <= 3 and buf_pct >= 2.5:
+                if profit_pct >= 90.0 or current_pnl >= (initial_credit_total * 0.90):
+                    should_harvest = True
+                    harvest_reason = f"DIR-09 Terminal 90%+ Theta Capture (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d)"
+                else:
+                    print(f"  🚀 DIR-09 TERMINAL SURGE: {und} is {buf_pct:+.1f}% OTM with only {dte}d left. Holding to full expiry!")
+            elif days_held <= 2 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 48h Express FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held 🚀)"
+            elif days_held <= 3 and (profit_pct >= 35.0 or current_pnl >= (initial_credit_total * 0.35)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 72h Mid-Sprint FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
+            elif days_held <= 5 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 5-Day Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | Day {days_held} held ⚡)"
+            elif dte >= 7 and (profit_pct >= 40.0 or current_pnl >= (initial_credit_total * 0.40)):
+                should_harvest = True
+                harvest_reason = f"DIR-09 Mid-Cycle Velocity FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Freeing Collateral 🚀)"
+            elif profit_pct >= 50.0 or current_pnl >= (initial_credit_total * 0.50):
+                should_harvest = True
+                harvest_reason = f"DIR-09 Standard 50% FastHarvest (+${current_pnl:,.2f} | {profit_pct:.1f}% | DTE: {dte}d | Day {days_held} held 🌾)"
 
-        # RULE-097: Profit High-Water Mark Ratchet & Velocity Protection
-        ratchet_triggered, ratchet_reason = update_and_check_profit_ratchet(
-            spread_key=spread_key,
-            target_symbol=und,
-            account_type="tradier_live",
-            profit_pct=profit_pct,
-            tot_pnl=current_pnl
-        )
-        if ratchet_triggered and not should_harvest:
-            should_harvest = True
-            harvest_reason = ratchet_reason
+            # Standard pre-scale-out profit ratchet
+            ratchet_triggered, ratchet_reason = update_and_check_profit_ratchet(
+                spread_key=spread_key,
+                target_symbol=und,
+                account_type="tradier_live",
+                profit_pct=profit_pct,
+                tot_pnl=current_pnl
+            )
+            if ratchet_triggered and not should_harvest:
+                should_harvest = True
+                harvest_reason = ratchet_reason
 
         if not should_harvest:
             check_and_emit_amber_alert("tradier_live", und, spot, s_strike, buf_pct, dte, s_occ, spread_key)
-            print(f"  ⏳ HOLDING TRADIER SPREAD: {und} P/L: ${current_pnl:+.2f} ({profit_pct:.1f}% | DTE: {dte}d | Buffer: {buf_pct:+.1f}% | Day {days_held} held).")
-            print(f"     DIR-09 Policy: Sliding-Scale FastHarvest (30%@<=2d, 40%@<=5d, 50% std) | Terminal Theta (DTE<=3d) | Strike Defense (Buf<=0.50%) 🛡️")
+            status_tag = "RUNNER ACTIVE" if is_runner_active else "HOLDING TRADIER SPREAD"
+            print(f"  ⏳ {status_tag}: {und} P/L: ${current_pnl:+.2f} ({profit_pct:.1f}% | DTE: {dte}d | Buffer: {buf_pct:+.1f}% | Day {days_held} held).")
+            print(f"     DIR-09 Policy: Sliding-Scale FastHarvest (30%@<=2d, 40%@<=5d, 50% std) | Runner Trailing Floor | Strike Defense (Buf<=0.50%) 🛡️")
             continue
 
         print(f"  ⚡ EXECUTING TRADIER HARVEST ORDER: {harvest_reason}")
         # RULE-096: Closing Micro-Walk & Penny-Pilot Fill Accelerator
         is_defensive = ("DEFENSIVE" in harvest_reason) or ("GAMMA" in harvest_reason) or ("PROACTIVE" in harvest_reason)
+
+        if not is_defensive and not is_runner_active and contracts > 1:
+            close_qty = max(1, math.ceil(contracts / 2.0))
+            runner_qty = contracts - close_qty
+            is_scale_out = (runner_qty > 0)
+        else:
+            close_qty = contracts
+            runner_qty = 0
+            is_scale_out = False
+
         if not is_defensive:
             cur_debit, walk_desc = apply_closing_micro_walk(
                 target_symbol=und,
@@ -1313,26 +1559,63 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
                 symbol=und,
                 short_occ=s_occ,
                 long_occ=l_occ,
-                qty=contracts,
+                qty=close_qty,
                 limit_debit=cur_debit,
                 duration="day"
             )
             order_id = res.get("order_id")
             status = res.get("status")
             print(f"  ✅ TRADIER HARVEST SUBMITTED: ID {order_id} | Status: {status}")
-            set_harvest_lockout(spread_key, "IN_PROGRESS", order_id=order_id, cooldown_hours=24)
-            clear_harvest_ratchet(spread_key)
-            closed_orders.append({"symbol": und, "order_id": order_id, "status": status, "account": "tradier_live"})
+            scaled_pnl = round(current_pnl * (close_qty / contracts), 2)
+            if spread_key:
+                if is_scale_out:
+                    register_scale_out_runner(
+                        spread_key=spread_key,
+                        target_symbol=und,
+                        account_type="tradier_live",
+                        initial_contracts=contracts,
+                        scaled_out_contracts=close_qty,
+                        remaining_runner_contracts=runner_qty,
+                        profit_pct=profit_pct,
+                        tot_pnl=current_pnl,
+                        order_id=order_id
+                    )
+                    set_harvest_lockout(spread_key, "SCALE_OUT_IN_PROGRESS", order_id=order_id, cooldown_hours=0.08)
+                else:
+                    set_harvest_lockout(spread_key, "IN_PROGRESS", order_id=order_id, cooldown_hours=24)
+                    clear_harvest_ratchet(spread_key)
+
+            closed_orders.append({
+                "symbol": und,
+                "order_id": order_id,
+                "status": status,
+                "account": "tradier_live",
+                "pnl": scaled_pnl,
+                "is_scale_out": is_scale_out,
+                "is_runner": is_runner_active,
+                "close_qty": close_qty,
+                "runner_qty": runner_qty
+            })
 
             now_ict = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S ICT")
 
             # Telegram notification
+            if is_scale_out:
+                header_tag = "🌾 TRADIER LIVE TRANCHE 1 SCALE-OUT EXECUTED!"
+                desc_line = f"• Contracts: {close_qty} of {contracts} Scaled Out ({runner_qty} Runner Riding 🏃‍♂️)\n"
+            elif is_runner_active:
+                header_tag = "🏃‍♂️ TRADIER LIVE TRANCHE 2 RUNNER EXIT EXECUTED!"
+                desc_line = f"• Contracts: {close_qty} Runner Contract(s) Liquidated 🏁\n"
+            else:
+                header_tag = "🌾 TRADIER LIVE FASTHARVEST EXECUTED!"
+                desc_line = f"• Contracts: {contracts} | Limit Debit: ${cur_debit:.2f}\n"
+
             msg = (
-                f"🌾 TRADIER LIVE FASTHARVEST EXECUTED!\n"
+                f"{header_tag}\n"
                 f"• Symbol: {und} Bull Put Credit Spread\n"
                 f"• Strikes: ${s_strike:.1f}P / ${l_strike:.1f}P (Exp: {exp_date_str})\n"
-                f"• Contracts: {contracts} | Limit Debit: ${cur_debit:.2f}\n"
-                f"• Est P/L: +${current_pnl:,.2f} ({profit_pct:.1f}%)\n"
+                f"{desc_line}"
+                f"• Realized P/L: +${scaled_pnl:,.2f} ({profit_pct:.1f}%)\n"
                 f"• Rationale: {harvest_reason}\n"
                 f"• Order ID: {order_id} ({status})\n"
                 f"• Time    : {now_ict}"
@@ -1342,13 +1625,15 @@ def harvest_tradier_positions(force_close: bool = False, min_profit_pct: float =
 
             # RULE-083: Instant Slot Vacancy Broadcast for Same-Day Collateral Recycling
             slot_event = {
-                "event": "SLOT_VACATED",
+                "event": "SLOT_VACATED" if not is_scale_out else "PARTIAL_SCALE_OUT",
                 "symbol": und,
                 "account": "tradier_live",
-                "realized_pnl": current_pnl,
+                "realized_pnl": scaled_pnl,
                 "profit_pct": profit_pct,
+                "contracts_closed": close_qty,
+                "contracts_remaining": runner_qty,
                 "timestamp": now_ict,
-                "action": "READY_FOR_SAME_DAY_ROTATION"
+                "action": "READY_FOR_SAME_DAY_ROTATION" if not is_scale_out else "RUNNER_MONITORING"
             }
             broadcast_to_anna(f"SLOT_VACATED_{und}", json.dumps(slot_event), slot_event)
 
