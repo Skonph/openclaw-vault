@@ -65,9 +65,18 @@ def run_e2e_test():
     try:
         target_data = json.loads(target_file.read_text(encoding="utf-8"))
         primary = target_data.get("primary", {})
-        secondary = target_data.get("secondary", {})
+        secondary = target_data.get("secondary") or {}
         all_ranked = target_data.get("all_ranked", [])
         eligible_ranked = [c for c in all_ranked if c.get("eligible")]
+
+        # If secondary is not present in artifact (e.g., solo primary eligible), select top uncorrelated runner-up for dual-dispatch simulation
+        if not secondary.get("symbol"):
+            p_theme = primary.get("theme")
+            for c in all_ranked:
+                if c.get("symbol") != primary.get("symbol") and c.get("theme") != p_theme:
+                    secondary = c
+                    print(f"  ℹ️ Solo primary regime: Selected top uncorrelated runner-up for dual-dispatch test: {secondary.get('symbol')} ({secondary.get('theme')})")
+                    break
 
         print(f"  • Total Evaluated Candidates: {len(all_ranked)}")
         print(f"  • Total Eligible Candidates : {len(eligible_ranked)}")
