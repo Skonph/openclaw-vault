@@ -23,6 +23,180 @@ from alpaca_broker import AlpacaClient
 from tradier_broker import TradierClient
 from agent_bridge import AgentBridge
 
+def get_realized_pnl_benchmarks(base_dir=None, now_dt=None):
+    """
+    Computes dynamic Realized PnL performance benchmarks against the Weekly Velocity Speedometer
+    and Monthly Net Cash targets.
+    
+    Data Source Priority:
+    1. Primary: Direct live broker fills via `trade_history.spread_round_trips` (Alpaca + Tradier)
+    2. Resilient Fallback: `SkonVault_Live_Transaction_Journal.xlsx` (Sheet: Internal_PnL_Journal)
+    
+    Returns structured metrics including:
+    - WTD Realized PnL ($), WTD % vs $1,441.50 target, WTD % vs $961.00 floor
+    - MTD Realized PnL ($), MTD % vs $5,766.00 target
+    - All-Time Realized PnL ($), Win Rate %, Closed Trade count (Wins/Losses)
+    - Active Premium Pipeline credit ($), Projected WTD PnL ($) and Pacing %
+    - Velocity Badge for at-a-glance performance status
+    """
+    if base_dir is None:
+        base_dir = Path("/home/ubuntu/shared")
+        if not base_dir.exists():
+            base_dir = Path("/Users/SkonP/AI_Prompt/Obsidient/SkonVault/shared")
+    else:
+        base_dir = Path(base_dir)
+
+    if now_dt is None:
+        now_dt = datetime.datetime.now()
+
+    # Determine WTD and MTD boundary dates (Monday anchor for trading week)
+    start_of_week = (now_dt - datetime.timedelta(days=now_dt.weekday())).date()
+    start_of_week_str = start_of_week.strftime("%Y-%m-%d")
+    start_of_month_str = now_dt.date().replace(day=1).strftime("%Y-%m-%d")
+
+    trips = []
+    source_used = None
+
+    # Source 1: Live broker fill round trips from trade_history
+    try:
+        sys.path.insert(0, str(base_dir))
+        from trade_history import fetch_fills, spread_round_trips
+        al_fills = fetch_fills("alpaca_live")
+        tr_fills = fetch_fills("tradier_live")
+        trips = spread_round_trips(accounts=["alpaca_live", "tradier_live"])
+        closed_check = [t for t in trips if t.get("status") in ("CLOSED_HARVESTED", "CLOSED_DEFENSIVE")]
+        if closed_check:
+            source_used = "live_broker_fills"
+    except Exception:
+        trips = []
+
+    # Source 2: Fallback to SkonVault_Live_Transaction_Journal.xlsx
+    if not trips or source_used is None:
+        xlsx_paths = [
+            base_dir / "SkonVault_Live_Transaction_Journal.xlsx",
+            base_dir.parent / "SkonVault_Live_Transaction_Journal.xlsx",
+            Path("SkonVault_Live_Transaction_Journal.xlsx"),
+            base_dir / "SkonVault_Transaction_Journal.xlsx",
+            base_dir.parent / "SkonVault_Transaction_Journal.xlsx",
+        ]
+        xlsx_file = next((p for p in xlsx_paths if p.exists()), None)
+        if xlsx_file:
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(str(xlsx_file), data_only=True)
+                if "Internal_PnL_Journal" in wb.sheetnames:
+                    ws = wb["Internal_PnL_Journal"]
+                    excel_trips = []
+                    for r in range(5, ws.max_row + 1):
+                        tid = ws.cell(r, 1).value
+                        if not tid or "TOTALS" in str(tid).upper():
+                            continue
+                        acct = str(ws.cell(r, 2).value or "")
+                        asset = str(ws.cell(r, 3).value or "")
+                        op_date = str(ws.cell(r, 6).value or "")[:10]
+                        cl_date_raw = str(ws.cell(r, 17).value or "").strip()
+                        cl_date = cl_date_raw[:10] if cl_date_raw and cl_date_raw != "-" else None
+                        
+                        contracts = int(ws.cell(r, 13).value or 1)
+                        tot_credit = float(ws.cell(r, 15).value or 0.0)
+                        credit_sh = float(ws.cell(r, 14).value or 0.0)
+                        realized = float(ws.cell(r, 21).value or 0.0)
+                        status = str(ws.cell(r, 25).value or "OPEN").strip()
+                        
+                        excel_trips.append({
+                            "id": tid,
+                            "account": acct,
+                            "root": asset,
+                            "contracts": contracts,
+                            "credit_sh": credit_sh,
+                            "tot_credit": tot_credit,
+                            "open_date": op_date,
+                            "close_date": cl_date,
+                            "realized_pnl": realized,
+                            "status": status
+                        })
+                    if excel_trips:
+                        trips = excel_trips
+                        source_used = "excel_journal_fallback"
+            except Exception:
+                pass
+
+    closed_trades = [t for t in trips if t.get("status") in ("CLOSED_HARVESTED", "CLOSED_DEFENSIVE")]
+    open_trades = [t for t in trips if t.get("status") == "OPEN"]
+
+    # WTD Realized PnL: closed on or after start_of_week_str
+    wtd_trades = [t for t in closed_trades if (t.get("close_date") or "") >= start_of_week_str]
+    wtd_realized = round(sum(t.get("realized_pnl", 0.0) for t in wtd_trades), 2)
+
+    # MTD Realized PnL: closed on or after start_of_month_str
+    mtd_trades = [t for t in closed_trades if (t.get("close_date") or "") >= start_of_month_str]
+    mtd_realized = round(sum(t.get("realized_pnl", 0.0) for t in mtd_trades), 2)
+
+    # All-Time Realized PnL
+    all_time_realized = round(sum(t.get("realized_pnl", 0.0) for t in closed_trades), 2)
+    closed_wins = len([t for t in closed_trades if (t.get("realized_pnl") or 0.0) > 0])
+    closed_losses = len([t for t in closed_trades if (t.get("realized_pnl") or 0.0) < 0])
+    win_rate_pct = round(closed_wins / len(closed_trades) * 100.0, 1) if closed_trades else 0.0
+
+    # Velocity Targets
+    weekly_target = 1441.50
+    weekly_floor = 961.00
+    monthly_target = 5766.00
+    monthly_floor = 3844.00
+
+    wtd_target_pct = round(wtd_realized / weekly_target * 100.0, 1) if weekly_target > 0 else 0.0
+    wtd_floor_pct = round(wtd_realized / weekly_floor * 100.0, 1) if weekly_floor > 0 else 0.0
+    mtd_target_pct = round(mtd_realized / monthly_target * 100.0, 1) if monthly_target > 0 else 0.0
+    mtd_floor_pct = round(mtd_realized / monthly_floor * 100.0, 1) if monthly_floor > 0 else 0.0
+
+    # Active Premium Pipeline
+    active_pipe_credit = round(sum(t.get("tot_credit", 0.0) for t in open_trades), 2)
+    pipe_items = []
+    for t in open_trades:
+        pipe_items.append(f"{t.get('root')} {t.get('contracts')}C: +${t.get('tot_credit', 0.0):,.0f}")
+    pipe_details = " | ".join(pipe_items) if pipe_items else "No open positions"
+
+    projected_wtd = round(wtd_realized + active_pipe_credit, 2)
+    projected_target_pct = round(projected_wtd / weekly_target * 100.0, 1) if weekly_target > 0 else 0.0
+    projected_floor_pct = round(projected_wtd / weekly_floor * 100.0, 1) if weekly_floor > 0 else 0.0
+
+    # Velocity Badge
+    if wtd_realized >= weekly_target:
+        velocity_badge = "🎯 TARGET CRUSHED (≥18.0%+ PACE)"
+    elif wtd_realized >= weekly_floor:
+        velocity_badge = "🟢 FLOOR SECURED (≥12.0% PACE)"
+    elif projected_wtd >= weekly_target:
+        velocity_badge = "⚡ HIGH-VELOCITY PIPELINE (PROJECTED ≥18.0%)"
+    elif projected_wtd >= weekly_floor:
+        velocity_badge = "🛡️ ON TRACK FOR FLOOR (PROJECTED ≥12.0%)"
+    else:
+        velocity_badge = "⏳ ACCUMULATING SPREADS"
+
+    return {
+        "source": source_used,
+        "start_of_week": start_of_week_str,
+        "start_of_month": start_of_month_str,
+        "wtd_realized": wtd_realized,
+        "wtd_trades_count": len(wtd_trades),
+        "wtd_target_pct": wtd_target_pct,
+        "wtd_floor_pct": wtd_floor_pct,
+        "mtd_realized": mtd_realized,
+        "mtd_trades_count": len(mtd_trades),
+        "mtd_target_pct": mtd_target_pct,
+        "mtd_floor_pct": mtd_floor_pct,
+        "all_time_realized": all_time_realized,
+        "closed_count": len(closed_trades),
+        "closed_wins": closed_wins,
+        "closed_losses": closed_losses,
+        "win_rate_pct": win_rate_pct,
+        "active_pipe_credit": active_pipe_credit,
+        "pipe_details": pipe_details,
+        "projected_wtd": projected_wtd,
+        "projected_target_pct": projected_target_pct,
+        "projected_floor_pct": projected_floor_pct,
+        "velocity_badge": velocity_badge,
+    }
+
 def generate_and_dispatch_report():
     print("============================================================")
     print("📊 RUNNING DYNAMIC MORNING LEDGER AUDIT & SCORECARD DISPATCH")
@@ -153,6 +327,9 @@ def generate_and_dispatch_report():
             proj_grad_date_str = disp_date
             proj_grad_status_str = f"ON TRACK (Sprint: {days_rem} Days Remaining | Target: {disp_date} 🎯)"
 
+    # 1b. Fetch dynamic Realized PnL benchmarks against Weekly Velocity Speedometer
+    bench = get_realized_pnl_benchmarks(base_dir=base_dir, now_dt=now_dt)
+
     # 2. Build Scorecard Data for Live Production
     scorecard_data = {
         "timestamp": now_utc,
@@ -168,6 +345,25 @@ def generate_and_dispatch_report():
             "weekly_velocity_floor": 961.00,
             "cash_defense_floor": 11249.00,
             "max_margin_envelope": 20891.00,
+            "realized_pnl_benchmarks": {
+                "source": bench["source"],
+                "wtd_realized_pnl": bench["wtd_realized"],
+                "wtd_pacing_target": 1441.50,
+                "wtd_target_pct": bench["wtd_target_pct"],
+                "wtd_floor_pct": bench["wtd_floor_pct"],
+                "mtd_realized_pnl": bench["mtd_realized"],
+                "mtd_target_pct": bench["mtd_target_pct"],
+                "all_time_realized_pnl": bench["all_time_realized"],
+                "all_time_closed_trades": bench["closed_count"],
+                "all_time_wins": bench["closed_wins"],
+                "all_time_losses": bench["closed_losses"],
+                "all_time_win_rate_pct": bench["win_rate_pct"],
+                "active_pipeline_credit": bench["active_pipe_credit"],
+                "projected_wtd_pnl": bench["projected_wtd"],
+                "projected_target_pct": bench["projected_target_pct"],
+                "projected_floor_pct": bench["projected_floor_pct"],
+                "velocity_badge": bench["velocity_badge"]
+            },
             "quarantined_accounts": {
                 "ibkr": {"account_number": "U25439978", "equity": 2200.0, "status": "QUARANTINED_UNTOUCHED"}
             },
@@ -351,6 +547,16 @@ def generate_and_dispatch_report():
     else:
         opex_directives_str = "\n".join(opex_directives)
 
+    wtd_sign = "+" if bench['wtd_realized'] >= 0 else "-"
+    mtd_sign = "+" if bench['mtd_realized'] >= 0 else "-"
+    all_time_sign = "+" if bench['all_time_realized'] >= 0 else "-"
+    proj_sign = "+" if bench['projected_wtd'] >= 0 else "-"
+
+    wtd_str = f"{wtd_sign}${abs(bench['wtd_realized']):,.2f}"
+    mtd_str = f"{mtd_sign}${abs(bench['mtd_realized']):,.2f}"
+    all_time_str = f"{all_time_sign}${abs(bench['all_time_realized']):,.2f}"
+    proj_str = f"{proj_sign}${abs(bench['projected_wtd']):,.2f}"
+
     report_text = f"""📊 HERMES PRODUCTION LIVE REPORT — {now_ict}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -361,6 +567,9 @@ def generate_and_dispatch_report():
 • Cash Defense Floor (>=35% Permanent)      : ${cash_defense_floor:,.2f} (Liquid Defense Active 🛡️)
 • Monthly Net Cash Target (18%+ Target | >=12% Floor) : >=$5,766 / month (Min Floor: $3,844)
 • Weekly Velocity Speedometer (18%+ Pacing) : ⏱️ Pacing Target: $1,441.50/wk | Floor: $961.00/wk (≥18.0%+ Velocity)
+• Realized PnL Weekly Pacing Benchmark     : 🏁 Actual WTD: {wtd_str} / $1,441.50 ({bench['wtd_target_pct']:.1f}% Target | {bench['wtd_floor_pct']:.1f}% Floor) [{bench['velocity_badge']}]
+• Monthly & Lifetime Realized Performance   : 💵 MTD: {mtd_str} / >=$5,766 ({bench['mtd_target_pct']:.1f}%) | All-Time: {all_time_str} ({bench['closed_wins']}W/{bench['closed_losses']}L, {bench['win_rate_pct']:.1f}% WR)
+• Active Premium Pipeline (Pending Decay)  : 🌾 +${bench['active_pipe_credit']:,.2f} Max Credit ({bench['pipe_details']}) | Projected WTD: {proj_str} ({bench['projected_target_pct']:.1f}% Pacing)
 • Interactive Brokers (#U25439978)         : 🔒 QUARANTINED / 100% UNTOUCHED ($2,200.00)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
