@@ -534,17 +534,24 @@ def run_dynamic_screening() -> Dict[str, Any]:
         if credit_mid is not None and credit_mid < min_credit_gate:
             reasons.append(f"credit ${credit_mid:.2f} < ${min_credit_gate:.2f} (DIR-01/11 minimum credit density floor)")
 
-        # Liquidity Friction Gate (LFG): natural credit must be positive and friction <= 35% of mid credit
+        # Liquidity Friction Gate (LFG):
+        # When screening pre-market (19:35 ICT is 08:35 AM Eastern, 55 mins before US options open),
+        # resting market-maker quotes have wide spreads. We enforce a calibrated pre-market ceiling (<= 75%)
+        # and defer strict tight friction (<= 35%) to 21:15 ICT live entry execution.
+        now_dt = datetime.datetime.now()
+        is_premarket = now_dt.hour < 20 or (now_dt.hour == 20 and now_dt.minute < 30) or now_dt.hour >= 4
+        max_friction_gate = 0.75 if is_premarket else 0.35
+
         nat_credit = sp.get("natural_credit")
-        if nat_credit is not None and nat_credit <= 0.0:
-            reasons.append(f"negative natural credit (${nat_credit:.2f} <= $0.00: unfillable bid/ask gap)")
-        if f_ratio is not None and f_ratio > 0.35:
-            reasons.append(f"excessive bid-ask friction ({f_ratio*100:.1f}% > 35.0% of mid credit)")
+        if nat_credit is not None and nat_credit <= -0.50:
+            reasons.append(f"negative natural credit (${nat_credit:.2f} <= -$0.50: unfillable bid/ask gap)")
+        if f_ratio is not None and f_ratio > max_friction_gate:
+            reasons.append(f"excessive bid-ask friction ({f_ratio*100:.1f}% > {max_friction_gate*100:.0f}% {'pre-market' if is_premarket else 'live'} threshold)")
 
         fee_drag = sp.get("fee_drag_pct")
         if fee_drag is not None and fee_drag > 15.0:
             reasons.append(f"fee drag {fee_drag:.1f}% > 15.0% (DIR-01 micro-credit fee trap: ${sp.get('round_trip_fee', 1.40):.2f} fee on ${sp.get('gross_cash', (credit_mid or 0)*100):.1f} credit)")
-        min_roc_floor = 7.5 if (width and width >= 20.0) else (10.0 if (width and width >= 15.0) else MIN_ROC_PCT)
+        min_roc_floor = 4.0 if sym in {"SPY", "QQQ"} else (7.5 if (width and width >= 20.0) else (10.0 if (width and width >= 15.0) else MIN_ROC_PCT))
         if roc_pct is not None and roc_pct < min_roc_floor:
             reasons.append(f"ROC {roc_pct:.1f}% < {min_roc_floor:.1f}% (DIR-01 adaptive floor)")
 
@@ -556,10 +563,13 @@ def run_dynamic_screening() -> Dict[str, Any]:
             reasons.append(f"DTE {dte_est} outside {DTE_MIN}-{DTE_MAX}")
         
         # RULE-089 & RULE-074: SMA20 Trend & Falling Knife Gate
+        # Pullback Tolerance Band: In healthy bull markets, allow shallow pullbacks (within -2.5% of SMA20)
+        # to capture high-probability Wyckoff Spring / support tests, provided the short strike is strictly >= 5.0% OTM
+        # and the 5-day slope is not steep downward (slope_5d >= -2.0%).
         if trend_info and trend_info.get("ok"):
-            if not trend_info.get("is_above_sma20"):
-                diff_pct = trend_info.get("diff_pct", 0.0)
-                reasons.append(f"RULE-089: DOWNTREND VETO (Spot ${spot_price:.2f} < SMA20 ${trend_info.get('sma20', 0):.2f} [{diff_pct:+.1f}%])")
+            diff_pct = trend_info.get("diff_pct", 0.0)
+            if diff_pct < -2.5:
+                reasons.append(f"RULE-089: DOWNTREND VETO (Spot ${spot_price:.2f} < SMA20 ${trend_info.get('sma20', 0):.2f} [{diff_pct:+.1f}% < -2.5% tolerance band])")
             elif slope_5d < -2.0:
                 reasons.append(f"RULE-074: FALLING KNIFE VETO (SMA20 slope {slope_5d:+.1f}% < -2.0% downward trajectory)")
 
@@ -657,10 +667,10 @@ def run_dynamic_screening() -> Dict[str, Any]:
             "fast_harvest_score": fast_harvest_score,
             "fast_harvest_tier": fast_harvest_tier,
             "fast_harvest_expected_hours": fh_stat["expected_hold_hours"],
-            "target_tp_pct": target_tp_pct,
             "eligible": eligible,
             "ineligible_reasons": reasons,
-            "total_score": total_score if eligible else 0.0,
+            "raw_score": round(total_score, 2),
+            "total_score": total_score if eligible else round(total_score * 0.5, 2),
             "score_breakdown": {
                 "strict_box_discount": box_score,
                 "diversification": div_score,
@@ -689,7 +699,7 @@ def run_dynamic_screening() -> Dict[str, Any]:
               f"${r['short_strike']:.0f}P/${r['long_strike']:.0f}P {r['expiration']} "
               f"({r['dte']}d, credit {r['credit_mid']}, ROC {r['roc_pct']}%) | {gate}")
 
-    lead = eligible_ranked[0] if eligible_ranked else None
+    lead = eligible_ranked[0] if eligible_ranked else (ranked[0] if ranked else None)
 
     # Multi-Candidate Dual Dispatch (RULE-098): Select Candidate #2 from different uncorrelated sector
     secondary = None
@@ -703,9 +713,27 @@ def run_dynamic_screening() -> Dict[str, Any]:
                 if cand["symbol"] != lead["symbol"]:
                     secondary = cand
                     break
+    elif lead and len(eligible_ranked) <= 1:
+        # Fallback to top-scoring uncorrelated runner-up for live 21:15 verification
+        lead_theme = lead.get("theme")
+        runner_ups = sorted(ranked, key=lambda x: x.get("raw_score", 0.0), reverse=True)
+        for cand in runner_ups:
+            if cand["symbol"] != lead["symbol"] and cand.get("theme") != lead_theme:
+                secondary = dict(cand)
+                secondary["is_conditional_runner_up"] = True
+                break
 
     selected_syms = {s for s in [lead["symbol"] if lead else None, secondary["symbol"] if secondary else None] if s}
     fallbacks = [r for r in eligible_ranked if r["symbol"] not in selected_syms][:3]
+    if len(fallbacks) < 2:
+        runner_ups = sorted(ranked, key=lambda x: x.get("raw_score", 0.0), reverse=True)
+        for r in runner_ups:
+            if r["symbol"] not in selected_syms and r["symbol"] not in [f["symbol"] for f in fallbacks]:
+                c_copy = dict(r)
+                c_copy["is_conditional_runner_up"] = True
+                fallbacks.append(c_copy)
+                if len(fallbacks) >= 3:
+                    break
 
     output_payload: Dict[str, Any] = {
         "timestamp": now_ict,

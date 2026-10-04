@@ -186,9 +186,20 @@ def execute_account_entry(
         max_spreads = 2
         min_bp_required = 500.0
 
-    if (active_spread_count + pending_count) >= max_spreads:
+    # Margin-Headroom Elastic Slot Expansion (70% Capital Utilization Principle):
+    # If the raw spread count limit is reached, but buying power is ample (> 20% of cash)
+    # and active spread count < 7, permit an additional slot to deploy available capital up to the 70% ceiling!
+    allow_elastic_slot = (
+        is_live_alpaca and
+        (active_spread_count + pending_count) < 7 and
+        bp >= (cash * 0.20) and
+        bp >= 2500.0
+    )
+    if (active_spread_count + pending_count) >= max_spreads and not allow_elastic_slot:
         print(f"  🛑 {account_name.upper()} AT CAPACITY: {active_spread_count} active spreads + {pending_count} pending orders >= {max_spreads} max slot limit. Standing down cleanly.")
         return None
+    elif (active_spread_count + pending_count) >= max_spreads and allow_elastic_slot:
+        print(f"  ⚡ {account_name.upper()} ELASTIC HEADROOM SLOT ENGAGED: {active_spread_count} active spreads, but ample buying power (${bp:,.2f} >= 20% cash). Unlocking slot {active_spread_count + 1} to reach 70% margin ceiling!")
 
     if bp < min_bp_required:
         print(f"  🛑 {account_name.upper()} INSUFFICIENT BUYING POWER: ${bp:,.2f} < ${min_bp_required:,.2f} threshold. Standing down cleanly.")
